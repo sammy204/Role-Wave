@@ -46,53 +46,55 @@ export default function JobCard({ job }: JobCardProps) {
   return (
     <Link
       to={`/jobs/${job.slug}`}
-      className={`flex gap-3 sm:gap-4 items-start p-4 sm:p-5 bg-white rounded-xl border transition-all hover:border-[#5DCAA5] hover:shadow-[0_2px_12px_rgba(29,158,117,0.08)] cursor-pointer ${
+      className={`group flex gap-3 sm:gap-4 items-start rounded-2xl border bg-white p-4 sm:p-5 transition-all duration-200 hover:-translate-y-[2px] hover:border-[#5DCAA5] hover:shadow-[0_16px_34px_rgba(29,158,117,0.08)] cursor-pointer ${
         isFeatured ? 'border-[#5DCAA5]' : 'border-[#D3D1C7]'
       }`}
     >
       <div
-        className={`w-10 h-10 sm:w-11 sm:h-11 rounded-[10px] flex-shrink-0 flex items-center justify-center text-[11px] sm:text-[13px] font-bold ${color.bg} ${color.text}`}
+        className={`w-10 h-10 sm:w-11 sm:h-11 rounded-[14px] flex-shrink-0 flex items-center justify-center text-[11px] sm:text-[13px] font-bold ring-1 ring-black/5 ${color.bg} ${color.text}`}
       >
         {company?.logo_initials || '??'}
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between mb-1">
+        <div className="flex items-start justify-between gap-3 mb-1">
           <div className="min-w-0 pr-2">
-            <div className="text-sm sm:text-[15px] font-semibold text-[#1A1A1A] truncate">{job.title}</div>
-            <div className="text-xs sm:text-[13px] text-[#5F5E5A]">
+            <div className="text-[15px] sm:text-[16px] font-semibold text-[#1A1A1A] truncate group-hover:text-[#085041]">
+              {job.title}
+            </div>
+            <div className="mt-0.5 text-xs sm:text-[13px] text-[#5F5E5A]">
               {company?.name || 'Unknown'} · {job.location}
             </div>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             {isFeatured && (
-              <span className="hidden sm:flex items-center gap-1 text-[11px] font-semibold bg-[#FFF8E6] text-[#7A5000] px-[9px] py-[3px] rounded-[10px] border border-[#F0D080] whitespace-nowrap">
+              <span className="hidden sm:flex items-center gap-1 rounded-full border border-[#F0D080] bg-[#FFF8E6] px-[9px] py-[3px] text-[11px] font-semibold whitespace-nowrap text-[#7A5000]">
                 <Star size={10} /> Featured
               </span>
             )}
             {isNew(job.created_at) && (
-              <span className="text-[10px] sm:text-[11px] font-semibold bg-[#E1F5EE] text-[#085041] px-2 sm:px-[9px] py-[3px] rounded-[10px] border border-[#5DCAA5] whitespace-nowrap">
+              <span className="rounded-full border border-[#5DCAA5] bg-[#E1F5EE] px-2 sm:px-[9px] py-[3px] text-[10px] sm:text-[11px] font-semibold whitespace-nowrap text-[#085041]">
                 New
               </span>
             )}
           </div>
         </div>
 
-        <div className="flex gap-[6px] flex-wrap mt-2 sm:mt-2.5">
+        <div className="mt-2.5 flex flex-wrap gap-2 sm:mt-3">
           <span
-            className={`text-[10px] sm:text-xs px-2 sm:px-[10px] py-[3px] rounded-[10px] font-medium ${
+            className={`rounded-full px-2.5 py-[4px] text-[10px] sm:text-xs font-semibold ${
               workTypeColors[job.work_type] || 'bg-[#F1EFE8] text-[#5F5E5A]'
             }`}
           >
             {job.work_type}
           </span>
-          <span className="text-[10px] sm:text-xs px-2 sm:px-[10px] py-[3px] rounded-[10px] font-medium bg-[#F1EFE8] text-[#5F5E5A]">
+          <span className="rounded-full bg-[#F1EFE8] px-2.5 py-[4px] text-[10px] sm:text-xs font-semibold text-[#5F5E5A]">
             {job.job_type}
           </span>
           {job.tags?.slice(0, 3).map((tag) => (
             <span
               key={tag}
-              className="hidden sm:inline text-xs px-[10px] py-[3px] rounded-[10px] font-medium bg-[#F1EFE8] text-[#5F5E5A]"
+              className="hidden rounded-full bg-[#F1EFE8] px-[10px] py-[4px] text-xs font-semibold text-[#5F5E5A] sm:inline"
             >
               {tag}
             </span>
@@ -100,7 +102,7 @@ export default function JobCard({ job }: JobCardProps) {
         </div>
       </div>
 
-      <div className="hidden sm:block text-[11px] text-[#B4B2A9] flex-shrink-0 self-start whitespace-nowrap ml-2">
+      <div className="hidden shrink-0 self-start whitespace-nowrap pt-0.5 text-[11px] text-[#B4B2A9] sm:block">
         {timeAgo(job.created_at)}
       </div>
     </Link>

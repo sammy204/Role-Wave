@@ -205,16 +205,16 @@ export default function JobListings() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F1EFE8]">
-      <div className="flex items-center gap-2 px-4 sm:px-10 py-3 border-b border-[#D3D1C7] bg-white">
+    <div className="page-shell">
+      <div className="mx-auto flex w-full max-w-[1320px] items-center gap-2 px-4 py-3 sm:px-6 lg:px-8">
         <Link
           to="/"
-          className="flex items-center gap-1 text-[13px] text-[#5F5E5A] hover:text-[#1A1A1A] transition-colors"
+          className="flex items-center gap-1 rounded-full border border-[#D3D1C7] bg-white px-3 py-2 text-[13px] text-[#5F5E5A] transition-colors hover:text-[#1A1A1A]"
         >
           <ArrowLeft size={14} /> <span className="hidden sm:inline">Home</span>
         </Link>
         <div className="flex-1" />
-        <div className="flex items-center bg-[#F1EFE8] rounded-lg px-3 py-2 max-w-sm">
+        <div className="flex items-center rounded-full border border-[#D3D1C7] bg-white px-3 py-2 max-w-sm shadow-[0_6px_18px_rgba(26,26,26,0.03)]">
           <Search size={14} className="text-[#B4B2A9] mr-2" />
           <input
             type="text"
@@ -226,7 +226,7 @@ export default function JobListings() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 px-4 sm:px-10 py-3 border-b border-[#D3D1C7] bg-white overflow-x-auto">
+      <div className="mx-auto flex w-full max-w-[1320px] items-center gap-2 overflow-x-auto px-4 py-3 sm:px-6 lg:px-8">
         {initialQ && (
           <span className="text-sm font-semibold text-[#1A1A1A] whitespace-nowrap hidden sm:inline">
             Results for <span className="text-[#1D9E75]">"{initialQ}"</span>
@@ -238,10 +238,10 @@ export default function JobListings() {
           <button
             key={chip}
             onClick={() => setActiveChip(chip)}
-            className={`px-4 py-[6px] rounded-[20px] text-[13px] font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
+            className={`flex-shrink-0 rounded-full px-4 py-[8px] text-[13px] font-semibold whitespace-nowrap transition-all duration-200 ${
               activeChip === chip
                 ? 'bg-[#E1F5EE] text-[#085041] border border-[#5DCAA5]'
-                : 'bg-white text-[#5F5E5A] border border-[#D3D1C7] hover:border-[#5DCAA5]'
+                : 'bg-white text-[#5F5E5A] border border-[#D3D1C7] hover:border-[#5DCAA5] shadow-[0_6px_18px_rgba(26,26,26,0.03)]'
             }`}
           >
             {chip}
@@ -251,7 +251,7 @@ export default function JobListings() {
           {filteredJobs.length} jobs found
         </span>
         <button
-          className="sm:hidden flex items-center gap-1 text-[13px] text-[#5F5E5A] border border-[#D3D1C7] px-3 py-[6px] rounded-[20px]"
+          className="sm:hidden flex items-center gap-1 rounded-full border border-[#D3D1C7] bg-white px-3 py-[6px] text-[13px] text-[#5F5E5A]"
           onClick={() => setShowMobileFilters(true)}
         >
           <SlidersHorizontal size={14} /> Filters
@@ -276,23 +276,23 @@ export default function JobListings() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] min-h-[500px]">
-        <div className="hidden lg:block border-r border-[#D3D1C7] bg-white">
+      <div className="mx-auto grid min-h-[500px] w-full max-w-[1320px] grid-cols-1 gap-4 px-4 pb-8 sm:px-6 lg:grid-cols-[260px_1fr] lg:px-8">
+        <div className="hidden overflow-hidden rounded-[24px] panel-soft lg:block">
           <FilterSection />
         </div>
 
-        <div className="p-3 sm:p-5 bg-[#F1EFE8]">
+        <div className="min-w-0">
           {loading ? (
-            <div className="text-center py-20 text-[#5F5E5A]">Loading jobs...</div>
+            <div className="panel rounded-[24px] py-20 text-center text-[#5F5E5A]">Loading jobs...</div>
           ) : error ? (
-            <div className="max-w-xl mx-auto text-center py-20">
+            <div className="panel mx-auto max-w-xl rounded-[24px] py-20 text-center">
               <div className="text-lg font-semibold text-[#1A1A1A] mb-2">Could not load jobs</div>
               <div className="text-sm text-[#5F5E5A]">{error}</div>
             </div>
           ) : filteredJobs.length === 0 ? (
-            <div className="text-center py-20 text-[#5F5E5A]">No jobs found matching your criteria.</div>
+            <div className="panel rounded-[24px] py-20 text-center text-[#5F5E5A]">No jobs found matching your criteria.</div>
           ) : (
-            <div className="space-y-2 sm:space-y-2.5">
+            <div className="space-y-3 sm:space-y-3.5">
               {filteredJobs.map((job) => (
                 <JobCard key={job.id} job={job} />
               ))}

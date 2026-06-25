@@ -1,3 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply min-h-screen text-[#1A1A1A] antialiased;
+    font-family: 'Manrope', sans-serif;
+    background:
+      radial-gradient(circle at top left, rgba(29, 158, 117, 0.08), transparent 28%),
+      radial-gradient(circle at top right, rgba(94, 153, 255, 0.06), transparent 22%),
+      linear-gradient(180deg, #f7f5f0 0%, #f1efe8 28%, #f1efe8 100%);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  .font-display {
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: -0.03em;
+  }
+
+  ::selection {
+    background: rgba(29, 158, 117, 0.18);
+    color: #1a1a1a;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+}
+
+@layer components {
+  .page-shell {
+    @apply min-h-screen flex flex-col;
+  }
+
+  .panel {
+    @apply bg-white border border-[#D3D1C7] shadow-[0_10px_30px_rgba(26,26,26,0.04)];
+  }
+
+  .panel-soft {
+    @apply bg-white/70 border border-white/70 backdrop-blur;
+    box-shadow: 0 10px 30px rgba(26, 26, 26, 0.04);
+  }
+
+  .section-label {
+    @apply text-[11px] font-bold uppercase tracking-[1.6px] text-[#B4B2A9];
+  }
+
+  .page-title {
+    @apply text-[30px] sm:text-[42px] font-bold leading-[1.08];
+  }
+
+  .page-subtitle {
+    @apply text-sm sm:text-base leading-relaxed text-[#5F5E5A];
+  }
+
+  .ghost-chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-[#D3D1C7] bg-white px-3.5 py-2 text-sm font-medium text-[#5F5E5A] transition-all duration-200;
+  }
+
+  .ghost-chip:hover {
+    @apply border-[#5DCAA5] text-[#1A1A1A];
+    box-shadow: 0 8px 22px rgba(29, 158, 117, 0.08);
+  }
+
+  .primary-chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-[#5DCAA5] bg-[#E1F5EE] px-3.5 py-2 text-sm font-semibold text-[#085041];
+  }
+
+  .field-shell {
+    @apply w-full rounded-xl border border-[#D3D1C7] bg-white px-3.5 py-3 text-sm text-[#1A1A1A] outline-none transition-colors duration-200;
+  }
+
+  .field-shell:focus {
+    @apply border-[#1D9E75];
+    box-shadow: 0 0 0 4px rgba(29, 158, 117, 0.12);
+  }
+
+  .admin-input {
+    @apply field-shell;
+  }
+}

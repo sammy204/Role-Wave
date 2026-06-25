@@ -39,7 +39,7 @@ export default function JobDetail() {
       setError('');
 
       try {
-        const { data: data, error: jobError } = await withTimeout(
+        const { data, error: jobError } = await withTimeout(
           supabase
             .from('jobs')
             .select('*')
@@ -79,31 +79,35 @@ export default function JobDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F1EFE8]">
-        <div className="text-[#5F5E5A]">Loading...</div>
+      <div className="page-shell items-center justify-center">
+        <div className="panel rounded-2xl px-4 py-3 text-center text-[#5F5E5A]">Loading...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#F1EFE8] px-4">
-        <div className="text-[#1A1A1A] text-xl font-semibold mb-2">Could not load job</div>
-        <div className="text-[#5F5E5A] text-sm text-center max-w-md mb-4">{error}</div>
-        <Link to="/jobs" className="text-[#1D9E75] hover:underline">
-          Browse all jobs
-        </Link>
+      <div className="page-shell items-center justify-center px-4">
+        <div className="panel max-w-md rounded-[24px] p-6 text-center">
+          <div className="mb-2 text-xl font-semibold text-[#1A1A1A]">Could not load job</div>
+          <div className="mb-4 text-sm text-[#5F5E5A]">{error}</div>
+          <Link to="/jobs" className="text-[#1D9E75] hover:underline">
+            Browse all jobs
+          </Link>
+        </div>
       </div>
     );
   }
 
   if (!job) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#F1EFE8] px-4">
-        <div className="text-[#1A1A1A] text-xl font-semibold mb-2">Job not found</div>
-        <Link to="/jobs" className="text-[#1D9E75] hover:underline">
-          Browse all jobs
-        </Link>
+      <div className="page-shell items-center justify-center px-4">
+        <div className="panel max-w-md rounded-[24px] p-6 text-center">
+          <div className="mb-2 text-xl font-semibold text-[#1A1A1A]">Job not found</div>
+          <Link to="/jobs" className="text-[#1D9E75] hover:underline">
+            Browse all jobs
+          </Link>
+        </div>
       </div>
     );
   }
@@ -111,116 +115,104 @@ export default function JobDetail() {
   const company = job.company;
   const color = company ? colorMap[company.avatar_color] || colorMap.teal : colorMap.teal;
 
-  const requirements = job.requirements
-    ? job.requirements.split('\n').filter((r) => r.trim().length > 0)
-    : [];
-  const whatYoullDo = job.what_youll_do
-    ? job.what_youll_do.split('\n').filter((r) => r.trim().length > 0)
-    : [];
+  const requirements = job.requirements ? job.requirements.split('\n').filter((r) => r.trim().length > 0) : [];
+  const whatYoullDo = job.what_youll_do ? job.what_youll_do.split('\n').filter((r) => r.trim().length > 0) : [];
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F1EFE8]">
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] flex-1">
-        <div className="px-4 sm:px-10 py-6 sm:py-8 lg:border-r border-[#D3D1C7]">
+    <div className="page-shell">
+      <div className="mx-auto grid w-full max-w-[1320px] flex-1 grid-cols-1 gap-4 px-4 pb-8 pt-6 sm:px-6 lg:grid-cols-[1fr_320px] lg:px-8">
+        <div className="panel rounded-[28px] px-4 py-6 sm:px-6 sm:py-8 lg:rounded-[32px]">
           <Link
             to="/jobs"
-            className="inline-flex items-center gap-1 text-[13px] text-[#5F5E5A] hover:text-[#1A1A1A] mb-4 sm:mb-6 transition-colors"
+            className="mb-4 inline-flex items-center gap-1 rounded-full border border-[#D3D1C7] bg-white px-3 py-2 text-[13px] text-[#5F5E5A] transition-colors hover:text-[#1A1A1A] sm:mb-6"
           >
             <ArrowLeft size={14} /> Back to jobs
           </Link>
 
-          <div className="flex items-center gap-3 sm:gap-3.5 mb-4">
+          <div className="mb-4 flex items-center gap-3 sm:gap-3.5">
             <div
-              className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-[14px] flex items-center justify-center text-[15px] sm:text-[17px] font-bold ${color.bg} ${color.text}`}
+              className={`flex h-12 w-12 items-center justify-center rounded-2xl text-[15px] font-bold ring-1 ring-black/5 sm:h-14 sm:w-14 sm:text-[17px] ${color.bg} ${color.text}`}
             >
               {company?.logo_initials || '??'}
             </div>
             <div>
-              <h2 className="text-lg sm:text-[22px] font-bold text-[#1A1A1A] mb-0.5">{job.title}</h2>
-              <p className="text-xs sm:text-sm text-[#5F5E5A]">
+              <h1 className="font-display text-[22px] font-bold text-[#1A1A1A] sm:text-[28px]">{job.title}</h1>
+              <p className="text-xs text-[#5F5E5A] sm:text-sm">
                 {company?.name || 'Unknown'} · {job.location}
               </p>
             </div>
           </div>
 
           {company?.verified && (
-            <div className="inline-flex items-center gap-[5px] bg-[#E1F5EE] text-[#085041] text-xs font-semibold px-3 py-[5px] rounded-[10px] mb-4 sm:mb-5">
-              <CheckCircle size={12} /> Verified by Career Connect
+            <div className="mb-4 inline-flex items-center gap-[5px] rounded-full border border-[#5DCAA5] bg-[#E1F5EE] px-3 py-[5px] text-xs font-semibold text-[#085041] sm:mb-5">
+              <CheckCircle size={12} /> Verified by RoleWave
             </div>
           )}
 
-          <div className="flex gap-2 flex-wrap mb-6 sm:mb-7">
-            <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-[10px] font-medium bg-[#E1F5EE] text-[#085041]">
+          <div className="mb-6 flex flex-wrap gap-2 sm:mb-7">
+            <span className="flex items-center gap-1 rounded-full border border-[#5DCAA5] bg-[#E1F5EE] px-2.5 py-1 text-xs font-semibold text-[#085041]">
               <MapPin size={12} /> {job.location}
             </span>
-            <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-[10px] font-medium bg-[#E1F5EE] text-[#085041]">
+            <span className="flex items-center gap-1 rounded-full border border-[#5DCAA5] bg-[#E1F5EE] px-2.5 py-1 text-xs font-semibold text-[#085041]">
               <Home size={12} /> {job.work_type}
             </span>
-            <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-[10px] font-medium bg-[#F1EFE8] text-[#5F5E5A]">
+            <span className="flex items-center gap-1 rounded-full border border-[#D3D1C7] bg-[#F1EFE8] px-2.5 py-1 text-xs font-semibold text-[#5F5E5A]">
               <Briefcase size={12} /> {job.job_type}
             </span>
-            <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-[10px] font-medium bg-[#F1EFE8] text-[#5F5E5A]">
+            <span className="flex items-center gap-1 rounded-full border border-[#D3D1C7] bg-[#F1EFE8] px-2.5 py-1 text-xs font-semibold text-[#5F5E5A]">
               <Clock size={12} /> Posted {timeAgo(job.created_at)}
             </span>
           </div>
 
-          <div className="mb-6">
-            <h3 className="text-xs font-bold text-[#B4B2A9] tracking-[1px] uppercase mb-3">
-              About this role
-            </h3>
+          <div className="mb-6 rounded-[24px] border border-[#D3D1C7] bg-[#FBFAF7] p-4 sm:p-5">
+            <h2 className="mb-3 text-xs font-bold uppercase tracking-[1px] text-[#B4B2A9]">About this role</h2>
             {job.description.split('\n\n').map((para, i) => (
-              <p key={i} className="text-sm text-[#5F5E5A] leading-[1.7] mb-2">
+              <p key={i} className="mb-2 text-sm leading-[1.8] text-[#5F5E5A] last:mb-0">
                 {para}
               </p>
             ))}
           </div>
 
           {whatYoullDo.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-xs font-bold text-[#B4B2A9] tracking-[1px] uppercase mb-3">
-                What you'll do
-              </h3>
+            <div className="mb-6 rounded-[24px] border border-[#D3D1C7] bg-white p-4 sm:p-5">
+              <h2 className="mb-3 text-xs font-bold uppercase tracking-[1px] text-[#B4B2A9]">What you'll do</h2>
               {whatYoullDo.map((item, i) => (
-                <div key={i} className="flex gap-2.5 items-start mb-2">
-                  <div className="w-[5px] h-[5px] rounded-full bg-[#1D9E75] mt-[7px] flex-shrink-0" />
-                  <div className="text-sm text-[#5F5E5A] leading-[1.5]">{item}</div>
+                <div key={i} className="mb-2 flex items-start gap-2.5 last:mb-0">
+                  <div className="mt-[7px] h-[5px] w-[5px] flex-shrink-0 rounded-full bg-[#1D9E75]" />
+                  <div className="text-sm leading-[1.6] text-[#5F5E5A]">{item}</div>
                 </div>
               ))}
             </div>
           )}
 
           {requirements.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-xs font-bold text-[#B4B2A9] tracking-[1px] uppercase mb-3">
-                Requirements
-              </h3>
+            <div className="mb-6 rounded-[24px] border border-[#D3D1C7] bg-white p-4 sm:p-5">
+              <h2 className="mb-3 text-xs font-bold uppercase tracking-[1px] text-[#B4B2A9]">Requirements</h2>
               {requirements.map((item, i) => (
-                <div key={i} className="flex gap-2.5 items-start mb-2">
-                  <div className="w-[5px] h-[5px] rounded-full bg-[#1D9E75] mt-[7px] flex-shrink-0" />
-                  <div className="text-sm text-[#5F5E5A] leading-[1.5]">{item}</div>
+                <div key={i} className="mb-2 flex items-start gap-2.5 last:mb-0">
+                  <div className="mt-[7px] h-[5px] w-[5px] flex-shrink-0 rounded-full bg-[#1D9E75]" />
+                  <div className="text-sm leading-[1.6] text-[#5F5E5A]">{item}</div>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        <div className="px-4 sm:px-6 py-6 sm:py-7 bg-white border-t lg:border-t-0 lg:border-l border-[#D3D1C7]">
-          <div className="bg-[#1D9E75] rounded-xl p-5 mb-3.5">
-            <h3 className="text-[15px] font-bold text-white mb-1">Ready to apply?</h3>
-            <p className="text-xs text-white/65 mb-4">
-              Takes about 5 minutes on the company's careers page.
-            </p>
+        <div className="rounded-[28px] panel-soft px-4 py-6 sm:px-6 sm:py-7">
+          <div className="mb-3.5 rounded-[24px] bg-[#1D9E75] p-5 shadow-[0_16px_30px_rgba(29,158,117,0.18)]">
+            <h2 className="mb-1 text-[15px] font-bold text-white">Ready to apply?</h2>
+            <p className="mb-4 text-xs text-white/65">Takes about 5 minutes on the company's careers page.</p>
             <a
               href={job.company?.website || '#'}
               target="_blank"
               rel="noopener noreferrer"
-              className="block w-full bg-white text-[#1D9E75] py-3 rounded-lg text-sm font-bold text-center hover:bg-gray-50 transition-colors"
+              className="block w-full rounded-xl bg-white py-3 text-center text-sm font-bold text-[#1D9E75] transition-colors hover:bg-gray-50"
             >
               Apply for this role →
             </a>
             <button
               onClick={handleShare}
-              className="w-full bg-transparent text-white/70 border border-white/25 py-2.5 rounded-lg text-[13px] mt-2 hover:bg-white/10 transition-colors flex items-center justify-center gap-2"
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-white/25 bg-transparent py-2.5 text-[13px] text-white/70 transition-colors hover:bg-white/10"
             >
               <Share2 size={14} /> {showCopied ? 'Copied!' : 'Share this job'}
             </button>
@@ -228,25 +220,25 @@ export default function JobDetail() {
 
           <div className="h-4" />
 
-          <div className="flex justify-between py-2.5 border-b border-[#D3D1C7]">
+          <div className="flex justify-between border-b border-[#D3D1C7] py-2.5">
             <span className="text-[13px] text-[#B4B2A9]">Location</span>
             <span className="text-[13px] font-medium text-[#1A1A1A]">{job.location}</span>
           </div>
-          <div className="flex justify-between py-2.5 border-b border-[#D3D1C7]">
+          <div className="flex justify-between border-b border-[#D3D1C7] py-2.5">
             <span className="text-[13px] text-[#B4B2A9]">Work type</span>
             <span className="text-[13px] font-medium text-[#1A1A1A]">{job.work_type}</span>
           </div>
-          <div className="flex justify-between py-2.5 border-b border-[#D3D1C7]">
+          <div className="flex justify-between border-b border-[#D3D1C7] py-2.5">
             <span className="text-[13px] text-[#B4B2A9]">Job type</span>
             <span className="text-[13px] font-medium text-[#1A1A1A]">{job.job_type}</span>
           </div>
-          <div className="flex justify-between py-2.5 border-b border-[#D3D1C7]">
+          <div className="flex justify-between border-b border-[#D3D1C7] py-2.5">
             <span className="text-[13px] text-[#B4B2A9]">Posted</span>
             <span className="text-[13px] font-medium text-[#1A1A1A]">{timeAgo(job.created_at)}</span>
           </div>
           <div className="flex justify-between py-2.5">
             <span className="text-[13px] text-[#B4B2A9]">Verified</span>
-            <span className="text-[13px] font-medium text-[#1D9E75]">✓ Yes</span>
+            <span className="text-[13px] font-medium text-[#1D9E75]">Yes</span>
           </div>
         </div>
       </div>

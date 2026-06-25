@@ -545,11 +545,10 @@ export default function AdminDashboard() {
               <BadgeCheck size={12} /> Admin dashboard
             </div>
             <h1 className="text-3xl sm:text-4xl font-bold text-[#1A1A1A] tracking-[-0.02em]">
-              Manage jobs, submissions, and live listings.
+              Welcome, {profile?.full_name || 'Admin'}.
             </h1>
             <p className="text-sm sm:text-base text-[#5F5E5A] mt-2 max-w-xl leading-relaxed">
-              Signed in as {profile?.full_name || 'Admin'}. Review submissions, post jobs directly,
-              and keep the board tidy without leaving this screen.
+              Review submissions, publish jobs, and keep the board running smoothly.
             </p>
           </div>
 
