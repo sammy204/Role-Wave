@@ -85,6 +85,21 @@ function formatStatus(status: string) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
+function getWelcomeName(profile: Profile | null, email: string) {
+  const rawName = profile?.full_name?.trim();
+  const source = rawName || email.split('@')[0] || '';
+  const firstPart = source
+    .replace(/[._-]+/g, ' ')
+    .trim()
+    .split(/\s+/)[0];
+
+  if (!firstPart) {
+    return 'Admin';
+  }
+
+  return firstPart.charAt(0).toUpperCase() + firstPart.slice(1).toLowerCase();
+}
+
 const emptyCreateForm = {
   jobTitle: '',
   companyName: '',
@@ -106,6 +121,7 @@ export default function AdminDashboard() {
   const mountedRef = useRef(true);
 
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [authEmail, setAuthEmail] = useState('');
   const [submissions, setSubmissions] = useState<JobSubmission[]>([]);
   const [jobs, setJobs] = useState<(Job & { company?: Company })[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -141,6 +157,8 @@ export default function AdminDashboard() {
           navigate('/admin/login', { replace: true });
           return;
         }
+
+        setAuthEmail(session.user.email || '');
 
         const nextProfile = await fetchProfile(session.user.id);
         if (!nextProfile?.is_admin) {
@@ -520,10 +538,7 @@ export default function AdminDashboard() {
   };
 
   const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut({ scope: 'local' });
-    if (error) {
-      setError(error.message);
-    }
+    await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
     navigate('/admin/login', { replace: true });
   };
 
@@ -548,7 +563,7 @@ export default function AdminDashboard() {
               <BadgeCheck size={12} /> Admin dashboard
             </div>
             <h1 className="text-3xl sm:text-4xl font-bold text-[#1A1A1A] tracking-[-0.02em]">
-              Welcome, {profile?.full_name || 'Admin'}.
+              Welcome, {getWelcomeName(profile, authEmail)}.
             </h1>
             <p className="text-sm sm:text-base text-[#5F5E5A] mt-2 max-w-xl leading-relaxed">
               Review submissions, publish jobs, and keep the board running smoothly.
