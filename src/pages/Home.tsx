@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -57,6 +57,8 @@ export default function Home() {
     'Remote only',
   ]);
   const [email, setEmail] = useState('');
+  const [subscriptionState, setSubscriptionState] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [subscriptionMessage, setSubscriptionMessage] = useState('');
   const [topCompanies, setTopCompanies] = useState<Company[]>([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
@@ -176,6 +178,40 @@ export default function Home() {
     if (cityFilter !== 'All cities') params.set('city', cityFilter);
     if (typeFilter !== 'All types') params.set('type', typeFilter);
     navigate(`/jobs?${params.toString()}`);
+  };
+
+  const handleSubscribe = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setSubscriptionState('error');
+      setSubscriptionMessage('Please enter your email address.');
+      return;
+    }
+
+    setSubscriptionState('saving');
+    setSubscriptionMessage('');
+
+    const { error } = await supabase.from('email_subscriptions').insert({
+      email: normalizedEmail,
+    });
+
+    if (error) {
+      if (error.code === '23505') {
+        setSubscriptionState('success');
+        setSubscriptionMessage('You are already subscribed.');
+        return;
+      }
+
+      setSubscriptionState('error');
+      setSubscriptionMessage(error.message || 'Could not save your subscription.');
+      return;
+    }
+
+    setSubscriptionState('success');
+    setSubscriptionMessage('You are subscribed. We will send you new job alerts.');
+    setEmail('');
   };
 
   const toggleWorkType = (label: string) => {
@@ -495,7 +531,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="panel rounded-[20px] p-4 mb-3.5">
+          <form className="panel rounded-[20px] p-4 mb-3.5" onSubmit={handleSubscribe}>
             <div className="text-[13px] font-semibold text-[#1A1A1A] mb-3">Get job alerts</div>
             <input
               type="email"
@@ -504,10 +540,23 @@ export default function Home() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            <button className="w-full rounded-lg bg-[#1D9E75] py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[#168a63]">
-              Notify me
+            <button
+              type="submit"
+              disabled={subscriptionState === 'saving'}
+              className="w-full rounded-lg bg-[#1D9E75] py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[#168a63] disabled:opacity-60"
+            >
+              {subscriptionState === 'saving' ? 'Saving...' : 'Notify me'}
             </button>
-          </div>
+            {subscriptionMessage && (
+              <div
+                className={`mt-2 text-[12px] ${
+                  subscriptionState === 'success' ? 'text-[#085041]' : 'text-[#A15A00]'
+                }`}
+              >
+                {subscriptionMessage}
+              </div>
+            )}
+          </form>
 
           <div className="panel rounded-[20px] p-4">
             <div className="text-[13px] font-semibold text-[#1A1A1A] mb-3">Top companies</div>
