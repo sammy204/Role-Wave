@@ -520,7 +520,10 @@ export default function AdminDashboard() {
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
+    if (error) {
+      setError(error.message);
+    }
     navigate('/admin/login', { replace: true });
   };
 
