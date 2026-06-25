@@ -6,7 +6,7 @@ import { withTimeout } from '../lib/withTimeout';
 import type { Job, Company } from '../types';
 import JobCard from '../components/JobCard';
 
-const FETCH_TIMEOUT_MS = 10000;
+const FETCH_TIMEOUT_MS = 25000;
 
 const chipOptions = ['All jobs', 'Remote', 'Hybrid', 'Full-time', 'Contract', 'Internship'];
 
