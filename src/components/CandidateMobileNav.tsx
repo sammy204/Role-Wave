@@ -11,36 +11,66 @@ export default function CandidateMobileNav() {
   const { session, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
+  const [isPwa, setIsPwa] = useState(false);
+
+  useEffect(() => {
+    const updatePwaState = () => {
+      const standalone = window.matchMedia('(display-mode: standalone)').matches;
+      const iosStandalone = typeof window !== 'undefined' && 'standalone' in window.navigator && Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
+      setIsPwa(standalone || iosStandalone);
+    };
+
+    updatePwaState();
+
+    const mediaQuery = window.matchMedia('(display-mode: standalone)');
+    mediaQuery.addEventListener?.('change', updatePwaState);
+
+    return () => {
+      mediaQuery.removeEventListener?.('change', updatePwaState);
+    };
+  }, []);
 
   useEffect(() => {
     if (authLoading) return;
 
     let alive = true;
 
-    async function loadProfile() {
-      if (!session) {
-        if (alive) {
-          setProfile(null);
-          setSessionReady(true);
-        }
-        return;
-      }
-
-      const nextProfile = await fetchProfile(session.user.id);
+    if (!session) {
       if (alive) {
-        setProfile(nextProfile);
+        setProfile(null);
         setSessionReady(true);
       }
+      return;
     }
 
-    loadProfile();
+    if (alive) {
+      setProfile(null);
+      setSessionReady(true);
+    }
+
+    void (async () => {
+      try {
+        const nextProfile = await fetchProfile(session.user.id);
+        if (alive) {
+          setProfile(nextProfile);
+        }
+      } catch {
+        if (alive) {
+          setProfile(null);
+        }
+      }
+    })();
 
     return () => {
       alive = false;
     };
   }, [authLoading, session]);
 
-  if (!sessionReady || !session || profile?.account_type !== 'candidate') {
+  if (!isPwa || !sessionReady || !session) {
+    return null;
+  }
+
+  if (profile && profile.account_type !== 'candidate') {
     return null;
   }
 
@@ -61,7 +91,7 @@ export default function CandidateMobileNav() {
   return (
     <>
       <div className="h-20 md:hidden" aria-hidden="true" />
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#D3D1C7] bg-white/96 px-3 py-2 shadow-[0_-8px_30px_rgba(26,26,26,0.08)] backdrop-blur-xl md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#D3D1C7] bg-[#FBFAF7] px-3 py-2 md:hidden">
         <div className="mx-auto grid max-w-[480px] grid-cols-4 gap-1">
           {items.map((item) => {
             const Icon = item.icon;
@@ -71,8 +101,8 @@ export default function CandidateMobileNav() {
               <Link
                 key={item.to}
                 to={item.to}
-                className={`flex flex-col items-center gap-1 rounded-[18px] px-2 py-2 text-[11px] font-semibold transition-colors ${
-                  active ? 'bg-[#E1F5EE] text-[#085041]' : 'text-[#5F5E5A]'
+                className={`flex flex-col items-center gap-1 border-t-2 px-2 py-2 text-[11px] font-semibold transition-colors ${
+                  active ? 'border-[#1D9E75] text-[#085041]' : 'border-transparent text-[#5F5E5A]'
                 }`}
               >
                 <Icon size={17} />

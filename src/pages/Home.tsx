@@ -343,7 +343,7 @@ export default function Home() {
   return (
     <div className="page-shell">
       <div className="px-4 pt-5 pb-5 sm:px-6 sm:pt-8 sm:pb-7 lg:px-8">
-        <div className="mx-auto max-w-[1320px] rounded-[28px] border border-white/70 bg-[#1D9E75] px-4 py-6 shadow-[0_24px_60px_rgba(29,158,117,0.20)] sm:rounded-[32px] sm:px-8 sm:py-10 lg:px-10">
+        <div className="mx-auto max-w-[1320px] rounded-[28px] border border-white/70 bg-[#1D9E75] px-4 py-6 shadow-[0_24px_70px_rgba(29,158,117,0.22)] ring-1 ring-white/10 sm:rounded-[32px] sm:px-8 sm:py-10 lg:px-10">
           <div className="max-w-3xl">
             <p className="mb-3 text-[10px] font-semibold uppercase tracking-[1.5px] text-white/55 sm:text-[11px]">
               Nigeria&apos;s Tech Job Board
@@ -358,7 +358,7 @@ export default function Home() {
               when you are ready to build your account.
             </p>
 
-            <div className="mb-4 flex items-center overflow-hidden rounded-[14px] bg-white shadow-[0_14px_34px_rgba(0,0,0,0.16)] sm:hidden">
+            <div className="mb-4 flex items-center overflow-hidden rounded-[14px] bg-white shadow-[0_14px_34px_rgba(0,0,0,0.16)] ring-1 ring-black/5 sm:hidden">
               <Search size={16} className="ml-3 flex-shrink-0 text-[#B4B2A9]" />
               <input
                 type="text"
@@ -368,12 +368,12 @@ export default function Home() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               />
-              <button onClick={handleSearch} className="bg-[#085041] px-4 py-3 text-xs font-semibold text-white">
+              <button onClick={handleSearch} className="bg-[#085041] px-4 py-3 text-xs font-semibold text-white transition-all duration-200 hover:bg-[#06362a] active:scale-[0.98]">
                 Search
               </button>
             </div>
 
-            <div className="hidden max-w-[700px] overflow-hidden rounded-[16px] bg-white shadow-[0_14px_34px_rgba(0,0,0,0.14)] sm:flex">
+            <div className="hidden max-w-[700px] items-center overflow-hidden rounded-[16px] bg-white shadow-[0_14px_34px_rgba(0,0,0,0.14)] ring-1 ring-black/5 sm:flex">
               <Search size={18} className="ml-4 flex-shrink-0 text-[#B4B2A9]" />
               <input
                 type="text"
@@ -407,7 +407,7 @@ export default function Home() {
               </select>
               <button
                 onClick={handleSearch}
-                className="flex-shrink-0 bg-[#085041] px-7 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-[#06362a]"
+                className="flex-shrink-0 bg-[#085041] px-7 py-3.5 text-sm font-semibold text-white transition-all duration-200 hover:bg-[#06362a] active:scale-[0.98]"
               >
                 Search jobs
               </button>
@@ -422,7 +422,7 @@ export default function Home() {
               ].map((item) => (
                 <div
                   key={item.label}
-                  className="rounded-2xl border border-white/15 bg-white/10 px-3 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:px-4 sm:py-4"
+                  className="rounded-2xl border border-white/15 bg-white/10 px-3 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition-transform duration-200 hover:-translate-y-0.5 sm:px-4 sm:py-4"
                 >
                   <div className="text-[20px] font-bold leading-none sm:text-[26px]">{item.value}</div>
                   <div className="mt-1 text-[10px] uppercase tracking-[0.12em] text-white/60 sm:text-[11px]">
@@ -440,9 +440,9 @@ export default function Home() {
           <button
             key={chip}
             onClick={() => setActiveChip(chip)}
-            className={`flex-shrink-0 rounded-full px-4 py-[8px] text-[13px] font-semibold whitespace-nowrap transition-all duration-200 ${
+            className={`flex-shrink-0 rounded-full px-4 py-[8px] text-[13px] font-semibold whitespace-nowrap transition-all duration-200 active:scale-[0.98] ${
               activeChip === chip
-                ? 'bg-[#E1F5EE] text-[#085041] border border-[#5DCAA5]'
+                ? 'bg-[#E1F5EE] text-[#085041] border border-[#5DCAA5] shadow-[0_10px_24px_rgba(29,158,117,0.12)]'
                 : 'bg-white text-[#5F5E5A] border border-[#D3D1C7] hover:border-[#5DCAA5] shadow-[0_6px_18px_rgba(26,26,26,0.03)]'
             }`}
           >
@@ -454,7 +454,7 @@ export default function Home() {
           Showing {filteredJobs.length} jobs
         </span>
         <button
-          className="sm:hidden flex items-center gap-1 text-[13px] text-[#5F5E5A] border border-[#D3D1C7] px-3 py-[6px] rounded-[20px]"
+          className="sm:hidden flex items-center gap-1 rounded-[20px] border border-[#D3D1C7] px-3 py-[6px] text-[13px] text-[#5F5E5A] transition-all duration-200 hover:border-[#5DCAA5] active:scale-[0.98]"
           onClick={() => setShowMobileFilters(true)}
         >
           <SlidersHorizontal size={14} /> Filters

@@ -34,25 +34,33 @@ export default function Navbar() {
 
     let alive = true;
 
-    async function loadProfile() {
-      if (!session) {
-        if (alive) {
-          setProfile(null);
-          setIsSignedIn(false);
-          setSessionReady(true);
-        }
-        return;
-      }
-
-      const nextProfile = await fetchProfile(session.user.id);
+    if (!session) {
       if (alive) {
-        setProfile(nextProfile);
-        setIsSignedIn(true);
+        setProfile(null);
+        setIsSignedIn(false);
         setSessionReady(true);
       }
+      return;
     }
 
-    loadProfile();
+    if (alive) {
+      setProfile(null);
+      setIsSignedIn(true);
+      setSessionReady(true);
+    }
+
+    void (async () => {
+      try {
+        const nextProfile = await fetchProfile(session.user.id);
+        if (alive) {
+          setProfile(nextProfile);
+        }
+      } catch {
+        if (alive) {
+          setProfile(null);
+        }
+      }
+    })();
 
     return () => {
       alive = false;
@@ -105,22 +113,6 @@ export default function Navbar() {
             <span className="hidden text-[11px] uppercase tracking-[0.18em] text-[#B4B2A9] sm:block">Verified jobs board</span>
           </div>
         </Link>
-
-        {/* Desktop nav */}
-        {!isCandidateArea && (
-          <div className="hidden items-center gap-2 rounded-full border border-[#D3D1C7] bg-white/80 p-1.5 shadow-[0_8px_20px_rgba(26,26,26,0.04)] md:flex">
-            <Link
-              to="/about"
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition-all duration-200 ${
-                isActive('/about')
-                  ? 'bg-[#E1F5EE] text-[#085041]'
-                  : 'text-[#5F5E5A] hover:bg-[#F1EFE8] hover:text-[#1A1A1A]'
-              }`}
-            >
-              About
-            </Link>
-          </div>
-        )}
 
         <div className="hidden items-center gap-2 md:flex">
           {sessionReady && isSignedIn ? (
@@ -180,19 +172,6 @@ export default function Navbar() {
               onClick={() => setMenuOpen(false)}
             />
             <div className="absolute left-0 right-0 top-[68px] z-50 mx-3 rounded-[24px] border border-[#D3D1C7] bg-white px-4 py-4 shadow-[0_18px_38px_rgba(26,26,26,0.12)] md:hidden">
-              {!isCandidateArea && (
-                <div className="mb-3 rounded-2xl bg-[#F7F6F2] p-1.5">
-                  <Link
-                    to="/about"
-                    onClick={() => setMenuOpen(false)}
-                    className={`mt-1 block rounded-[14px] px-4 py-3 text-sm font-semibold transition-colors ${
-                      isActive('/about') ? 'bg-white text-[#085041] shadow-sm' : 'text-[#5F5E5A]'
-                    }`}
-                  >
-                    About
-                  </Link>
-                </div>
-              )}
               <div className="grid gap-2">
                 {sessionReady && isSignedIn ? (
                   <>
