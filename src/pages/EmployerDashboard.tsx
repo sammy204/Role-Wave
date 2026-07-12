@@ -357,12 +357,6 @@ export default function EmployerDashboard() {
                 >
                   Create job <ArrowRight size={14} />
                 </Link>
-                <Link
-                  to="/candidate/profile"
-                  className="flex items-center justify-between rounded-2xl border border-[#D3D1C7] bg-white px-4 py-3 text-sm font-semibold text-[#1A1A1A]"
-                >
-                  Review candidate model <ArrowRight size={14} />
-                </Link>
               </div>
             </div>
           </div>

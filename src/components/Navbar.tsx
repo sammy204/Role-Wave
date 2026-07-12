@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Briefcase, LogOut, Menu, PencilLine, UserCircle2, X } from 'lucide-react';
+import { Briefcase, LogOut, Menu, UserCircle2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import { useAuth } from '../lib/useAuth';
@@ -16,8 +16,6 @@ export default function Navbar() {
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
   const { session, loading: authLoading } = useAuth();
-  const isCandidateArea = path.startsWith('/candidate');
-  const isCandidateProfileView = path === '/candidate' || path === '/candidate/dashboard';
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 767px)');
@@ -72,24 +70,9 @@ export default function Navbar() {
     return path.startsWith(route);
   };
 
-  const profilePath =
-    profile?.account_type === 'employer'
-      ? '/employer/dashboard'
-      : isCandidateProfileView
-        ? '/candidate/profile'
-        : '/candidate';
-  const profileLabel =
-    profile?.account_type === 'employer'
-      ? 'Profile'
-      : isCandidateProfileView
-        ? 'Edit profile'
-        : 'Profile';
-  const ProfileIcon =
-    profile?.account_type === 'employer'
-      ? UserCircle2
-      : isCandidateProfileView
-        ? PencilLine
-        : UserCircle2;
+  const profilePath = profile?.account_type === 'employer' ? '/employer/dashboard' : '/candidate';
+  const profileLabel = 'Profile';
+  const ProfileIcon = UserCircle2;
   const brandPath =
     isMobile && profile?.account_type === 'candidate' ? '/candidate/home' : '/';
 

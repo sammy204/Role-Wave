@@ -57,7 +57,7 @@ export default function EmployerOnboarding() {
         if (!alive) return;
 
         if (nextProfile?.account_type === 'candidate') {
-          navigate('/candidate/profile', { replace: true });
+          navigate('/candidate', { replace: true });
           return;
         }
 

@@ -83,7 +83,7 @@ export default function CandidateMobileNav() {
 
   const isActive = (route: string) => {
     if (route === '/candidate') {
-      return path === '/candidate' || path === '/candidate/dashboard' || path === '/candidate/profile';
+      return path === '/candidate' || path === '/candidate/dashboard';
     }
     return path === route || path.startsWith(`${route}/`);
   };

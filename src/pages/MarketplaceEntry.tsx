@@ -55,7 +55,7 @@ export default function MarketplaceEntry() {
           return;
         }
 
-        navigate(nextRole === 'employer' ? '/employer/onboarding' : '/candidate/profile', {
+        navigate(nextRole === 'employer' ? '/employer/onboarding' : '/candidate', {
           replace: true,
         });
       } catch {
@@ -126,7 +126,7 @@ export default function MarketplaceEntry() {
                 : '/candidate/dashboard'
               : nextRole === 'employer'
                 ? '/employer/onboarding'
-                : '/candidate/profile',
+                : '/candidate',
             { replace: true }
           );
           return;
@@ -158,7 +158,7 @@ export default function MarketplaceEntry() {
             : '/candidate/dashboard'
           : nextRole === 'employer'
             ? '/employer/onboarding'
-            : '/candidate/profile',
+            : '/candidate',
         { replace: true }
       );
     } catch (authError) {
