@@ -4,6 +4,7 @@ import { Briefcase, LogOut, Menu, UserCircle2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import { useAuth } from '../lib/useAuth';
+import { useIsPwa } from '../lib/usePwaDisplayMode';
 import type { Profile } from '../types';
 
 export default function Navbar() {
@@ -11,21 +12,12 @@ export default function Navbar() {
   const navigate = useNavigate();
   const path = location.pathname;
   const [menuOpen, setMenuOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
   const { session, loading: authLoading } = useAuth();
-
-  useEffect(() => {
-    const media = window.matchMedia('(max-width: 767px)');
-
-    const update = () => setIsMobile(media.matches);
-    update();
-
-    media.addEventListener('change', update);
-    return () => media.removeEventListener('change', update);
-  }, []);
+  const isPwa = useIsPwa();
 
   useEffect(() => {
     if (authLoading) return;
@@ -35,6 +27,7 @@ export default function Navbar() {
     if (!session) {
       if (alive) {
         setProfile(null);
+        setAvatarUrl(null);
         setIsSignedIn(false);
         setSessionReady(true);
       }
@@ -43,6 +36,7 @@ export default function Navbar() {
 
     if (alive) {
       setProfile(null);
+      setAvatarUrl(null);
       setIsSignedIn(true);
       setSessionReady(true);
     }
@@ -53,9 +47,22 @@ export default function Navbar() {
         if (alive) {
           setProfile(nextProfile);
         }
+
+        if (nextProfile?.account_type === 'candidate') {
+          const { data: candidateRow } = await supabase
+            .from('candidate_profiles')
+            .select('avatar_url')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+          if (alive) {
+            setAvatarUrl((candidateRow as { avatar_url: string | null } | null)?.avatar_url ?? null);
+          }
+        }
       } catch {
         if (alive) {
           setProfile(null);
+          setAvatarUrl(null);
         }
       }
     })();
@@ -73,8 +80,9 @@ export default function Navbar() {
   const profilePath = profile?.account_type === 'employer' ? '/employer/dashboard' : '/candidate';
   const profileLabel = 'Profile';
   const ProfileIcon = UserCircle2;
-  const brandPath =
-    isMobile && profile?.account_type === 'candidate' ? '/candidate/home' : '/';
+  // Web (browser, any screen size) always goes to the marketplace.
+  // Only the installed PWA gets the personalized candidate feed.
+  const brandPath = isPwa && profile?.account_type === 'candidate' ? '/candidate/home' : '/';
 
   const handleSignOut = async () => {
     await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
@@ -102,12 +110,23 @@ export default function Navbar() {
             <>
               <Link
                 to={profilePath}
-                className={`inline-flex items-center gap-2 rounded-full bg-[#1D9E75] px-[18px] py-2.5 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(29,158,117,0.18)] transition-all duration-200 hover:-translate-y-[1px] hover:bg-[#168a63] ${
-                  isActive('/candidate') || isActive('/employer') ? 'bg-[#168a63]' : ''
-                }`}
+                aria-label={profileLabel}
+                className={`inline-flex items-center gap-2 rounded-full bg-[#1D9E75] py-2.5 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(29,158,117,0.18)] transition-all duration-200 hover:-translate-y-[1px] hover:bg-[#168a63] ${
+                  avatarUrl ? 'p-[3px]' : 'px-[18px]'
+                } ${isActive('/candidate') || isActive('/employer') ? 'bg-[#168a63]' : ''}`}
               >
-                <ProfileIcon size={15} />
-                {profileLabel}
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt=""
+                    className="h-[30px] w-[30px] rounded-full object-cover"
+                  />
+                ) : (
+                  <>
+                    <ProfileIcon size={15} />
+                    {profileLabel}
+                  </>
+                )}
               </Link>
               <button
                 type="button"
@@ -161,8 +180,17 @@ export default function Navbar() {
                     <Link
                       to={profilePath}
                       onClick={() => setMenuOpen(false)}
-                      className="block rounded-[16px] bg-[#1D9E75] px-[18px] py-3 text-center text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(29,158,117,0.18)]"
+                      className="flex items-center justify-center gap-2 rounded-[16px] bg-[#1D9E75] px-[18px] py-3 text-center text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(29,158,117,0.18)]"
                     >
+                      {avatarUrl ? (
+                        <img
+                          src={avatarUrl}
+                          alt=""
+                          className="h-5 w-5 rounded-full object-cover"
+                        />
+                      ) : (
+                        <ProfileIcon size={15} />
+                      )}
                       {profileLabel}
                     </Link>
                     <button

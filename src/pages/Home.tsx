@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { withTimeout } from '../lib/withTimeout';
+import { fetchProfile } from '../lib/admin';
+import { useAuth } from '../lib/useAuth';
+import { useIsPwa } from '../lib/usePwaDisplayMode';
 import type { Job, Company } from '../types';
 import JobCard from '../components/JobCard';
 
@@ -61,6 +64,32 @@ export default function Home() {
   const [subscriptionMessage, setSubscriptionMessage] = useState('');
   const [topCompanies, setTopCompanies] = useState<Company[]>([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const { session, loading: authLoading } = useAuth();
+  const isPwa = useIsPwa();
+
+  // Installed PWA + signed-in candidate: skip the marketplace landing
+  // and go straight to the personalized "Welcome back" feed. Browser
+  // visits (mobile or desktop) always stay on the marketplace here.
+  useEffect(() => {
+    if (!isPwa || authLoading || !session) return;
+
+    let alive = true;
+
+    void (async () => {
+      try {
+        const profile = await fetchProfile(session.user.id);
+        if (alive && profile?.account_type === 'candidate') {
+          navigate('/candidate/home', { replace: true });
+        }
+      } catch {
+        // If the profile lookup fails, just stay on the marketplace.
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [isPwa, authLoading, session, navigate]);
 
   useEffect(() => {
     async function fetchData() {
