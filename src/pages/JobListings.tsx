@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
-import { Search, ArrowLeft, SlidersHorizontal, X } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { withTimeout } from '../lib/withTimeout';
 import type { Job, Company } from '../types';
@@ -207,12 +207,7 @@ export default function JobListings() {
   return (
     <div className="page-shell">
       <div className="mx-auto flex w-full max-w-[1320px] items-center gap-2 px-4 py-3 sm:px-6 lg:px-8">
-        <Link
-          to="/"
-          className="flex items-center gap-1 rounded-full border border-[#D3D1C7] bg-white px-3 py-2 text-[13px] text-[#5F5E5A] transition-colors hover:text-[#1A1A1A]"
-        >
-          <ArrowLeft size={14} /> <span className="hidden sm:inline">Home</span>
-        </Link>
+        <div className="text-sm font-semibold text-[#1A1A1A]">All jobs</div>
         <div className="flex-1" />
         <div className="flex items-center rounded-full border border-[#D3D1C7] bg-white px-3 py-2 max-w-sm shadow-[0_6px_18px_rgba(26,26,26,0.03)]">
           <Search size={14} className="text-[#B4B2A9] mr-2" />

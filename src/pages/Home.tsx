@@ -344,99 +344,92 @@ export default function Home() {
     <div className="page-shell">
       <div className="px-4 pt-5 pb-5 sm:px-6 sm:pt-8 sm:pb-7 lg:px-8">
         <div className="mx-auto max-w-[1320px] rounded-[28px] border border-white/70 bg-[#1D9E75] px-4 py-6 shadow-[0_24px_60px_rgba(29,158,117,0.20)] sm:rounded-[32px] sm:px-8 sm:py-10 lg:px-10">
-          <div className="grid gap-6 lg:grid-cols-[1.35fr_0.85fr] lg:items-end">
-            <div>
-              <p className="mb-3 text-[10px] font-semibold uppercase tracking-[1.5px] text-white/55 sm:text-[11px]">
-                Nigeria's Tech Job Board
-              </p>
-              <h1 className="font-display mb-3 max-w-2xl text-[28px] font-bold leading-[1.06] tracking-[-1.5px] text-white sm:text-[46px]">
-                Find your next role.
-                <br className="hidden sm:block" />
-                Get hired in Nigeria.
-              </h1>
-              <p className="mb-5 max-w-xl text-sm leading-relaxed text-white/70 sm:mb-7 sm:text-base">
-                Verified jobs from top companies. Remote, hybrid, and on-site roles, presented with a cleaner, more curated feel.
-              </p>
+          <div className="max-w-3xl">
+            <p className="mb-3 text-[10px] font-semibold uppercase tracking-[1.5px] text-white/55 sm:text-[11px]">
+              Nigeria&apos;s Tech Job Board
+            </p>
+            <h1 className="font-display mb-3 max-w-2xl text-[28px] font-bold leading-[1.06] tracking-[-1.5px] text-white sm:text-[46px]">
+              Find your next role.
+              <br className="hidden sm:block" />
+              Get hired in Nigeria.
+            </h1>
+            <p className="mb-5 max-w-xl text-sm leading-relaxed text-white/70 sm:mb-7 sm:text-base">
+              Verified jobs from top companies, presented cleanly. Use the header to log in or sign up
+              when you are ready to build your account.
+            </p>
 
-              <div className="mb-4 flex items-center overflow-hidden rounded-[14px] bg-white shadow-[0_14px_34px_rgba(0,0,0,0.16)] sm:hidden">
-                <Search size={16} className="ml-3 flex-shrink-0 text-[#B4B2A9]" />
-                <input
-                  type="text"
-                  placeholder="Job title, skill or company..."
-                  className="flex-1 border-none bg-transparent px-2 py-3 text-sm text-[#1A1A1A] outline-none"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                />
-                <button onClick={handleSearch} className="bg-[#085041] px-4 py-3 text-xs font-semibold text-white">
-                  Search
-                </button>
-              </div>
-
-              <div className="hidden max-w-[700px] overflow-hidden rounded-[16px] bg-white shadow-[0_14px_34px_rgba(0,0,0,0.14)] sm:flex">
-                <Search size={18} className="ml-4 flex-shrink-0 text-[#B4B2A9]" />
-                <input
-                  type="text"
-                  placeholder="Job title, skill or company..."
-                  className="flex-1 border-none bg-transparent px-0 py-3.5 text-[15px] text-[#1A1A1A] outline-none"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                />
-                <div className="h-7 w-[0.5px] flex-shrink-0 bg-[#D3D1C7]" />
-                <select
-                  className="cursor-pointer border-none bg-transparent px-4 text-sm text-[#5F5E5A] outline-none"
-                  value={cityFilter}
-                  onChange={(e) => setCityFilter(e.target.value)}
-                >
-                  <option>All cities</option>
-                  <option>Lagos</option>
-                  <option>Abuja</option>
-                  <option>Port Harcourt</option>
-                </select>
-                <div className="h-7 w-[0.5px] flex-shrink-0 bg-[#D3D1C7]" />
-                <select
-                  className="cursor-pointer border-none bg-transparent px-4 text-sm text-[#5F5E5A] outline-none"
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
-                >
-                  <option>All types</option>
-                  <option>Full-time</option>
-                  <option>Contract</option>
-                  <option>Internship</option>
-                </select>
-                <button
-                  onClick={handleSearch}
-                  className="flex-shrink-0 bg-[#085041] px-7 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-[#06362a]"
-                >
-                  Search jobs
-                </button>
-              </div>
-
-              <div className="mt-5 grid grid-cols-2 gap-2.5 sm:mt-7 sm:gap-3 sm:grid-cols-4">
-                {[
-                  { value: stats.live, label: 'Live jobs' },
-                  { value: stats.companies, label: 'Companies hiring' },
-                  { value: stats.new, label: 'New today' },
-                  { value: '100%', label: 'Verified listings' },
-                ].map((item) => (
-                  <div key={item.label} className="rounded-2xl border border-white/15 bg-white/10 px-3 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:px-4 sm:py-4">
-                    <div className="text-[20px] font-bold leading-none sm:text-[26px]">{item.value}</div>
-                    <div className="mt-1 text-[10px] uppercase tracking-[0.12em] text-white/60 sm:text-[11px]">{item.label}</div>
-                  </div>
-                ))}
-              </div>
+            <div className="mb-4 flex items-center overflow-hidden rounded-[14px] bg-white shadow-[0_14px_34px_rgba(0,0,0,0.16)] sm:hidden">
+              <Search size={16} className="ml-3 flex-shrink-0 text-[#B4B2A9]" />
+              <input
+                type="text"
+                placeholder="Job title, skill or company..."
+                className="flex-1 border-none bg-transparent px-2 py-3 text-sm text-[#1A1A1A] outline-none"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              />
+              <button onClick={handleSearch} className="bg-[#085041] px-4 py-3 text-xs font-semibold text-white">
+                Search
+              </button>
             </div>
 
-            <div className="hidden gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-1">
-              <div className="rounded-[22px] border border-white/15 bg-white/10 p-5 text-white">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/60">Curated board</div>
-                <div className="mt-3 text-[18px] font-bold leading-tight">Cleaner listings with stronger hierarchy and calmer spacing.</div>
-              </div>
-              <div className="rounded-[22px] border border-white/15 bg-white/10 p-5 text-white">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/60">For hiring teams</div>
-                <div className="mt-3 text-[18px] font-bold leading-tight">Post jobs directly or review submissions from one place.</div>
-              </div>
+            <div className="hidden max-w-[700px] overflow-hidden rounded-[16px] bg-white shadow-[0_14px_34px_rgba(0,0,0,0.14)] sm:flex">
+              <Search size={18} className="ml-4 flex-shrink-0 text-[#B4B2A9]" />
+              <input
+                type="text"
+                placeholder="Job title, skill or company..."
+                className="flex-1 border-none bg-transparent px-0 py-3.5 text-[15px] text-[#1A1A1A] outline-none"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              />
+              <div className="h-7 w-[0.5px] flex-shrink-0 bg-[#D3D1C7]" />
+              <select
+                className="cursor-pointer border-none bg-transparent px-4 text-sm text-[#5F5E5A] outline-none"
+                value={cityFilter}
+                onChange={(e) => setCityFilter(e.target.value)}
+              >
+                <option>All cities</option>
+                <option>Lagos</option>
+                <option>Abuja</option>
+                <option>Port Harcourt</option>
+              </select>
+              <div className="h-7 w-[0.5px] flex-shrink-0 bg-[#D3D1C7]" />
+              <select
+                className="cursor-pointer border-none bg-transparent px-4 text-sm text-[#5F5E5A] outline-none"
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+              >
+                <option>All types</option>
+                <option>Full-time</option>
+                <option>Contract</option>
+                <option>Internship</option>
+              </select>
+              <button
+                onClick={handleSearch}
+                className="flex-shrink-0 bg-[#085041] px-7 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-[#06362a]"
+              >
+                Search jobs
+              </button>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-2.5 sm:mt-7 sm:gap-3 sm:grid-cols-4">
+              {[
+                { value: stats.live, label: 'Live jobs' },
+                { value: stats.companies, label: 'Companies hiring' },
+                { value: stats.new, label: 'New today' },
+                { value: '100%', label: 'Verified listings' },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-2xl border border-white/15 bg-white/10 px-3 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:px-4 sm:py-4"
+                >
+                  <div className="text-[20px] font-bold leading-none sm:text-[26px]">{item.value}</div>
+                  <div className="mt-1 text-[10px] uppercase tracking-[0.12em] text-white/60 sm:text-[11px]">
+                    {item.label}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

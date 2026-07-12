@@ -3,6 +3,7 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { withTimeout } from '../lib/withTimeout';
 import type { Profile } from '../types';
+import { useAuth } from '../lib/useAuth';
 
 const AUTH_CHECK_TIMEOUT_MS = 7000;
 
@@ -12,8 +13,11 @@ export default function AdminGuard() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [debugStep, setDebugStep] = useState('Initializing admin check...');
   const [debugError, setDebugError] = useState('');
+  const { session, loading: authLoading } = useAuth();
 
   useEffect(() => {
+    if (authLoading) return;
+
     let alive = true;
 
     async function checkAccess() {
@@ -22,13 +26,6 @@ export default function AdminGuard() {
           setDebugStep('Reading current Supabase session...');
           setDebugError('');
         }
-
-        const { data } = await withTimeout(
-          supabase.auth.getSession(),
-          AUTH_CHECK_TIMEOUT_MS,
-          'Session lookup'
-        );
-        const session = data.session;
 
         if (!session) {
           if (alive) {
@@ -89,7 +86,7 @@ export default function AdminGuard() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [authLoading, session]);
 
   if (loading) {
     return (

@@ -9,8 +9,6 @@ export default function Footer() {
           <span className="mt-1 block text-xs text-[#B4B2A9]">Verified roles. Clean process. Less noise.</span>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link to="/jobs" className="ghost-chip">Browse jobs</Link>
-          <Link to="/post" className="ghost-chip">Post a job</Link>
           <Link to="/about" className="ghost-chip">About</Link>
         </div>
         <span className="text-xs text-[#B4B2A9]">&copy; 2026 RoleWave</span>

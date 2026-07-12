@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, MapPin, Home, Briefcase, Clock, CheckCircle, Share2 } from 'lucide-react';
+import { ArrowLeft, MapPin, Home, Briefcase, Clock, CheckCircle, Share2, Send, Bookmark } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { withTimeout } from '../lib/withTimeout';
+import { fetchProfile } from '../lib/admin';
+import { useAuth } from '../lib/useAuth';
+import { isJobSaved, toggleSavedJob } from '../lib/savedJobs';
 import type { Job, Company } from '../types';
 
 const colorMap: Record<string, { bg: string; text: string }> = {
@@ -30,7 +33,10 @@ export default function JobDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCopied, setShowCopied] = useState(false);
+  const [candidateId, setCandidateId] = useState('');
+  const [saved, setSaved] = useState(false);
   const FETCH_TIMEOUT_MS = 10000;
+  const { session, loading: authLoading } = useAuth();
 
   useEffect(() => {
     async function fetchJob() {
@@ -70,6 +76,33 @@ export default function JobDetail() {
 
     fetchJob();
   }, [slug]);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadCandidate() {
+      if (authLoading) return;
+      if (!session) return;
+
+      const nextProfile = await fetchProfile(session.user.id);
+      if (!alive) return;
+
+      if (nextProfile?.account_type !== 'candidate') return;
+
+      setCandidateId(session.user.id);
+    }
+
+    loadCandidate();
+
+    return () => {
+      alive = false;
+    };
+  }, [authLoading, session]);
+
+  useEffect(() => {
+    if (!candidateId || !job) return;
+    setSaved(isJobSaved(candidateId, job.id));
+  }, [candidateId, job]);
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -117,6 +150,19 @@ export default function JobDetail() {
 
   const requirements = job.requirements ? job.requirements.split('\n').filter((r) => r.trim().length > 0) : [];
   const whatYoullDo = job.what_youll_do ? job.what_youll_do.split('\n').filter((r) => r.trim().length > 0) : [];
+  const applyHref =
+    job.apply_method === 'email' && job.application_email
+      ? `mailto:${job.application_email}?subject=${encodeURIComponent(`Application for ${job.title}`)}`
+      : job.apply_method === 'external' && job.apply_url
+        ? job.apply_url
+        : job.company?.website || '#';
+  const internalApply = job.apply_method === 'internal';
+
+  const handleSave = () => {
+    if (!candidateId || !job) return;
+    const nextIds = toggleSavedJob(candidateId, job.id);
+    setSaved(nextIds.includes(job.id));
+  };
 
   return (
     <div className="page-shell">
@@ -201,20 +247,42 @@ export default function JobDetail() {
         <div className="rounded-[28px] panel-soft px-4 py-6 sm:px-6 sm:py-7">
           <div className="mb-3.5 rounded-[24px] bg-[#1D9E75] p-5 shadow-[0_16px_30px_rgba(29,158,117,0.18)]">
             <h2 className="mb-1 text-[15px] font-bold text-white">Ready to apply?</h2>
-            <p className="mb-4 text-xs text-white/65">Takes about 5 minutes on the company's careers page.</p>
-            <a
-              href={job.company?.website || '#'}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block w-full rounded-xl bg-white py-3 text-center text-sm font-bold text-[#1D9E75] transition-colors hover:bg-gray-50"
-            >
-              Apply for this role →
-            </a>
+            <p className="mb-4 text-xs text-white/65">
+              {internalApply
+                ? 'Apply directly on RoleWave and keep your application in one place.'
+                : "Takes about 5 minutes on the company's careers page."}
+            </p>
+            {internalApply ? (
+              <Link
+                to={`/jobs/${job.slug}/apply`}
+                className="block w-full rounded-xl bg-white py-3 text-center text-sm font-bold text-[#1D9E75] transition-colors hover:bg-gray-50"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Send size={14} /> Apply on RoleWave
+                </span>
+              </Link>
+            ) : (
+              <a
+                href={applyHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full rounded-xl bg-white py-3 text-center text-sm font-bold text-[#1D9E75] transition-colors hover:bg-gray-50"
+              >
+                Apply for this role →
+              </a>
+            )}
             <button
               onClick={handleShare}
               className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-white/25 bg-transparent py-2.5 text-[13px] text-white/70 transition-colors hover:bg-white/10"
             >
               <Share2 size={14} /> {showCopied ? 'Copied!' : 'Share this job'}
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!candidateId}
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-white/25 bg-transparent py-2.5 text-[13px] text-white/70 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Bookmark size={14} /> {saved ? 'Saved' : 'Save job'}
             </button>
           </div>
 

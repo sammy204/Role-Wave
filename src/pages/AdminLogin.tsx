@@ -102,7 +102,7 @@ export default function AdminLogin() {
         setLoading(false);
         return;
       }
-      setInfo('Account created. Sign in after email confirmation if Supabase requires it.');
+      setInfo('Account created. Sign in to continue.');
     } else {
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) {
