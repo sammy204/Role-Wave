@@ -3,7 +3,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { Bookmark, Briefcase, Home, UserCircle2 } from 'lucide-react';
 import { fetchProfile } from '../lib/admin';
 import { useAuth } from '../lib/useAuth';
-import { useIsPwa } from '../lib/usePwaDisplayMode';
 import type { Profile } from '../types';
 
 export default function CandidateMobileNav() {
@@ -12,7 +11,7 @@ export default function CandidateMobileNav() {
   const { session, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
-  const isPwa = useIsPwa();
+
 
   useEffect(() => {
     if (authLoading) return;
@@ -50,7 +49,7 @@ export default function CandidateMobileNav() {
     };
   }, [authLoading, session]);
 
-  if (!isPwa || !sessionReady || !session) {
+ if (!sessionReady || !session) {
     return null;
   }
 

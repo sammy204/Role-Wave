@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Briefcase, LogOut, Menu, UserCircle2, X } from 'lucide-react';
+import { ArrowLeft, Bookmark,  Briefcase, LogOut, Menu, UserCircle2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import { useAuth } from '../lib/useAuth';
@@ -71,8 +71,8 @@ export default function Navbar() {
       : '/candidate';
   const profileLabel = showBrowseJobs ? 'Browse jobs' : 'Profile';
   const ProfileIcon = showBrowseJobs ? ArrowLeft : UserCircle2;
-  // Web (browser, any screen size) always goes to the marketplace.
-  // Only the installed PWA gets the personalized candidate feed.
+  const showActivityLink = isSignedIn && profile?.account_type === 'candidate';
+
   const brandPath = isPwa && profile?.account_type === 'candidate' ? '/candidate/home' : '/';
 
   const handleSignOut = async () => {
@@ -98,27 +98,39 @@ export default function Navbar() {
 
         <div className="hidden items-center gap-2 md:flex">
           {sessionReady && isSignedIn ? (
-            <>
-              <Link
-                to={profilePath}
-                aria-label={profileLabel}
-                className={`inline-flex items-center gap-2 rounded-full bg-[#1D9E75] px-[18px] py-2.5 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(29,158,117,0.18)] transition-all duration-200 hover:-translate-y-[1px] hover:bg-[#168a63] ${
-                  isActive('/candidate') || isActive('/employer') ? 'bg-[#168a63]' : ''
-                }`}
-              >
-                <ProfileIcon size={15} />
-                {profileLabel}
-              </Link>
-              <button
-                type="button"
-                onClick={handleSignOut}
-                className="inline-flex items-center gap-2 rounded-full border border-[#D3D1C7] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#5F5E5A] transition-colors hover:text-[#1A1A1A]"
-              >
-                <LogOut size={14} />
-                Sign out
-              </button>
-            </>
-          ) : (
+  <>
+    {showActivityLink && (
+      <Link
+        to="/candidate/activity"
+        aria-label="Saved & applied jobs"
+        className={`inline-flex items-center gap-2 rounded-full border border-[#D3D1C7] bg-white px-[18px] py-2.5 text-[13px] font-semibold text-[#1A1A1A] transition-colors hover:border-[#5DCAA5] hover:text-[#085041] ${
+          isActive('/candidate/activity') ? 'border-[#5DCAA5] text-[#085041]' : ''
+        }`}
+      >
+        <Bookmark size={15} />
+        Saved & applied
+      </Link>
+    )}
+    <Link
+      to={profilePath}
+      aria-label={profileLabel}
+      className={`inline-flex items-center gap-2 rounded-full bg-[#1D9E75] px-[18px] py-2.5 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(29,158,117,0.18)] transition-all duration-200 hover:-translate-y-[1px] hover:bg-[#168a63] ${
+        isActive('/candidate') || isActive('/employer') ? 'bg-[#168a63]' : ''
+      }`}
+    >
+      <ProfileIcon size={15} />
+      {profileLabel}
+    </Link>
+    <button
+      type="button"
+      onClick={handleSignOut}
+      className="inline-flex items-center gap-2 rounded-full border border-[#D3D1C7] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#5F5E5A] transition-colors hover:text-[#1A1A1A]"
+    >
+      <LogOut size={14} />
+      Sign out
+    </button>
+  </>
+) : (
             <>
               <Link
                 to="/start?mode=login"
@@ -156,25 +168,35 @@ export default function Navbar() {
             />
             <div className="absolute left-0 right-0 top-[68px] z-50 mx-3 rounded-[24px] border border-[#D3D1C7] bg-white px-4 py-4 shadow-[0_18px_38px_rgba(26,26,26,0.12)] md:hidden">
               <div className="grid gap-2">
-                {sessionReady && isSignedIn ? (
-                  <>
-                    <Link
-                      to={profilePath}
-                      onClick={() => setMenuOpen(false)}
-                      className="flex items-center justify-center gap-2 rounded-[16px] bg-[#1D9E75] px-[18px] py-3 text-center text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(29,158,117,0.18)]"
-                    >
-                      <ProfileIcon size={15} />
-                      {profileLabel}
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={handleSignOut}
-                      className="block rounded-[16px] border border-[#D3D1C7] bg-white px-[18px] py-3 text-center text-[13px] font-semibold text-[#1A1A1A]"
-                    >
-                      Sign out
-                    </button>
-                  </>
-                ) : (
+ {sessionReady && isSignedIn ? (
+  <>
+    {showActivityLink && (
+      <Link
+        to="/candidate/activity"
+        onClick={() => setMenuOpen(false)}
+        className="flex items-center justify-center gap-2 rounded-[16px] border border-[#D3D1C7] bg-white px-[18px] py-3 text-center text-[13px] font-semibold text-[#1A1A1A]"
+      >
+        <Bookmark size={15} />
+        Saved & applied
+      </Link>
+    )}
+    <Link
+      to={profilePath}
+      onClick={() => setMenuOpen(false)}
+      className="flex items-center justify-center gap-2 rounded-[16px] bg-[#1D9E75] px-[18px] py-3 text-center text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(29,158,117,0.18)]"
+    >
+      <ProfileIcon size={15} />
+      {profileLabel}
+    </Link>
+    <button
+      type="button"
+      onClick={handleSignOut}
+      className="block rounded-[16px] border border-[#D3D1C7] bg-white px-[18px] py-3 text-center text-[13px] font-semibold text-[#1A1A1A]"
+    >
+      Sign out
+    </button>
+  </>
+) : (
                   <>
                     <Link
                       to="/start?mode=login"
