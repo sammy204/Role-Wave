@@ -16,7 +16,6 @@ import MarketplaceEntry from './pages/MarketplaceEntry';
 import CandidateDashboard from './pages/CandidateDashboard';
 import CandidateHome from './pages/CandidateHome';
 import CandidateActivity from './pages/CandidateActivity';
-import CandidateProfileSetup from './pages/CandidateProfileSetup';
 import EmployerOnboarding from './pages/EmployerOnboarding';
 import JobApplication from './pages/JobApplication';
 import EmployerDashboard from './pages/EmployerDashboard';
@@ -65,7 +64,6 @@ function AppShell() {
           <Route path="/candidate/dashboard" element={<CandidateDashboard />} />
           <Route path="/candidate/home" element={<CandidateHome />} />
           <Route path="/candidate/activity" element={<CandidateActivity />} />
-          <Route path="/candidate/profile" element={<CandidateProfileSetup />} />
           <Route path="/employer/onboarding" element={<EmployerOnboarding />} />
           <Route path="/employer/dashboard" element={<EmployerDashboard />} />
           <Route path="/post" element={<PostJob />} />

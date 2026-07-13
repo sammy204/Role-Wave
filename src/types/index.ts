@@ -74,6 +74,8 @@ export interface CandidateProfile {
   work_preference: string | null;
   availability: string | null;
   resume_url: string | null;
+  resume_name: string | null;
+  whatsapp_number: string | null;
   work_authorization: string | null;
   portfolio_url: string | null;
   github_url: string | null;

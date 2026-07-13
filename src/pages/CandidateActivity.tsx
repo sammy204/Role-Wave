@@ -182,7 +182,7 @@ export default function CandidateActivity() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="text-base font-semibold text-[#1A1A1A]">{job.title}</div>
-                        <div className="mt-1 text-sm text-[#5F5E5E]">{job.company?.name || 'Application submitted'}</div>
+                        <div className="mt-1 text-sm text-[#5F5E5A]">{job.company?.name || 'Application submitted'}</div>
                         <div className="mt-1 text-xs text-[#B4B2A9]">{formatRelative(application.created_at)}</div>
                       </div>
                       <span className="inline-flex items-center gap-1 rounded-full bg-[#E1F5EE] px-2.5 py-1 text-xs font-semibold text-[#085041]">
@@ -194,8 +194,8 @@ export default function CandidateActivity() {
                   <div key={application.id} className="rounded-2xl border border-[#D3D1C7] bg-white p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-base font-semibold text-[#1A1A1A]">{application.job_id}</div>
-                        <div className="mt-1 text-sm text-[#5F5E5E]">Application submitted</div>
+                        <div className="text-base font-semibold text-[#1A1A1A]">Job no longer available</div>
+                        <div className="mt-1 text-sm text-[#5F5E5A]">Application submitted</div>
                         <div className="mt-1 text-xs text-[#B4B2A9]">{formatRelative(application.created_at)}</div>
                       </div>
                       <span className="inline-flex items-center gap-1 rounded-full bg-[#E1F5EE] px-2.5 py-1 text-xs font-semibold text-[#085041]">
