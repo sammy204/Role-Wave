@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Briefcase, LogOut, Menu, UserCircle2, X } from 'lucide-react';
+import { ArrowLeft, Briefcase, LogOut, Menu, UserCircle2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import { useAuth } from '../lib/useAuth';
@@ -13,7 +13,6 @@ export default function Navbar() {
   const path = location.pathname;
   const [menuOpen, setMenuOpen] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
   const { session, loading: authLoading } = useAuth();
@@ -27,7 +26,6 @@ export default function Navbar() {
     if (!session) {
       if (alive) {
         setProfile(null);
-        setAvatarUrl(null);
         setIsSignedIn(false);
         setSessionReady(true);
       }
@@ -36,7 +34,6 @@ export default function Navbar() {
 
     if (alive) {
       setProfile(null);
-      setAvatarUrl(null);
       setIsSignedIn(true);
       setSessionReady(true);
     }
@@ -47,22 +44,9 @@ export default function Navbar() {
         if (alive) {
           setProfile(nextProfile);
         }
-
-        if (nextProfile?.account_type === 'candidate') {
-          const { data: candidateRow } = await supabase
-            .from('candidate_profiles')
-            .select('avatar_url')
-            .eq('id', session.user.id)
-            .maybeSingle();
-
-          if (alive) {
-            setAvatarUrl((candidateRow as { avatar_url: string | null } | null)?.avatar_url ?? null);
-          }
-        }
       } catch {
         if (alive) {
           setProfile(null);
-          setAvatarUrl(null);
         }
       }
     })();
@@ -77,9 +61,16 @@ export default function Navbar() {
     return path.startsWith(route);
   };
 
-  const profilePath = profile?.account_type === 'employer' ? '/employer/dashboard' : '/candidate';
-  const profileLabel = 'Profile';
-  const ProfileIcon = UserCircle2;
+  const isCandidateProfileView = path === '/candidate' || path === '/candidate/dashboard';
+  const showBrowseJobs = profile?.account_type === 'candidate' && isCandidateProfileView;
+
+  const profilePath = showBrowseJobs
+    ? '/jobs'
+    : profile?.account_type === 'employer'
+      ? '/employer/dashboard'
+      : '/candidate';
+  const profileLabel = showBrowseJobs ? 'Browse jobs' : 'Profile';
+  const ProfileIcon = showBrowseJobs ? ArrowLeft : UserCircle2;
   // Web (browser, any screen size) always goes to the marketplace.
   // Only the installed PWA gets the personalized candidate feed.
   const brandPath = isPwa && profile?.account_type === 'candidate' ? '/candidate/home' : '/';
@@ -111,22 +102,12 @@ export default function Navbar() {
               <Link
                 to={profilePath}
                 aria-label={profileLabel}
-                className={`inline-flex items-center gap-2 rounded-full bg-[#1D9E75] py-2.5 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(29,158,117,0.18)] transition-all duration-200 hover:-translate-y-[1px] hover:bg-[#168a63] ${
-                  avatarUrl ? 'p-[3px]' : 'px-[18px]'
-                } ${isActive('/candidate') || isActive('/employer') ? 'bg-[#168a63]' : ''}`}
+                className={`inline-flex items-center gap-2 rounded-full bg-[#1D9E75] px-[18px] py-2.5 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(29,158,117,0.18)] transition-all duration-200 hover:-translate-y-[1px] hover:bg-[#168a63] ${
+                  isActive('/candidate') || isActive('/employer') ? 'bg-[#168a63]' : ''
+                }`}
               >
-                {avatarUrl ? (
-                  <img
-                    src={avatarUrl}
-                    alt=""
-                    className="h-[30px] w-[30px] rounded-full object-cover"
-                  />
-                ) : (
-                  <>
-                    <ProfileIcon size={15} />
-                    {profileLabel}
-                  </>
-                )}
+                <ProfileIcon size={15} />
+                {profileLabel}
               </Link>
               <button
                 type="button"
@@ -182,15 +163,7 @@ export default function Navbar() {
                       onClick={() => setMenuOpen(false)}
                       className="flex items-center justify-center gap-2 rounded-[16px] bg-[#1D9E75] px-[18px] py-3 text-center text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(29,158,117,0.18)]"
                     >
-                      {avatarUrl ? (
-                        <img
-                          src={avatarUrl}
-                          alt=""
-                          className="h-5 w-5 rounded-full object-cover"
-                        />
-                      ) : (
-                        <ProfileIcon size={15} />
-                      )}
+                      <ProfileIcon size={15} />
                       {profileLabel}
                     </Link>
                     <button
