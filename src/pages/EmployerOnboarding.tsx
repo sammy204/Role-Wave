@@ -1,11 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Save } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile, slugify } from '../lib/admin';
 import type { Company } from '../types';
 
 const colorOptions: Company['avatar_color'][] = ['teal', 'blue', 'amber', 'purple', 'coral'];
+
+const avatarColorMap: Record<Company['avatar_color'], string> = {
+  teal: 'bg-accent-deep',
+  blue: 'bg-[#0C447C]',
+  amber: 'bg-[#96690A]',
+  purple: 'bg-[#5B4088]',
+  coral: 'bg-[#A6432B]',
+};
 
 const emptyForm = {
   companyName: '',
@@ -183,27 +191,30 @@ export default function EmployerOnboarding() {
   if (loading) {
     return (
       <div className="page-shell items-center justify-center px-4">
-        <div className="panel rounded-[24px] px-5 py-4 text-sm text-[#5F5E5A]">
+        <div className="panel motion-safe:animate-fade-up rounded-[24px] px-5 py-4 text-sm text-muted">
           Loading employer onboarding...
         </div>
       </div>
     );
   }
 
+  const previewInitials = initials(form.companyName) || 'CO';
+  const previewColor = avatarColorMap[pickColor(form.companyName || 'CO')];
+
   return (
     <div className="page-shell px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto grid w-full max-w-[1180px] gap-4 lg:grid-cols-[1fr_320px]">
-        <div className="panel rounded-[32px] p-5 sm:p-8">
+        <div className="panel motion-safe:animate-fade-up rounded-[32px] p-5 sm:p-8">
           <Link
             to="/start?role=employer"
-            className="mb-5 inline-flex items-center gap-1 rounded-full border border-[#D3D1C7] bg-white px-3 py-2 text-[13px] text-[#5F5E5A]"
+            className="ghost-chip !rounded-full mb-5 !px-3 !py-2 !text-[13px]"
           >
             <ArrowLeft size={14} /> Back
           </Link>
 
-          <div className="mb-2 text-2xl font-bold text-[#1A1A1A]">Set up your company</div>
-          <p className="mb-6 max-w-2xl text-sm leading-relaxed text-[#5F5E5A]">
-            This creates your employer presence on RoleWave so you can post jobs and later discover candidates.
+          <div className="mb-2 font-display text-2xl font-bold text-ink">Set up your company</div>
+          <p className="mb-6 max-w-2xl text-sm leading-relaxed text-muted">
+            This creates your employer presence on RoleWave so you can post jobs and review applicants.
           </p>
 
           {error && (
@@ -212,40 +223,59 @@ export default function EmployerOnboarding() {
             </div>
           )}
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Company name">
-              <input className="admin-input" value={form.companyName} onChange={(e) => updateField('companyName', e.target.value)} placeholder="Paystack" />
-            </Field>
-            <Field label="Company website">
-              <input className="admin-input" value={form.companyWebsite} onChange={(e) => updateField('companyWebsite', e.target.value)} placeholder="https://..." />
-            </Field>
-            <Field label="Company location">
-              <input className="admin-input" value={form.companyLocation} onChange={(e) => updateField('companyLocation', e.target.value)} placeholder="Lagos, Nigeria" />
-            </Field>
-            <Field label="Company size">
-              <input className="admin-input" value={form.companySize} onChange={(e) => updateField('companySize', e.target.value)} placeholder="11-50" />
-            </Field>
-            <Field label="Your role">
-              <input className="admin-input" value={form.roleTitle} onChange={(e) => updateField('roleTitle', e.target.value)} placeholder="Founder / HR lead" />
-            </Field>
-            <Field label="Phone">
-              <input className="admin-input" value={form.phone} onChange={(e) => updateField('phone', e.target.value)} placeholder="+234..." />
-            </Field>
-            <Field label="Office location">
-              <input className="admin-input" value={form.officeLocation} onChange={(e) => updateField('officeLocation', e.target.value)} placeholder="Victoria Island" />
-            </Field>
-            <div className="sm:col-span-2">
+          <div className="space-y-6">
+            <section>
+              <div className="mb-3 text-[11px] font-bold uppercase tracking-[1.6px] text-faint">
+                Company identity
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Company name">
+                  <input className="admin-input" value={form.companyName} onChange={(e) => updateField('companyName', e.target.value)} placeholder="Paystack" />
+                </Field>
+                <Field label="Company website">
+                  <input className="admin-input" value={form.companyWebsite} onChange={(e) => updateField('companyWebsite', e.target.value)} placeholder="https://..." />
+                </Field>
+                <Field label="Company location">
+                  <input className="admin-input" value={form.companyLocation} onChange={(e) => updateField('companyLocation', e.target.value)} placeholder="Lagos, Nigeria" />
+                </Field>
+                <Field label="Company size">
+                  <input className="admin-input" value={form.companySize} onChange={(e) => updateField('companySize', e.target.value)} placeholder="11-50" />
+                </Field>
+              </div>
+            </section>
+
+            <section className="border-t border-line pt-6">
+              <div className="mb-3 text-[11px] font-bold uppercase tracking-[1.6px] text-faint">
+                Your details
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Your role">
+                  <input className="admin-input" value={form.roleTitle} onChange={(e) => updateField('roleTitle', e.target.value)} placeholder="Founder / HR lead" />
+                </Field>
+                <Field label="Phone">
+                  <input className="admin-input" value={form.phone} onChange={(e) => updateField('phone', e.target.value)} placeholder="+234..." />
+                </Field>
+                <Field label="Office location">
+                  <input className="admin-input" value={form.officeLocation} onChange={(e) => updateField('officeLocation', e.target.value)} placeholder="Victoria Island" />
+                </Field>
+              </div>
+            </section>
+
+            <section className="border-t border-line pt-6">
+              <div className="mb-3 text-[11px] font-bold uppercase tracking-[1.6px] text-faint">
+                About the company
+              </div>
               <Field label="Company description">
                 <textarea className="admin-input min-h-[120px] resize-y" value={form.description} onChange={(e) => updateField('description', e.target.value)} placeholder="Tell candidates what your company does." />
               </Field>
-            </div>
+            </section>
           </div>
 
           <button
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-[#1D9E75] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#168a63] disabled:opacity-60"
+            className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-[1px] hover:bg-accent-deep disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Save size={16} />
             {saving ? 'Saving...' : 'Save company profile'}
@@ -253,16 +283,47 @@ export default function EmployerOnboarding() {
         </div>
 
         <div className="space-y-4">
-          <div className="panel rounded-[28px] p-5">
-            <div className="text-sm font-semibold text-[#1A1A1A]">Employer flow</div>
-            <p className="mt-2 text-sm leading-relaxed text-[#5F5E5A]">
-              Once your company is set up, you can continue to post jobs and later review matching candidates.
+          {/* Live identity preview: reflects exactly what gets saved to `companies` */}
+          <div
+            className="panel motion-safe:animate-fade-up sticky top-6 rounded-[28px] p-5"
+            style={{ animationDelay: '100ms' }}
+          >
+            <div className="mb-4 text-[11px] font-bold uppercase tracking-[1.6px] text-faint">
+              Preview
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div
+                className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-lg font-bold text-white transition-colors duration-300 ${previewColor}`}
+              >
+                {previewInitials}
+              </div>
+              <div className="min-w-0">
+                <div className="truncate font-display text-lg font-bold text-ink">
+                  {form.companyName || 'Your company name'}
+                </div>
+                <div className="truncate text-sm text-muted">
+                  {form.companyLocation || 'Location not set'}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#5DCAA5] bg-accent-light px-3 py-1 text-xs font-semibold text-accent-text">
+              <BadgeCheck size={12} /> Verified on save
+            </div>
+
+            <p className="mt-4 text-sm leading-relaxed text-muted">
+              {form.description || 'Your company description will appear here as candidates see it.'}
             </p>
           </div>
-          <div className="panel rounded-[28px] p-5">
-            <div className="text-sm font-semibold text-[#1A1A1A]">Next milestone</div>
-            <p className="mt-2 text-sm leading-relaxed text-[#5F5E5A]">
-              We’ll turn the current job posting flow into a real employer dashboard after onboarding.
+
+          <div
+            className="panel motion-safe:animate-fade-up rounded-[28px] p-5"
+            style={{ animationDelay: '160ms' }}
+          >
+            <div className="text-sm font-semibold text-ink">What happens next</div>
+            <p className="mt-2 text-sm leading-relaxed text-muted">
+              Saving takes you straight to posting your first job. You can edit any of these details later from your employer dashboard.
             </p>
           </div>
         </div>
@@ -280,7 +341,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-[#5F5E5A]">
+      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
         {label}
       </span>
       {children}

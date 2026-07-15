@@ -10,12 +10,12 @@ import {
   FileText,
   MapPin,
   MessageSquareText,
-  PlusCircle,
   Search,
   Send,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
+import { useCountUp } from '../hooks/useCountUp';
 import type { CandidateProfile, Company, EmployerProfile, Job, JobApplication, Profile } from '../types';
 
 type JobStatus = 'active' | 'filled' | 'closed' | 'archived';
@@ -221,6 +221,11 @@ export default function EmployerDashboard() {
     [jobs, applications]
   );
 
+  const jobsCount = useCountUp(counts.jobs);
+  const activeCount = useCountUp(counts.active);
+  const applicationsCount = useCountUp(counts.applications);
+  const todayCount = useCountUp(counts.newToday);
+
   const updateApplicationStatus = async (applicationId: string, nextStatus: ApplicationStatus) => {
     setSaving(true);
     setError('');
@@ -268,7 +273,7 @@ export default function EmployerDashboard() {
   if (loading) {
     return (
       <div className="page-shell items-center justify-center px-4">
-        <div className="panel rounded-[24px] px-5 py-4 text-sm text-[#5F5E5A]">
+        <div className="panel motion-safe:animate-fade-up rounded-[24px] px-5 py-4 text-sm text-muted">
           Loading employer dashboard...
         </div>
       </div>
@@ -278,124 +283,136 @@ export default function EmployerDashboard() {
   return (
     <div className="page-shell">
       <div className="mx-auto w-full max-w-[1320px] px-4 pb-8 pt-6 sm:px-6 lg:px-8">
-        <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#E1F5EE] px-3 py-1 text-xs font-semibold text-[#085041]">
-              <BadgeCheck size={12} /> Employer dashboard
+        {/* Masthead: header + ledger stats unified into one panel */}
+        <div className="panel motion-safe:animate-fade-up mb-6 rounded-[28px] p-5 sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-accent-light px-3 py-1 text-xs font-semibold text-accent-text">
+                <BadgeCheck size={12} /> Employer dashboard
+              </div>
+              <h1 className="font-display text-3xl font-bold tracking-[-0.03em] text-ink sm:text-4xl">
+                {company?.name || employerProfile?.company_name || 'Your company'}
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
+                Manage your posted jobs, review applications, and keep your hiring pipeline organized.
+              </p>
             </div>
-            <h1 className="font-display text-3xl font-bold tracking-[-0.03em] text-[#1A1A1A] sm:text-4xl">
-              {company?.name || employerProfile?.company_name || 'Your company'}
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#5F5E5A]">
-              Manage your posted jobs, review applications, and keep your hiring pipeline organized.
-            </p>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                to="/jobs"
+                className="ghost-chip !rounded-xl !px-4 !py-2.5"
+              >
+                Public board
+              </Link>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              to="/post"
-              className="inline-flex items-center gap-2 rounded-xl bg-[#1D9E75] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#168a63]"
+          {(notice || error) && (
+            <div
+              className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
+                error
+                  ? 'border-[#F0D080] bg-[#FFF8E6] text-[#7A5000]'
+                  : 'border-line bg-white text-muted'
+              }`}
             >
-              <PlusCircle size={14} /> Post job
-            </Link>
-            <Link
-              to="/employer/onboarding"
-              className="inline-flex items-center gap-2 rounded-xl border border-[#D3D1C7] bg-white px-4 py-2.5 text-sm font-semibold text-[#5F5E5A]"
-            >
-              <Building2 size={14} /> Company
-            </Link>
-            <Link
-              to="/jobs"
-              className="inline-flex items-center gap-2 rounded-xl border border-[#D3D1C7] bg-white px-4 py-2.5 text-sm font-semibold text-[#5F5E5A]"
-            >
-              Public board
-            </Link>
-          </div>
-        </div>
+              {error || notice}
+            </div>
+          )}
 
-        {(notice || error) && (
-          <div
-            className={`mb-5 rounded-xl border px-4 py-3 text-sm ${
-              error
-                ? 'border-[#F0D080] bg-[#FFF8E6] text-[#7A5000]'
-                : 'border-[#D3D1C7] bg-white text-[#5F5E5A]'
-            }`}
-          >
-            {error || notice}
+          {/* Ledger: one strip, hairline dividers, count-up numbers */}
+          <div className="mt-5 grid grid-cols-2 divide-y divide-line border-t border-line pt-4 sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+            <LedgerStat label="Jobs posted" value={jobsCount} icon={<Briefcase size={12} />} />
+            <LedgerStat label="Active jobs" value={activeCount} icon={<ArrowRight size={12} />} accent />
+            <LedgerStat label="Applications" value={applicationsCount} icon={<FileText size={12} />} />
+            <LedgerStat label="Today" value={todayCount} icon={<Clock3 size={12} />} />
           </div>
-        )}
-
-        <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Stat label="Jobs posted" value={counts.jobs} icon={<Briefcase size={12} />} />
-          <Stat label="Active jobs" value={counts.active} icon={<ArrowRight size={12} />} />
-          <Stat label="Applications" value={counts.applications} icon={<FileText size={12} />} />
-          <Stat label="Today" value={counts.newToday} icon={<Clock3 size={12} />} />
         </div>
 
         <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
+          {/* Consolidated workspace card: company info + actions, one panel */}
           <div className="space-y-4">
-            <div className="panel rounded-[28px] p-5">
-              <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-[#1A1A1A]">
-                <Building2 size={16} /> Company info
+            <div
+              className="panel motion-safe:animate-fade-up rounded-[28px] p-5"
+              style={{ animationDelay: '80ms' }}
+            >
+              <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-ink">
+                <Building2 size={16} /> Workspace
               </div>
-              <div className="space-y-3 text-sm text-[#5F5E5A]">
+              <div className="space-y-3 text-sm text-muted">
                 <Row label="Owner" value={profile?.full_name || 'Employer'} />
                 <Row label="Location" value={company?.location || employerProfile?.office_location || 'Not set'} />
                 <Row label="Website" value={company?.website || employerProfile?.company_website || 'Not set'} />
-                <Row label="Status" value={company?.verified ? 'Verified' : 'Unverified'} />
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-faint">Status</span>
+                  <span
+                    className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                      company?.verified
+                        ? 'border-[#5DCAA5] bg-accent-light text-accent-text'
+                        : 'border-line bg-[#F1EFE8] text-muted'
+                    }`}
+                  >
+                    {company?.verified ? 'Verified' : 'Unverified'}
+                  </span>
+                </div>
               </div>
-            </div>
 
-            <div className="panel rounded-[28px] p-5">
-              <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#1A1A1A]">
-                <MessageSquareText size={16} /> Quick actions
-              </div>
-              <div className="space-y-2">
+              <div className="mt-4 flex items-center gap-2 border-t border-line pt-4">
                 <Link
                   to="/post"
-                  className="flex items-center justify-between rounded-2xl border border-[#D3D1C7] bg-white px-4 py-3 text-sm font-semibold text-[#1A1A1A]"
+                  className="flex flex-1 items-center justify-between rounded-2xl border border-line bg-white px-4 py-3 text-sm font-semibold text-ink transition-all duration-200 hover:-translate-y-[1px] hover:border-[#5DCAA5]"
                 >
-                  Create job <ArrowRight size={14} />
+                  <span className="inline-flex items-center gap-2">
+                    <MessageSquareText size={14} /> Create job
+                  </span>
+                  <ArrowRight size={14} />
                 </Link>
               </div>
             </div>
           </div>
 
           <div className="space-y-4">
-            <div className="panel rounded-[28px] p-5">
+            <div
+              className="panel motion-safe:animate-fade-up rounded-[28px] p-5"
+              style={{ animationDelay: '140ms' }}
+            >
               <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <div className="text-sm font-semibold text-[#1A1A1A]">Posted jobs</div>
-                  <div className="text-sm text-[#5F5E5A]">Manage the roles under your company.</div>
+                  <div className="text-sm font-semibold text-ink">Posted jobs</div>
+                  <div className="text-sm text-muted">Manage the roles under your company.</div>
                 </div>
                 <div className="relative w-full lg:max-w-[320px]">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#B4B2A9]" />
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
                   <input
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search jobs or applicants"
-                    className="w-full rounded-full border border-[#D3D1C7] bg-white py-2 pl-9 pr-4 text-sm outline-none focus:border-[#1D9E75]"
+                    className="w-full rounded-full border border-line bg-white py-2 pl-9 pr-4 text-sm outline-none transition-colors duration-200 focus:border-accent"
                   />
                 </div>
               </div>
 
               <div className="space-y-3">
                 {jobs.length === 0 ? (
-                  <div className="rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] p-6 text-center text-sm text-[#5F5E5A]">
+                  <div className="rounded-2xl border border-line bg-paper p-6 text-center text-sm text-muted">
                     No jobs posted yet.
                   </div>
                 ) : (
-                  jobs.map((job) => (
-                    <div key={job.id} className="rounded-[24px] border border-[#D3D1C7] bg-white p-4">
+                  jobs.map((job, index) => (
+                    <div
+                      key={job.id}
+                      className="motion-safe:animate-fade-up group rounded-[24px] border border-line bg-white p-4 transition-all duration-200 hover:-translate-y-[1px] hover:shadow-[0_10px_28px_rgba(26,26,26,0.06)]"
+                      style={{ animationDelay: `${180 + index * 60}ms` }}
+                    >
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <h2 className="text-lg font-semibold text-[#1A1A1A]">{job.title}</h2>
+                            <h2 className="text-lg font-semibold text-ink">{job.title}</h2>
                             <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${statusTone(job.status)}`}>
                               {formatStatus(job.status)}
                             </span>
                           </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-[#5F5E5A]">
+                          <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-muted">
                             <span className="inline-flex items-center gap-1">
                               <MapPin size={13} /> {job.location}
                             </span>
@@ -403,13 +420,13 @@ export default function EmployerDashboard() {
                             <span>{job.job_type}</span>
                             <span>Posted {timeAgo(job.created_at)}</span>
                           </div>
-                          <div className="mt-2 text-sm text-[#5F5E5A] line-clamp-2">{job.description}</div>
+                          <div className="mt-2 text-sm text-muted line-clamp-2">{job.description}</div>
                         </div>
 
                         <div className="flex flex-row flex-wrap gap-2 lg:min-w-[230px] lg:flex-col">
                           <Link
                             to={`/jobs/${job.slug}`}
-                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#D3D1C7] bg-white px-4 py-2 text-sm font-semibold text-[#5F5E5A]"
+                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-muted transition-colors duration-200 hover:border-[#5DCAA5] hover:text-ink"
                           >
                             <Eye size={14} /> View
                           </Link>
@@ -417,7 +434,7 @@ export default function EmployerDashboard() {
                             <button
                               onClick={() => updateJobStatus(job.id, 'closed')}
                               disabled={saving}
-                              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#F1EFE8] px-4 py-2 text-sm font-semibold text-[#5F5E5A] disabled:opacity-60"
+                              className="inline-flex items-center justify-center gap-2 rounded-lg border border-ink bg-white px-4 py-2 text-sm font-semibold text-ink transition-all duration-200 hover:bg-ink hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               Close job
                             </button>
@@ -425,7 +442,7 @@ export default function EmployerDashboard() {
                             <button
                               onClick={() => updateJobStatus(job.id, 'active')}
                               disabled={saving}
-                              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1D9E75] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                              className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition-all duration-200 hover:bg-accent-deep disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               Reactivate
                             </button>
@@ -438,17 +455,20 @@ export default function EmployerDashboard() {
               </div>
             </div>
 
-            <div className="panel rounded-[28px] p-5">
+            <div
+              className="panel motion-safe:animate-fade-up rounded-[28px] p-5"
+              style={{ animationDelay: '200ms' }}
+            >
               <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <div className="text-sm font-semibold text-[#1A1A1A]">Applications</div>
-                  <div className="text-sm text-[#5F5E5A]">
+                  <div className="text-sm font-semibold text-ink">Applications</div>
+                  <div className="text-sm text-muted">
                     View candidates who applied through RoleWave.
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <select
-                    className="rounded-full border border-[#D3D1C7] bg-white px-4 py-2 text-sm outline-none"
+                    className="rounded-full border border-line bg-white px-4 py-2 text-sm outline-none transition-colors duration-200 focus:border-accent"
                     value={selectedJobId}
                     onChange={(e) => setSelectedJobId(e.target.value)}
                   >
@@ -464,28 +484,32 @@ export default function EmployerDashboard() {
 
               <div className="space-y-3">
                 {filteredApplications.length === 0 ? (
-                  <div className="rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] p-6 text-center text-sm text-[#5F5E5A]">
+                  <div className="rounded-2xl border border-line bg-paper p-6 text-center text-sm text-muted">
                     No applications yet.
                   </div>
                 ) : (
-                  filteredApplications.map((application) => (
-                    <div key={application.id} className="rounded-[24px] border border-[#D3D1C7] bg-white p-4">
+                  filteredApplications.map((application, index) => (
+                    <div
+                      key={application.id}
+                      className="motion-safe:animate-fade-up rounded-[24px] border border-line bg-white p-4 transition-all duration-200 hover:-translate-y-[1px] hover:shadow-[0_10px_28px_rgba(26,26,26,0.06)]"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="text-base font-semibold text-[#1A1A1A]">{application.applicant_name}</h3>
+                            <h3 className="text-base font-semibold text-ink">{application.applicant_name}</h3>
                             <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${statusTone(application.status)}`}>
                               {formatStatus(application.status)}
                             </span>
-                            <span className="rounded-full border border-[#D3D1C7] bg-[#F1EFE8] px-2.5 py-1 text-xs font-semibold text-[#5F5E5A]">
+                            <span className="rounded-full border border-line bg-[#F1EFE8] px-2.5 py-1 text-xs font-semibold text-muted">
                               {application.source}
                             </span>
                           </div>
-                          <div className="mt-1 text-sm text-[#5F5E5A]">
+                          <div className="mt-1 text-sm text-muted">
                             {application.job?.title || 'Unknown job'} · {application.applicant_email}
                           </div>
                           {application.candidate?.headline && (
-                            <div className="mt-2 text-sm text-[#1A1A1A]">
+                            <div className="mt-2 text-sm text-ink">
                               {application.candidate.headline}
                             </div>
                           )}
@@ -494,14 +518,14 @@ export default function EmployerDashboard() {
                               {application.candidate.skills.slice(0, 5).map((skill) => (
                                 <span
                                   key={skill}
-                                  className="rounded-full bg-[#E1F5EE] px-2.5 py-1 text-xs font-semibold text-[#085041]"
+                                  className="rounded-full bg-accent-light px-2.5 py-1 text-xs font-semibold text-accent-text"
                                 >
                                   {skill}
                                 </span>
                               ))}
                             </div>
                           ) : (
-                            <div className="mt-2 text-sm text-[#5F5E5A]">{application.cover_letter || 'No cover letter provided.'}</div>
+                            <div className="mt-2 text-sm text-muted">{application.cover_letter || 'No cover letter provided.'}</div>
                           )}
                         </div>
 
@@ -511,7 +535,7 @@ export default function EmployerDashboard() {
                               href={application.resume_url}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#D3D1C7] bg-white px-4 py-2 text-sm font-semibold text-[#1A1A1A]"
+                              className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-ink transition-colors duration-200 hover:border-[#5DCAA5]"
                             >
                               <FileText size={14} /> Resume
                             </a>
@@ -521,7 +545,7 @@ export default function EmployerDashboard() {
                               href={application.portfolio_url}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#D3D1C7] bg-white px-4 py-2 text-sm font-semibold text-[#1A1A1A]"
+                              className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-ink transition-colors duration-200 hover:border-[#5DCAA5]"
                             >
                               <Eye size={14} /> Portfolio
                             </a>
@@ -529,14 +553,14 @@ export default function EmployerDashboard() {
                           <button
                             onClick={() => updateApplicationStatus(application.id, 'shortlisted')}
                             disabled={saving}
-                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#E6F1FB] px-4 py-2 text-sm font-semibold text-[#0C447C] disabled:opacity-60"
+                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#E6F1FB] px-4 py-2 text-sm font-semibold text-[#0C447C] transition-all duration-200 hover:-translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             <Send size={14} /> Shortlist
                           </button>
                           <button
                             onClick={() => updateApplicationStatus(application.id, 'reviewed')}
                             disabled={saving}
-                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#F1EFE8] px-4 py-2 text-sm font-semibold text-[#5F5E5A] disabled:opacity-60"
+                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#F1EFE8] px-4 py-2 text-sm font-semibold text-muted transition-all duration-200 hover:-translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             Mark reviewed
                           </button>
@@ -554,21 +578,25 @@ export default function EmployerDashboard() {
   );
 }
 
-function Stat({
+function LedgerStat({
   label,
   value,
   icon,
+  accent,
 }: {
   label: string;
   value: number;
   icon: React.ReactNode;
+  accent?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-[#D3D1C7] bg-white p-4">
-      <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[1px] text-[#5F5E5A]">
+    <div className="flex flex-col gap-2 px-4 py-3 first:pl-0 sm:py-0">
+      <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[1.6px] text-faint">
         {icon} {label}
       </div>
-      <div className="text-2xl font-bold text-[#1A1A1A]">{value}</div>
+      <div className={`font-display text-3xl font-semibold tabular-nums ${accent ? 'text-accent-deep' : 'text-ink'}`}>
+        {value}
+      </div>
     </div>
   );
 }
@@ -576,8 +604,8 @@ function Stat({
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-3">
-      <span className="text-[#B4B2A9]">{label}</span>
-      <span className="text-right text-[#1A1A1A]">{value}</span>
+      <span className="text-faint">{label}</span>
+      <span className="text-right text-ink">{value}</span>
     </div>
   );
 }

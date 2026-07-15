@@ -1,0 +1,318 @@
+From 7d88ce2bb7101b7d98e9664db21ba56ce9f1893c Mon Sep 17 00:00:00 2001
+From: Claude <claude@anthropic.com>
+Date: Sun, 12 Jul 2026 15:59:51 +0000
+Subject: [PATCH] navbar: candidate avatar, PWA-based marketplace/feed split,
+ mobile back button
+
+- Add shared useIsPwa hook (display-mode: standalone detection),
+  dedupe the copy that lived in CandidateMobileNav
+- Navbar: logo now routes to the marketplace for web (any device),
+  and to /candidate/home only when running as an installed PWA
+  (was previously keyed off mobile breakpoint, which conflated
+  'small screen' with 'installed app')
+- Navbar: show the candidate's avatar_url as a circular image in
+  the profile pill/menu item instead of a generic profile icon+label
+  when one is set, falling back to the icon otherwise
+- Home: PWA + signed-in candidate now redirects straight to
+  /candidate/home instead of the marketplace landing
+- CandidateDashboard: add a mobile-only 'Back to jobs' button at the
+  top of the page linking to /jobs, since there was previously no
+  way back to the marketplace from here on mobile web
+---
+ src/components/CandidateMobileNav.tsx | 20 +-------
+ src/components/Navbar.tsx             | 66 +++++++++++++++++++--------
+ src/lib/usePwaDisplayMode.ts          | 34 ++++++++++++++
+ src/pages/CandidateDashboard.tsx      |  8 ++++
+ src/pages/Home.tsx                    | 29 ++++++++++++
+ 5 files changed, 120 insertions(+), 37 deletions(-)
+ create mode 100644 src/lib/usePwaDisplayMode.ts
+
+diff --git a/src/components/CandidateMobileNav.tsx b/src/components/CandidateMobileNav.tsx
+index 7ce55be..992528e 100644
+--- a/src/components/CandidateMobileNav.tsx
++++ b/src/components/CandidateMobileNav.tsx
+@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
+ import { Bookmark, Briefcase, Home, UserCircle2 } from 'lucide-react';
+ import { fetchProfile } from '../lib/admin';
+ import { useAuth } from '../lib/useAuth';
++import { useIsPwa } from '../lib/usePwaDisplayMode';
+ import type { Profile } from '../types';
+ 
+ export default function CandidateMobileNav() {
+@@ -11,24 +12,7 @@ export default function CandidateMobileNav() {
+   const { session, loading: authLoading } = useAuth();
+   const [profile, setProfile] = useState<Profile | null>(null);
+   const [sessionReady, setSessionReady] = useState(false);
+-  const [isPwa, setIsPwa] = useState(false);
+-
+-  useEffect(() => {
+-    const updatePwaState = () => {
+-      const standalone = window.matchMedia('(display-mode: standalone)').matches;
+-      const iosStandalone = typeof window !== 'undefined' && 'standalone' in window.navigator && Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
+-      setIsPwa(standalone || iosStandalone);
+-    };
+-
+-    updatePwaState();
+-
+-    const mediaQuery = window.matchMedia('(display-mode: standalone)');
+-    mediaQuery.addEventListener?.('change', updatePwaState);
+-
+-    return () => {
+-      mediaQuery.removeEventListener?.('change', updatePwaState);
+-    };
+-  }, []);
++  const isPwa = useIsPwa();
+ 
+   useEffect(() => {
+     if (authLoading) return;
+diff --git a/src/components/Navbar.tsx b/src/components/Navbar.tsx
+index d42971b..ec97931 100644
+--- a/src/components/Navbar.tsx
++++ b/src/components/Navbar.tsx
+@@ -4,6 +4,7 @@ import { Briefcase, LogOut, Menu, UserCircle2, X } from 'lucide-react';
+ import { supabase } from '../lib/supabase';
+ import { fetchProfile } from '../lib/admin';
+ import { useAuth } from '../lib/useAuth';
++import { useIsPwa } from '../lib/usePwaDisplayMode';
+ import type { Profile } from '../types';
+ 
+ export default function Navbar() {
+@@ -11,21 +12,12 @@ export default function Navbar() {
+   const navigate = useNavigate();
+   const path = location.pathname;
+   const [menuOpen, setMenuOpen] = useState(false);
+-  const [isMobile, setIsMobile] = useState(false);
+   const [profile, setProfile] = useState<Profile | null>(null);
++  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+   const [isSignedIn, setIsSignedIn] = useState(false);
+   const [sessionReady, setSessionReady] = useState(false);
+   const { session, loading: authLoading } = useAuth();
+-
+-  useEffect(() => {
+-    const media = window.matchMedia('(max-width: 767px)');
+-
+-    const update = () => setIsMobile(media.matches);
+-    update();
+-
+-    media.addEventListener('change', update);
+-    return () => media.removeEventListener('change', update);
+-  }, []);
++  const isPwa = useIsPwa();
+ 
+   useEffect(() => {
+     if (authLoading) return;
+@@ -35,6 +27,7 @@ export default function Navbar() {
+     if (!session) {
+       if (alive) {
+         setProfile(null);
++        setAvatarUrl(null);
+         setIsSignedIn(false);
+         setSessionReady(true);
+       }
+@@ -43,6 +36,7 @@ export default function Navbar() {
+ 
+     if (alive) {
+       setProfile(null);
++      setAvatarUrl(null);
+       setIsSignedIn(true);
+       setSessionReady(true);
+     }
+@@ -53,9 +47,22 @@ export default function Navbar() {
+         if (alive) {
+           setProfile(nextProfile);
+         }
++
++        if (nextProfile?.account_type === 'candidate') {
++          const { data: candidateRow } = await supabase
++            .from('candidate_profiles')
++            .select('avatar_url')
++            .eq('id', session.user.id)
++            .maybeSingle();
++
++          if (alive) {
++            setAvatarUrl((candidateRow as { avatar_url: string | null } | null)?.avatar_url ?? null);
++          }
++        }
+       } catch {
+         if (alive) {
+           setProfile(null);
++          setAvatarUrl(null);
+         }
+       }
+     })();
+@@ -73,8 +80,9 @@ export default function Navbar() {
+   const profilePath = profile?.account_type === 'employer' ? '/employer/dashboard' : '/candidate';
+   const profileLabel = 'Profile';
+   const ProfileIcon = UserCircle2;
+-  const brandPath =
+-    isMobile && profile?.account_type === 'candidate' ? '/candidate/home' : '/';
++  // Web (browser, any screen size) always goes to the marketplace.
++  // Only the installed PWA gets the personalized candidate feed.
++  const brandPath = isPwa && profile?.account_type === 'candidate' ? '/candidate/home' : '/';
+ 
+   const handleSignOut = async () => {
+     await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+@@ -102,12 +110,23 @@ export default function Navbar() {
+             <>
+               <Link
+                 to={profilePath}
+-                className={`inline-flex items-center gap-2 rounded-full bg-[#1D9E75] px-[18px] py-2.5 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(29,158,117,0.18)] transition-all duration-200 hover:-translate-y-[1px] hover:bg-[#168a63] ${
+-                  isActive('/candidate') || isActive('/employer') ? 'bg-[#168a63]' : ''
+-                }`}
++                aria-label={profileLabel}
++                className={`inline-flex items-center gap-2 rounded-full bg-[#1D9E75] py-2.5 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(29,158,117,0.18)] transition-all duration-200 hover:-translate-y-[1px] hover:bg-[#168a63] ${
++                  avatarUrl ? 'p-[3px]' : 'px-[18px]'
++                } ${isActive('/candidate') || isActive('/employer') ? 'bg-[#168a63]' : ''}`}
+               >
+-                <ProfileIcon size={15} />
+-                {profileLabel}
++                {avatarUrl ? (
++                  <img
++                    src={avatarUrl}
++                    alt=""
++                    className="h-[30px] w-[30px] rounded-full object-cover"
++                  />
++                ) : (
++                  <>
++                    <ProfileIcon size={15} />
++                    {profileLabel}
++                  </>
++                )}
+               </Link>
+               <button
+                 type="button"
+@@ -161,8 +180,17 @@ export default function Navbar() {
+                     <Link
+                       to={profilePath}
+                       onClick={() => setMenuOpen(false)}
+-                      className="block rounded-[16px] bg-[#1D9E75] px-[18px] py-3 text-center text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(29,158,117,0.18)]"
++                      className="flex items-center justify-center gap-2 rounded-[16px] bg-[#1D9E75] px-[18px] py-3 text-center text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(29,158,117,0.18)]"
+                     >
++                      {avatarUrl ? (
++                        <img
++                          src={avatarUrl}
++                          alt=""
++                          className="h-5 w-5 rounded-full object-cover"
++                        />
++                      ) : (
++                        <ProfileIcon size={15} />
++                      )}
+                       {profileLabel}
+                     </Link>
+                     <button
+diff --git a/src/lib/usePwaDisplayMode.ts b/src/lib/usePwaDisplayMode.ts
+new file mode 100644
+index 0000000..53ff0fc
+--- /dev/null
++++ b/src/lib/usePwaDisplayMode.ts
+@@ -0,0 +1,34 @@
++import { useEffect, useState } from 'react';
++
++/**
++ * Detects whether the app is currently running as an installed PWA
++ * (added to home screen / launched standalone) rather than in a
++ * regular browser tab.
++ *
++ * Note: on Android/Chrome, `display-mode: standalone` only fires for
++ * apps installed via a proper web app manifest with `display: standalone`.
++ * This repo does not yet ship a manifest.json, so this will currently
++ * only ever return true on iOS Safari's "Add to Home Screen".
++ */
++export function useIsPwa(): boolean {
++  const [isPwa, setIsPwa] = useState(false);
++
++  useEffect(() => {
++    const mediaQuery = window.matchMedia('(display-mode: standalone)');
++
++    const update = () => {
++      const standalone = mediaQuery.matches;
++      const iosStandalone =
++        typeof window !== 'undefined' &&
++        'standalone' in window.navigator &&
++        Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
++      setIsPwa(standalone || iosStandalone);
++    };
++
++    update();
++    mediaQuery.addEventListener?.('change', update);
++    return () => mediaQuery.removeEventListener?.('change', update);
++  }, []);
++
++  return isPwa;
++}
+diff --git a/src/pages/CandidateDashboard.tsx b/src/pages/CandidateDashboard.tsx
+index 8a52e1f..2378106 100644
+--- a/src/pages/CandidateDashboard.tsx
++++ b/src/pages/CandidateDashboard.tsx
+@@ -1,6 +1,7 @@
+ import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+ import { useNavigate } from 'react-router-dom';
+ import {
++  ArrowLeft,
+   BadgeCheck,
+   Briefcase,
+   Camera,
+@@ -483,6 +484,13 @@ export default function CandidateDashboard() {
+   return (
+     <div className="page-shell px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+       <div className="mx-auto w-full max-w-[1320px] space-y-4">
++        <button
++          type="button"
++          onClick={() => navigate('/jobs')}
++          className="inline-flex items-center gap-1.5 rounded-full border border-[#D3D1C7] bg-white px-3 py-2 text-xs font-semibold text-[#5F5E5A] shadow-sm transition-colors hover:text-[#1A1A1A] md:hidden"
++        >
++          <ArrowLeft size={14} /> Back to jobs
++        </button>
+         <div className="overflow-hidden rounded-[32px] border border-[#D3D1C7] bg-[#FBFAF7] shadow-[0_24px_70px_rgba(26,26,26,0.06)]">
+           <div className="border-b border-[#D3D1C7] bg-[linear-gradient(135deg,#F7F6F2_0%,#E1F5EE_100%)] p-5 sm:p-6 lg:p-7">
+             <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+diff --git a/src/pages/Home.tsx b/src/pages/Home.tsx
+index ea5f9fe..3baca4d 100644
+--- a/src/pages/Home.tsx
++++ b/src/pages/Home.tsx
+@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
+ import { Search, SlidersHorizontal, X } from 'lucide-react';
+ import { supabase } from '../lib/supabase';
+ import { withTimeout } from '../lib/withTimeout';
++import { fetchProfile } from '../lib/admin';
++import { useAuth } from '../lib/useAuth';
++import { useIsPwa } from '../lib/usePwaDisplayMode';
+ import type { Job, Company } from '../types';
+ import JobCard from '../components/JobCard';
+ 
+@@ -61,6 +64,32 @@ export default function Home() {
+   const [subscriptionMessage, setSubscriptionMessage] = useState('');
+   const [topCompanies, setTopCompanies] = useState<Company[]>([]);
+   const [showMobileFilters, setShowMobileFilters] = useState(false);
++  const { session, loading: authLoading } = useAuth();
++  const isPwa = useIsPwa();
++
++  // Installed PWA + signed-in candidate: skip the marketplace landing
++  // and go straight to the personalized "Welcome back" feed. Browser
++  // visits (mobile or desktop) always stay on the marketplace here.
++  useEffect(() => {
++    if (!isPwa || authLoading || !session) return;
++
++    let alive = true;
++
++    void (async () => {
++      try {
++        const profile = await fetchProfile(session.user.id);
++        if (alive && profile?.account_type === 'candidate') {
++          navigate('/candidate/home', { replace: true });
++        }
++      } catch {
++        // If the profile lookup fails, just stay on the marketplace.
++      }
++    })();
++
++    return () => {
++      alive = false;
++    };
++  }, [isPwa, authLoading, session, navigate]);
+ 
+   useEffect(() => {
+     async function fetchData() {
+-- 
+2.43.0
+

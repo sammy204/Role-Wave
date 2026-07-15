@@ -29,7 +29,9 @@ function init() {
   if (initialized) return;
   initialized = true;
 
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+  // This listener is intentionally never unsubscribed — it's a module-level
+  // singleton that needs to keep reflecting auth state for the app's lifetime.
+  supabase.auth.onAuthStateChange((_event, session) => {
     resolved = true;
     setState({ session, loading: false });
   });
@@ -53,10 +55,7 @@ function init() {
   })();
 
   setTimeout(() => {
-    if (resolved) {
-      subscription.unsubscribe();
-      return;
-    }
+    if (resolved) return;
 
     resolved = true;
     setState({ session: null, loading: false });
