@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { withTimeout } from '../lib/withTimeout';
 import type { Job, Company } from '../types';
 import JobCard from '../components/JobCard';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const FETCH_TIMEOUT_MS = 25000;
 
@@ -278,7 +279,9 @@ export default function JobListings() {
 
         <div className="min-w-0">
           {loading ? (
-            <div className="panel rounded-[24px] py-20 text-center text-[#5F5E5A]">Loading jobs...</div>
+            <div className="panel rounded-[24px] py-20">
+              <LoadingSpinner className="mx-auto text-[#1D9E75]" />
+            </div>
           ) : error ? (
             <div className="panel mx-auto max-w-xl rounded-[24px] py-20 text-center">
               <div className="text-lg font-semibold text-[#1A1A1A] mb-2">Could not load jobs</div>

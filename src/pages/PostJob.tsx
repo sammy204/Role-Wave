@@ -4,6 +4,7 @@ import { ArrowLeft, Check, Clock3, MapPin, Plus, Save, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile, slugify } from '../lib/admin';
 import type { Company, EmployerProfile, Job, Profile } from '../types';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 type ApplyMethod = 'external' | 'email' | 'internal';
 type JobStatus = 'active' | 'filled' | 'closed' | 'archived';
@@ -252,8 +253,8 @@ export default function PostJob() {
   if (loading) {
     return (
       <div className="page-shell items-center justify-center px-4">
-        <div className="panel motion-safe:animate-fade-up rounded-[24px] px-5 py-4 text-sm text-muted">
-          Loading employer workspace...
+        <div className="panel motion-safe:animate-fade-up rounded-[24px] px-5 py-5">
+          <LoadingSpinner className="text-[#1D9E75]" />
         </div>
       </div>
     );

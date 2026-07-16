@@ -4,6 +4,7 @@ import { ArrowLeft, BadgeCheck, Save } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile, slugify } from '../lib/admin';
 import type { Company } from '../types';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const colorOptions: Company['avatar_color'][] = ['teal', 'blue', 'amber', 'purple', 'coral'];
 
@@ -136,6 +137,7 @@ export default function EmployerOnboarding() {
         slug: slugify(form.companyName),
         logo_initials: initials(form.companyName) || 'CO',
         avatar_color: pickColor(form.companyName),
+        owner_profile_id: session.user.id,
         location: form.companyLocation || null,
         website: form.companyWebsite || null,
         description: form.description || null,
@@ -191,8 +193,8 @@ export default function EmployerOnboarding() {
   if (loading) {
     return (
       <div className="page-shell items-center justify-center px-4">
-        <div className="panel motion-safe:animate-fade-up rounded-[24px] px-5 py-4 text-sm text-muted">
-          Loading employer onboarding...
+        <div className="panel motion-safe:animate-fade-up rounded-[24px] px-5 py-5">
+          <LoadingSpinner className="text-[#1D9E75]" />
         </div>
       </div>
     );

@@ -6,6 +6,7 @@ import { fetchProfile } from '../lib/admin';
 import { useAuth } from '../lib/useAuth';
 import { withTimeout } from '../lib/withTimeout';
 import type { Profile } from '../types';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 type AuthMode = 'signup' | 'login';
 type MarketplaceRole = 'candidate' | 'employer';
@@ -171,8 +172,8 @@ export default function MarketplaceEntry() {
   if (checking) {
     return (
       <div className="page-shell items-center justify-center px-4">
-        <div className="panel rounded-[24px] px-5 py-4 text-sm text-[#5F5E5A]">
-          Loading your account...
+        <div className="panel rounded-[24px] px-5 py-5">
+          <LoadingSpinner className="text-[#1D9E75]" />
         </div>
       </div>
     );
@@ -369,7 +370,7 @@ export default function MarketplaceEntry() {
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1D9E75] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#168a63] disabled:opacity-60"
               >
                 {mode === 'signup' ? <UserPlus size={16} /> : <LogIn size={16} />}
-                {loading ? 'Please wait...' : mode === 'signup' ? 'Create account' : 'Sign in'}
+                {loading ? <LoadingSpinner size={16} className="text-[#1A1A1A]" label="Submitting" /> : mode === 'signup' ? 'Create account' : 'Sign in'}
               </button>
             </form>
 

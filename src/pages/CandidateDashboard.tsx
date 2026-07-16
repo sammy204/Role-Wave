@@ -1,72 +1,78 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft,
-  BadgeCheck,
+  Bookmark,
   Briefcase,
-  Camera,
-  Check,
-  Download,
-  FileText,
-  Github,
-  GraduationCap,
-  Linkedin,
-  Mail,
+  ArrowRight,
   MapPin,
   Pencil,
-  Phone,
-  Plus,
+  Send,
+  Trash2,
   Sparkles,
-  X,
+  Star,
+  Undo2,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
-import type { CandidateProfile, Profile } from '../types';
+import { getSavedJobIds } from '../lib/savedJobs';
+import { useCountUp } from '../hooks/useCountUp';
+import type { CandidateProfile, Company, Job, JobApplication, Profile } from '../types';
+import LoadingSpinner from '../components/LoadingSpinner';
 
-const suggestedSkills = [
-  'React',
-  'TypeScript',
-  'Next.js',
-  'Node.js',
-  'Supabase',
-  'Tailwind CSS',
-  'UI/UX',
-  'Figma',
-  'Python',
-  'PostgreSQL',
-  'Docker',
-  'AWS',
-  'Product Design',
-  'GraphQL',
-  'Testing',
-];
+function timeAgo(date: string): string {
+  const then = new Date(date).getTime();
+  const diff = Math.floor((Date.now() - then) / 1000);
+  if (diff < 86400) return 'Today';
+  if (diff < 172800) return '1 day ago';
+  if (diff < 604800) return `${Math.floor(diff / 86400)} days ago`;
+  if (diff < 2592000) return `${Math.floor(diff / 604800)} weeks ago`;
+  return `${Math.floor(diff / 2592000)} months ago`;
+}
 
-type EditableSection = 'about' | 'contact' | 'preferences' | 'skills' | 'experience' | 'projects' | 'education';
+function statusTone(status: string) {
+  switch (status) {
+    case 'withdrawn':
+      return 'bg-[#FFF1E6] text-[#A15A00] border-[#F0D080]';
+    case 'shortlisted':
+      return 'bg-pill-blue-bg text-pill-blue-text border-pill-blue-border';
+    case 'hired':
+      return 'bg-pill-green-bg text-pill-green-text border-pill-green-border';
+    case 'rejected':
+      return 'bg-pill-red-bg text-pill-red-text border-pill-red-border';
+    case 'reviewed':
+      return 'bg-pill-amber-bg text-pill-amber-text border-pill-amber-border';
+    default:
+      return 'bg-[#F1EFE8] text-muted border-line';
+  }
+}
+
+function formatStatus(status: string) {
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
 
 export default function CandidateDashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [profile, setProfile] = useState<Profile | null>(null);
   const [candidateProfile, setCandidateProfile] = useState<CandidateProfile | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
-  const [editingSection, setEditingSection] = useState<EditableSection | null>(null);
-  const [savingSection, setSavingSection] = useState(false);
-  const [sectionDraft, setSectionDraft] = useState<Record<string, string | boolean>>({});
-  const [skillsDraft, setSkillsDraft] = useState<string[]>([]);
-  const [skillInput, setSkillInput] = useState('');
-  const [experienceDraft, setExperienceDraft] = useState<string[]>(['']);
-  const [projectsDraft, setProjectsDraft] = useState<string[]>(['']);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [uploadingResume, setUploadingResume] = useState(false);
-  const avatarInputRef = useRef<HTMLInputElement>(null);
-  const resumeInputRef = useRef<HTMLInputElement>(null);
+  const [applications, setApplications] = useState<(JobApplication & { job?: Job & { company?: Company } })[]>([]);
+  const [savedJobs, setSavedJobs] = useState<(Job & { company?: Company })[]>([]);
+  const [matchedJobs, setMatchedJobs] = useState<(Job & { company?: Company })[]>([]);
+  const [marketplaceStats, setMarketplaceStats] = useState({ live: 0, companies: 0, new: 0 });
+  const [topCompanies, setTopCompanies] = useState<Company[]>([]);
+  const [subscriptionEmail, setSubscriptionEmail] = useState('');
+  const [subscriptionState, setSubscriptionState] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [subscriptionMessage, setSubscriptionMessage] = useState('');
+  const [mutatingApplicationId, setMutatingApplicationId] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
 
-    async function loadData() {
+    async function loadDashboard() {
+      setLoading(true);
+      setError('');
+
       try {
         const { data } = await supabase.auth.getSession();
         const session = data.session;
@@ -75,6 +81,8 @@ export default function CandidateDashboard() {
           return;
         }
 
+        setSubscriptionEmail(session.user.email || '');
+
         const nextProfile = await fetchProfile(session.user.id);
         if (!alive) return;
 
@@ -82,1138 +90,569 @@ export default function CandidateDashboard() {
           navigate('/employer/dashboard', { replace: true });
           return;
         }
-
         setProfile(nextProfile);
-        setUserId(session.user.id);
-        setEmail(session.user.email || '');
 
         const { data: candidateRow } = await supabase
           .from('candidate_profiles')
           .select('*')
           .eq('id', session.user.id)
           .maybeSingle();
+        if (!alive) return;
+        const typedCandidate = (candidateRow || null) as CandidateProfile | null;
+        setCandidateProfile(typedCandidate);
+
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+        const [
+          { count: liveCount },
+          { count: companyCount },
+          { count: newCount },
+        ] = await Promise.all([
+          supabase.from('jobs').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+          supabase.from('companies').select('*', { count: 'exact', head: true }),
+          supabase
+            .from('jobs')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'active')
+            .gte('created_at', oneDayAgo),
+        ]);
+
+        if (alive) {
+          setMarketplaceStats({
+            live: liveCount || 0,
+            companies: companyCount || 0,
+            new: newCount || 0,
+          });
+        }
+
+        const { data: companiesData } = await supabase
+          .from('companies')
+          .select('*')
+          .order('job_count', { ascending: false });
+        const companyMap = new Map((companiesData || []).map((c: Company) => [c.id, c]));
+        if (alive) {
+          setTopCompanies((companiesData || []).slice(0, 3));
+        }
+
+        const { data: applicationRows } = await supabase
+          .from('job_applications')
+          .select('*')
+          .eq('candidate_profile_id', session.user.id)
+          .is('candidate_deleted_at', null)
+          .order('created_at', { ascending: false });
+
+        const typedApplications = (applicationRows || []) as JobApplication[];
+        const appliedJobIds = typedApplications.map((a) => a.job_id);
+
+        const savedIds = getSavedJobIds(session.user.id);
+
+        const allNeededJobIds = Array.from(new Set([...appliedJobIds, ...savedIds]));
+        const { data: neededJobsData } = allNeededJobIds.length
+          ? await supabase.from('jobs').select('*').in('id', allNeededJobIds)
+          : { data: [] as Job[] };
+        const jobMap = new Map(
+          ((neededJobsData || []) as Job[]).map((job) => [job.id, { ...job, company: companyMap.get(job.company_id) }])
+        );
 
         if (!alive) return;
 
-        setCandidateProfile((candidateRow || null) as CandidateProfile | null);
+        setApplications(
+          typedApplications.map((application) => ({
+            ...application,
+            job: jobMap.get(application.job_id),
+          }))
+        );
+
+        setSavedJobs(
+          savedIds
+            .map((id) => jobMap.get(id))
+            .filter((j): j is NonNullable<typeof j> => Boolean(j))
+        );
+
+        // Skill-matched jobs: active jobs whose tags overlap with the
+        // candidate's skills, excluding anything already applied to.
+        if (typedCandidate?.skills?.length) {
+          const { data: activeJobsData } = await supabase
+            .from('jobs')
+            .select('*')
+            .eq('status', 'active')
+            .order('created_at', { ascending: false })
+            .limit(60);
+
+          const lowerSkills = typedCandidate.skills.map((s) => s.toLowerCase());
+          const matches = ((activeJobsData || []) as Job[])
+            .filter((job) => !appliedJobIds.includes(job.id))
+            .filter((job) => job.tags?.some((tag) => lowerSkills.includes(tag.toLowerCase())))
+            .slice(0, 4)
+            .map((job) => ({ ...job, company: companyMap.get(job.company_id) }));
+
+          if (alive) setMatchedJobs(matches);
+        }
       } catch (loadError) {
         if (alive) {
-          setError(loadError instanceof Error ? loadError.message : 'Could not load your account.');
+          setError(loadError instanceof Error ? loadError.message : 'Could not load your dashboard.');
         }
       } finally {
         if (alive) setLoading(false);
       }
     }
 
-    loadData();
+    loadDashboard();
 
     return () => {
       alive = false;
     };
   }, [navigate]);
 
-  const profileInitials =
-    profile?.full_name
-      ?.trim()
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((part) => part[0])
-      .join('')
-      .toUpperCase() || 'RW';
+  const handleSubscribe = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
-  const splitEntries = (value: string | null | undefined): string[] => {
-    const entries = (value || '')
-      .split(/\n\s*---\s*\n/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-    return entries.length ? entries : [''];
-  };
-
-  const startEditingSection = (section: EditableSection) => {
-    setError('');
-    setEditingSection(section);
-
-    if (section === 'about') {
-      setSectionDraft({
-        full_name: profile?.full_name || '',
-        headline: candidateProfile?.headline || '',
-        bio: candidateProfile?.bio || '',
-        location: candidateProfile?.location || '',
-        years_experience: candidateProfile?.years_experience?.toString() || '',
-        work_authorization: candidateProfile?.work_authorization || '',
-      });
+    const normalizedEmail = subscriptionEmail.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setSubscriptionState('error');
+      setSubscriptionMessage('Please enter your email address.');
       return;
     }
 
-    if (section === 'contact') {
-      setSectionDraft({
-        whatsapp_number: candidateProfile?.whatsapp_number || '',
-        github_url: candidateProfile?.github_url || '',
-        linkedin_url: candidateProfile?.linkedin_url || '',
-        portfolio_url: candidateProfile?.portfolio_url || '',
-      });
+    setSubscriptionState('saving');
+    setSubscriptionMessage('');
+
+    const { error } = await supabase.from('email_subscriptions').insert({
+      email: normalizedEmail,
+    });
+
+    if (error) {
+      if (error.code === '23505') {
+        setSubscriptionState('success');
+        setSubscriptionMessage('You are already subscribed.');
+        return;
+      }
+
+      setSubscriptionState('error');
+      setSubscriptionMessage(error.message || 'Could not save your subscription.');
       return;
     }
 
-    if (section === 'preferences') {
-      setSectionDraft({
-        preferred_salary: candidateProfile?.preferred_salary || '',
-        work_preference: candidateProfile?.work_preference || 'Remote',
-        preferred_locations: candidateProfile?.preferred_locations?.join(', ') || '',
-        availability: candidateProfile?.availability || 'Immediately available',
-        open_to_work: candidateProfile?.open_to_work ?? true,
-        visibility_to_employers: candidateProfile?.visibility_to_employers || 'open',
-      });
-      return;
-    }
-
-    if (section === 'skills') {
-      setSkillsDraft(candidateProfile?.skills ? [...candidateProfile.skills] : []);
-      setSkillInput('');
-      return;
-    }
-
-    if (section === 'experience') {
-      setExperienceDraft(splitEntries(candidateProfile?.experience));
-      return;
-    }
-
-    if (section === 'projects') {
-      setProjectsDraft(splitEntries(candidateProfile?.projects));
-      return;
-    }
-
-    if (section === 'education') {
-      setSectionDraft({ education: candidateProfile?.education || '' });
-    }
+    setSubscriptionState('success');
+    setSubscriptionMessage('You are subscribed. We will send you new job alerts.');
   };
 
-  const updateSectionDraft = (field: string, value: string | boolean) => {
-    setSectionDraft((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const addDraftSkill = () => {
-    const nextSkill = skillInput.trim();
-    if (!nextSkill) return;
-    if (skillsDraft.includes(nextSkill)) {
-      setSkillInput('');
-      return;
-    }
-    setSkillsDraft((prev) => [...prev, nextSkill]);
-    setSkillInput('');
-  };
-
-  const removeDraftSkill = (skill: string) => {
-    setSkillsDraft((prev) => prev.filter((item) => item !== skill));
-  };
-
-  const handleSkillInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      addDraftSkill();
-    }
-  };
-
-  const updateListDraft = (
-    field: 'experience' | 'projects',
-    index: number,
-    value: string
-  ) => {
-    const setDraft = field === 'experience' ? setExperienceDraft : setProjectsDraft;
-    setDraft((prev) => prev.map((item, itemIndex) => (itemIndex === index ? value : item)));
-  };
-
-  const addListDraftItem = (field: 'experience' | 'projects') => {
-    const setDraft = field === 'experience' ? setExperienceDraft : setProjectsDraft;
-    setDraft((prev) => [...prev, '']);
-  };
-
-  const removeListDraftItem = (field: 'experience' | 'projects', index: number) => {
-    const setDraft = field === 'experience' ? setExperienceDraft : setProjectsDraft;
-    setDraft((prev) => prev.filter((_, itemIndex) => itemIndex !== index));
-  };
-
-  const cancelEditingSection = () => {
-    setEditingSection(null);
-    setSectionDraft({});
-    setSkillsDraft([]);
-    setSkillInput('');
-    setExperienceDraft(['']);
-    setProjectsDraft(['']);
-    setError('');
-  };
-
-  const saveSectionChanges = async () => {
-    if (!userId || !editingSection) return;
-
-    setSavingSection(true);
-    setError('');
-
-    try {
-      const updates: Record<string, unknown> = {};
-      let nextFullName: string | null = null;
-
-      if (editingSection === 'about') {
-        nextFullName = String(sectionDraft.full_name ?? '').trim();
-        updates.headline = sectionDraft.headline ?? '';
-        updates.bio = sectionDraft.bio ?? '';
-        updates.location = sectionDraft.location ?? '';
-        updates.years_experience = sectionDraft.years_experience ? Number(sectionDraft.years_experience) : null;
-        updates.work_authorization = sectionDraft.work_authorization ?? '';
-      }
-
-      if (editingSection === 'contact') {
-        updates.whatsapp_number = sectionDraft.whatsapp_number ?? '';
-        updates.github_url = sectionDraft.github_url ?? '';
-        updates.linkedin_url = sectionDraft.linkedin_url ?? '';
-        updates.portfolio_url = sectionDraft.portfolio_url ?? '';
-      }
-
-      if (editingSection === 'preferences') {
-        updates.preferred_salary = sectionDraft.preferred_salary ?? '';
-        updates.work_preference = sectionDraft.work_preference ?? 'Remote';
-        updates.preferred_locations = String(sectionDraft.preferred_locations ?? '')
-          .split(',')
-          .map((item) => item.trim())
-          .filter(Boolean);
-        updates.availability = sectionDraft.availability ?? 'Immediately available';
-        updates.open_to_work = Boolean(sectionDraft.open_to_work);
-        updates.visibility_to_employers = sectionDraft.visibility_to_employers ?? 'open';
-      }
-
-      if (editingSection === 'skills') {
-        updates.skills = skillsDraft.map((item) => item.trim()).filter(Boolean);
-      }
-
-      if (editingSection === 'experience') {
-        updates.experience = experienceDraft.map((item) => item.trim()).filter(Boolean).join('\n\n---\n\n') || null;
-      }
-
-      if (editingSection === 'projects') {
-        updates.projects = projectsDraft.map((item) => item.trim()).filter(Boolean).join('\n\n---\n\n') || null;
-      }
-
-      if (editingSection === 'education') {
-        updates.education = sectionDraft.education ?? '';
-      }
-
-      const { error: updateError } = await supabase.from('candidate_profiles').update(updates).eq('id', userId);
-      if (updateError) throw updateError;
-
-      if (nextFullName !== null) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({ full_name: nextFullName || null })
-          .eq('id', userId);
-        if (profileError) throw profileError;
-        setProfile((prev) => (prev ? { ...prev, full_name: nextFullName } : prev));
-      }
-
-      setCandidateProfile((prev) => (prev ? { ...prev, ...(updates as Partial<CandidateProfile>) } : prev));
-      setEditingSection(null);
-      setSectionDraft({});
-      setSkillsDraft([]);
-      setExperienceDraft(['']);
-      setProjectsDraft(['']);
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Could not save changes.');
-    } finally {
-      setSavingSection(false);
-    }
-  };
-
-  const uploadCandidateFile = async (file: File, folder: 'avatars' | 'resumes') => {
-    if (!userId) throw new Error('Please sign in again.');
-    const extension = file.name.split('.').pop()?.toLowerCase() || 'file';
-    const fileName = `${userId}/${folder}/${Date.now()}.${extension}`;
-    const { error: uploadError } = await supabase.storage
-      .from('candidate-assets')
-      .upload(fileName, file, { upsert: true });
-    if (uploadError) throw uploadError;
-    const { data } = supabase.storage.from('candidate-assets').getPublicUrl(fileName);
-    return data.publicUrl;
-  };
-
-  const handleAvatarFileChange = async (file: File | null) => {
-    if (!file || !userId) return;
-    setUploadingAvatar(true);
-    setError('');
-
-    try {
-      if (!file.type.startsWith('image/')) throw new Error('Please upload an image file.');
-      const publicUrl = await uploadCandidateFile(file, 'avatars');
-
-      const { error: updateError } = await supabase
-        .from('candidate_profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('id', userId);
-      if (updateError) throw updateError;
-
-      setCandidateProfile((prev) => (prev ? { ...prev, avatar_url: publicUrl } : prev));
-    } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : 'Could not upload profile picture.');
-    } finally {
-      setUploadingAvatar(false);
-      if (avatarInputRef.current) avatarInputRef.current.value = '';
-    }
-  };
-
-  const handleResumeFileChange = async (file: File | null) => {
-    if (!file || !userId) return;
-    setUploadingResume(true);
-    setError('');
-
-    try {
-      const allowedTypes = [
-        'application/pdf',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      ];
-      if (!allowedTypes.includes(file.type)) {
-        throw new Error('Please upload a PDF, DOC, or DOCX CV.');
-      }
-
-      const publicUrl = await uploadCandidateFile(file, 'resumes');
-
-      const { error: updateError } = await supabase
-        .from('candidate_profiles')
-        .update({ resume_url: publicUrl, resume_name: file.name })
-        .eq('id', userId);
-      if (updateError) throw updateError;
-
-      setCandidateProfile((prev) => (prev ? { ...prev, resume_url: publicUrl, resume_name: file.name } : prev));
-    } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : 'Could not upload CV.');
-    } finally {
-      setUploadingResume(false);
-      if (resumeInputRef.current) resumeInputRef.current.value = '';
-    }
-  };
-  const profileSkills = (candidateProfile?.skills || []).slice(0, 6);
-  const completionFields = [
-    profile?.full_name,
-    candidateProfile?.avatar_url,
-    candidateProfile?.headline,
-    candidateProfile?.bio,
-    candidateProfile?.location,
-    candidateProfile?.years_experience,
-    candidateProfile?.skills?.length ? candidateProfile.skills.length : 0,
-    candidateProfile?.preferred_locations?.length ? candidateProfile.preferred_locations.length : 0,
-    candidateProfile?.preferred_salary,
-    candidateProfile?.work_preference,
-    candidateProfile?.availability,
-    candidateProfile?.resume_url,
-    candidateProfile?.portfolio_url,
-    candidateProfile?.github_url,
-    candidateProfile?.linkedin_url,
-    candidateProfile?.education,
-    candidateProfile?.experience,
-    candidateProfile?.projects,
-    candidateProfile?.whatsapp_number,
-  ];
-  const completedFields = completionFields.filter((value) => {
-    if (typeof value === 'number') return value > 0;
-    return Boolean(value);
-  }).length;
+  const completionFields = useMemo(
+    () => [
+      candidateProfile?.avatar_url,
+      candidateProfile?.headline,
+      candidateProfile?.bio,
+      candidateProfile?.location,
+      candidateProfile?.years_experience,
+      candidateProfile?.skills?.length ? candidateProfile.skills.length : 0,
+      candidateProfile?.preferred_locations?.length ? candidateProfile.preferred_locations.length : 0,
+      candidateProfile?.preferred_salary,
+      candidateProfile?.work_preference,
+      candidateProfile?.availability,
+      candidateProfile?.resume_url,
+      candidateProfile?.portfolio_url,
+      candidateProfile?.github_url,
+      candidateProfile?.linkedin_url,
+      candidateProfile?.education,
+      candidateProfile?.experience,
+      candidateProfile?.projects,
+      candidateProfile?.whatsapp_number,
+    ],
+    [candidateProfile]
+  );
+  const completedFields = completionFields.filter((v) => (typeof v === 'number' ? v > 0 : Boolean(v))).length;
   const profileCompletion = Math.round((completedFields / completionFields.length) * 100);
-  const contactItems = [
-    { icon: Mail, label: email || 'Email not set', href: email ? `mailto:${email}` : undefined },
-    {
-      icon: Phone,
-      label: candidateProfile?.whatsapp_number || 'WhatsApp not set',
-      href: candidateProfile?.whatsapp_number ? `https://wa.me/${candidateProfile.whatsapp_number.replace(/[^0-9]/g, '')}` : undefined,
-    },
-    { icon: Github, label: candidateProfile?.github_url || 'GitHub not set', href: candidateProfile?.github_url || undefined },
-    { icon: Linkedin, label: candidateProfile?.linkedin_url || 'LinkedIn not set', href: candidateProfile?.linkedin_url || undefined },
-  ];
-  const resumeDisplayName = candidateProfile?.resume_name || candidateProfile?.resume_url?.split('/').pop()?.split('?')[0] || 'candidate-cv.pdf';
 
-  const handleDownloadCv = async () => {
-    if (!candidateProfile?.resume_url) return;
+  const counts = useMemo(
+    () => ({
+      applications: applications.length,
+      saved: savedJobs.length,
+      shortlisted: applications.filter((a) => a.status === 'shortlisted').length,
+    }),
+    [applications, savedJobs]
+  );
 
-    try {
-      const response = await fetch(candidateProfile.resume_url);
-      if (!response.ok) throw new Error('Could not download CV.');
+  const applicationsCount = useCountUp(counts.applications);
+  const savedCount = useCountUp(counts.saved);
+  const shortlistedCount = useCountUp(counts.shortlisted);
 
-      const blob = await response.blob();
-      const objectUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = objectUrl;
-      link.download = resumeDisplayName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(objectUrl);
-    } catch (downloadError) {
-      console.error(downloadError);
-      window.open(candidateProfile.resume_url, '_blank', 'noopener,noreferrer');
+  const withdrawApplication = async (applicationId: string) => {
+    setMutatingApplicationId(applicationId);
+    setError('');
+try {
+      const { data, error: updateError } = await supabase
+        .from('job_applications')
+        .update({ status: 'withdrawn' })
+        .eq('id', applicationId)
+        .select();
+      if (updateError) throw updateError;
+      console.log('Rows updated:', data);
+      setApplications((prev) =>
+        prev.map((item) => (item.id === applicationId ? { ...item, status: 'withdrawn' } : item))
+      );
+    } catch (mutationError) {
+      setError(mutationError instanceof Error ? mutationError.message : 'Could not withdraw application.');
+    } finally {
+      setMutatingApplicationId(null);
     }
   };
 
-  const visibilityLabels: Record<string, string> = {
-    open: 'Visible to employers',
-    not_open: 'Not open, but visible',
-    hidden: 'Hidden from employers',
-  };
+  const deleteApplication = async (applicationId: string) => {
+    setMutatingApplicationId(applicationId);
+    setError('');
 
-  const preferences = [
-    { label: 'Work style', value: candidateProfile?.work_preference || 'Not set' },
-    { label: 'Salary', value: candidateProfile?.preferred_salary || 'Not set' },
-    {
-      label: 'Locations',
-      value: candidateProfile?.preferred_locations?.length
-        ? candidateProfile.preferred_locations.join(', ')
-        : 'Not set',
-    },
-    {
-      label: 'Visibility',
-      value: visibilityLabels[candidateProfile?.visibility_to_employers || 'open'],
-    },
-  ];
+    try {
+     const { data, error: deleteError } = await supabase
+  .from('job_applications')
+  .update({ candidate_deleted_at: new Date().toISOString() })
+  .eq('id', applicationId)
+  .eq('status', 'withdrawn')
+  .select();
+if (deleteError) throw deleteError;
+console.log('Rows updated (delete):', data);
+
+      setApplications((prev) => prev.filter((item) => item.id !== applicationId));
+    } catch (mutationError) {
+      setError(mutationError instanceof Error ? mutationError.message : 'Could not delete application.');
+    } finally {
+      setMutatingApplicationId(null);
+    }
+  };
 
   if (loading) {
     return (
-      <div className="page-shell items-center justify-center px-4">
-        <div className="panel rounded-[24px] px-5 py-4 text-sm text-[#5F5E5A]">
-          Loading candidate dashboard...
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <div className="rounded-panel border border-line bg-surface px-5 py-5 shadow-card">
+          <LoadingSpinner className="text-[#1D9E75]" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="page-shell px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
-      <div className="mx-auto w-full max-w-[1320px] space-y-4">
-        <button
-          type="button"
-          onClick={() => navigate('/jobs')}
-          className="inline-flex items-center gap-1.5 rounded-full border border-[#D3D1C7] bg-white px-3 py-2 text-xs font-semibold text-[#5F5E5A] shadow-sm transition-colors hover:text-[#1A1A1A] md:hidden"
-        >
-          <ArrowLeft size={14} /> Back to jobs
-        </button>
-        <div className="overflow-hidden rounded-[32px] border border-[#D3D1C7] bg-[#FBFAF7] shadow-[0_24px_70px_rgba(26,26,26,0.06)]">
-          <div className="border-b border-[#D3D1C7] bg-[linear-gradient(135deg,#F7F6F2_0%,#E1F5EE_100%)] p-5 sm:p-6 lg:p-7">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+    <div className="relative min-h-screen overflow-hidden px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <div className="pointer-events-none absolute -left-20 top-10 h-64 w-64 rounded-full bg-[#1D9E75]/10 blur-3xl" />
+      <div className="pointer-events-none absolute right-0 top-16 h-72 w-72 rounded-full bg-[#5B4088]/10 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 left-1/3 h-56 w-56 rounded-full bg-[#0F6E56]/8 blur-3xl" />
+
+      <div className="relative z-10 mx-auto w-full max-w-[1200px] space-y-5">
+        {error && (
+          <div className="rounded-xl border border-[#F0D080] bg-[#FFF8E6] px-4 py-3 text-sm text-[#7A5000]">
+            {error}
+          </div>
+        )}
+
+        <div className="overflow-hidden rounded-[34px] border border-white/70 bg-[linear-gradient(135deg,#ffffff_0%,#f4efff_52%,#eefaf6_100%)] p-5 shadow-[0_24px_70px_rgba(26,26,26,0.07)] backdrop-blur-xl sm:p-6 lg:p-7">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#E1F5EE] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#085041]">
+                Candidate workspace
+              </div>
+              <h1 className="font-display text-[30px] font-bold leading-[1.04] tracking-[-0.04em] text-[#1A1A1A] sm:text-[42px]">
+                Welcome back{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}.
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[#5F5E5A] sm:text-base">
+                Track applications, save jobs, and keep your profile polished without the page feeling busy.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => avatarInputRef.current?.click()}
-                  disabled={uploadingAvatar}
-                  className="group relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-[24px] bg-[#1D9E75] text-2xl font-bold text-white shadow-[0_12px_28px_rgba(29,158,117,0.18)] transition active:scale-[0.97]"
-                  title="Click to change photo"
+                  onClick={() => navigate('/jobs')}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#1A1A1A] px-4 py-2.5 text-sm font-semibold text-white transition-transform duration-200 hover:-translate-y-[1px]"
                 >
-                  {candidateProfile?.avatar_url ? (
-                    <img
-                      src={candidateProfile.avatar_url}
-                      alt={profile?.full_name || 'Candidate profile'}
-                      className="h-full w-full rounded-[24px] object-cover"
-                    />
-                  ) : (
-                    profileInitials
-                  )}
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/40 group-hover:opacity-100">
-                    {uploadingAvatar ? (
-                      <span className="text-[10px] font-semibold">Uploading...</span>
-                    ) : (
-                      <Camera size={18} />
-                    )}
-                  </div>
-                  <input
-                    ref={avatarInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    disabled={uploadingAvatar}
-                    onChange={(event) => handleAvatarFileChange(event.target.files?.[0] || null)}
-                  />
+                  Browse jobs <ArrowRight size={14} />
                 </button>
-
-                <div className="max-w-2xl">
-                  <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-[#085041] shadow-sm">
-                    <BadgeCheck size={12} /> Candidate dashboard
-                  </div>
-                  <h1 className="font-display text-3xl font-bold text-[#1A1A1A] sm:text-4xl">
-                    {profile?.full_name || 'Your profile'}
-                  </h1>
-                  <p className="mt-1 text-sm font-medium text-[#5F5E5A]">
-                    {candidateProfile?.headline || 'Add a headline that tells employers what you do best'}
-                  </p>
-
-                  <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-[#5F5E5A]">
-                    <span className="inline-flex items-center gap-1.5">
-                      <MapPin size={14} /> {candidateProfile?.location || 'Location not set'}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <Briefcase size={14} />{' '}
-                      {candidateProfile?.years_experience
-                        ? `${candidateProfile.years_experience} years experience`
-                        : 'Experience not set'}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <Sparkles size={14} /> {candidateProfile?.work_preference || 'Work preference not set'}
-                    </span>
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {profileSkills.length > 0 ? (
-                      profileSkills.map((skill) => (
-                        <span
-                          key={skill}
-                          className="rounded-full border border-[#D3D1C7] bg-white/80 px-3 py-1 text-xs font-semibold text-[#5F5E5A] shadow-sm"
-                        >
-                          {skill}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-sm text-[#5F5E5A]">Add skills to make this profile easier to scan.</span>
-                    )}
-                  </div>
-                </div>
+                <Link
+                  to="/candidate/profile"
+                  className="inline-flex items-center gap-2 rounded-full border border-[#D3D1C7] bg-white px-4 py-2.5 text-sm font-semibold text-[#1A1A1A] shadow-[0_10px_24px_rgba(26,26,26,0.04)] transition-colors hover:border-[#5DCAA5]"
+                >
+                  Complete profile
+                </Link>
               </div>
+            </div>
 
-              <div className="flex flex-col items-start gap-3 lg:items-end">
-                <div className="inline-flex items-center gap-2 rounded-full bg-[#F3F7ED] px-3 py-1 text-xs font-semibold text-[#6B7D3A] shadow-sm">
-                  {candidateProfile?.open_to_work ? 'Open to work' : 'Not open to work'}
+            <div className="grid min-w-[260px] grid-cols-2 gap-3">
+              <div className="rounded-[24px] border border-white/70 bg-white/80 p-4 shadow-[0_10px_24px_rgba(26,26,26,0.06)]">
+                <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#B4B2A9]">
+                  Profile strength
                 </div>
-                <div className="rounded-[20px] border border-[#D3D1C7] bg-white/80 px-3 py-2.5 shadow-sm">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#B4B2A9]">Profile strength</div>
-                  <div className="mt-2 h-2 w-40 rounded-full bg-[#E1F5EE]">
-                    <div className="h-2 rounded-full bg-[#1D9E75]" style={{ width: `${Math.max(6, profileCompletion)}%` }} />
-                  </div>
-                  <div className="mt-2 text-xs text-[#5F5E5A]">You’re {profileCompletion}% ready for employers.</div>
+                <div className="mt-2 font-display text-3xl font-bold text-[#1A1A1A]">{profileCompletion}%</div>
+                <div className="mt-1 text-xs text-[#5F5E5A]">Ready for employers</div>
+              </div>
+              <div className="rounded-[24px] border border-white/70 bg-[#1A1A1A] p-4 text-white shadow-[0_10px_24px_rgba(26,26,26,0.12)]">
+                <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/45">
+                  Saved jobs
                 </div>
+                <div className="mt-2 font-display text-3xl font-bold">{savedCount}</div>
+                <div className="mt-1 text-xs text-white/65">Keep the good ones close</div>
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="p-5 sm:p-6 lg:p-7">
-            {error && (
-              <div className="mb-5 rounded-xl border border-[#F0D080] bg-[#FFF8E6] px-4 py-3 text-sm text-[#7A5000]">
-                {error}
+        {/* Stat cards + profile strength */}
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-panel border border-white/70 bg-white/78 p-5 shadow-[0_18px_50px_rgba(26,26,26,0.06)] backdrop-blur-xl">
+            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[1.6px] text-faint">
+              <Send size={13} /> Applications sent
+            </div>
+            <div className="mt-2 font-serif text-3xl font-semibold text-ink tabular-nums">{applicationsCount}</div>
+          </div>
+          <div className="rounded-panel border border-white/70 bg-white/78 p-5 shadow-[0_18px_50px_rgba(26,26,26,0.06)] backdrop-blur-xl">
+            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[1.6px] text-faint">
+              <Bookmark size={13} /> Saved jobs
+            </div>
+            <div className="mt-2 font-serif text-3xl font-semibold text-ink tabular-nums">{savedCount}</div>
+          </div>
+          <div className="rounded-panel border border-white/70 bg-white/78 p-5 shadow-[0_18px_50px_rgba(26,26,26,0.06)] backdrop-blur-xl">
+            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[1.6px] text-faint">
+              <Star size={13} /> Shortlisted
+            </div>
+            <div className="mt-2 font-serif text-3xl font-semibold text-accent-deep tabular-nums">{shortlistedCount}</div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+          <div className="space-y-4">
+            {/* Recent applications */}
+            <div className="rounded-panel border border-white/70 bg-white/78 p-5 shadow-[0_18px_50px_rgba(26,26,26,0.06)] backdrop-blur-xl">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="text-sm font-semibold text-ink">Recent applications</div>
+                <Link to="/candidate/activity" className="text-xs font-semibold text-accent-text hover:underline">
+                  View all
+                </Link>
+              </div>
+
+              {applications.length === 0 ? (
+                <div className="rounded-2xl border border-[#E8E4DA] bg-[#FBFAF7] p-6 text-center text-sm text-muted">
+                  You haven't applied to any jobs yet.{' '}
+                  <Link to="/jobs" className="font-semibold text-accent-text hover:underline">
+                    Browse jobs
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {applications.slice(0, 5).map((application) => (
+                    <div
+                      key={application.id}
+                      className="flex flex-col gap-3 rounded-2xl border border-[#E8E4DA] bg-[#FBFAF7] px-4 py-3 shadow-[0_10px_24px_rgba(26,26,26,0.03)] sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-ink">
+                          {application.job?.title || 'Job listing removed'}
+                        </div>
+                        <div className="truncate text-xs text-muted">
+                          {application.job?.company?.name || 'Unknown company'} · {timeAgo(application.created_at)}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold ${statusTone(application.status)}`}
+                        >
+                          {formatStatus(application.status)}
+                        </span>
+                        {application.status === 'withdrawn' ? (
+                          <button
+                            type="button"
+                            onClick={() => deleteApplication(application.id)}
+                            disabled={mutatingApplicationId === application.id}
+                            className="inline-flex items-center gap-2 rounded-full border border-[#D3D1C7] bg-white px-3 py-1.5 text-xs font-semibold text-[#A15A00] transition-colors hover:border-[#F0D080] disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <Trash2 size={12} /> Delete
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => withdrawApplication(application.id)}
+                            disabled={mutatingApplicationId === application.id}
+                            className="inline-flex items-center gap-2 rounded-full border border-[#D3D1C7] bg-white px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-[#5DCAA5] hover:text-[#085041] disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <Undo2 size={12} /> Withdraw
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Jobs matching your skills */}
+            {matchedJobs.length > 0 && (
+              <div className="rounded-panel border border-white/70 bg-white/78 p-5 shadow-[0_18px_50px_rgba(26,26,26,0.06)] backdrop-blur-xl">
+                <div className="mb-3 flex items-center gap-2">
+                  <Sparkles size={15} className="text-accent-deep" />
+                  <div className="text-sm font-semibold text-ink">Jobs matching your skills</div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {matchedJobs.map((job) => (
+                    <Link
+                      key={job.id}
+                      to={`/jobs/${job.slug}`}
+                      className="rounded-2xl border border-[#E8E4DA] bg-[#FBFAF7] p-4 transition-all duration-200 hover:-translate-y-[1px] hover:shadow-[0_14px_30px_rgba(26,26,26,0.06)]"
+                    >
+                      <div className="truncate text-sm font-semibold text-ink">{job.title}</div>
+                      <div className="mt-1 truncate text-xs text-muted">{job.company?.name || 'Company'}</div>
+                      <div className="mt-2 flex items-center gap-1 text-xs text-faint">
+                        <MapPin size={11} /> {job.location}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
               </div>
             )}
+          </div>
 
-            <div className="grid gap-4 xl:grid-cols-[1.15fr_320px]">
-              <div className="space-y-4">
-                <div className="rounded-[28px] border border-[#D3D1C7] bg-white p-5 shadow-[0_10px_24px_rgba(26,26,26,0.03)]">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div className="text-sm font-semibold text-[#1A1A1A]">About</div>
-                    {editingSection === 'about' ? (
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={saveSectionChanges}
-                          disabled={savingSection}
-                          className="inline-flex items-center gap-1.5 rounded-full bg-[#1D9E75] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#168a63] disabled:opacity-60"
-                        >
-                          <Check size={12} /> {savingSection ? 'Saving...' : 'Save'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={cancelEditingSection}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-[#D3D1C7] bg-white px-3 py-1.5 text-xs font-semibold text-[#5F5E5A] transition hover:bg-[#F7F6F2]"
-                        >
-                          <X size={12} /> Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => startEditingSection('about')}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-1.5 text-xs font-semibold text-[#1A1A1A] transition hover:bg-[#F2EEE7]"
-                      >
-                        <Pencil size={12} /> Edit
-                      </button>
-                    )}
-                  </div>
+          <div className="space-y-4">
+            {/* Profile strength */}
+            <div className="rounded-panel border border-white/70 bg-white/78 p-5 shadow-[0_18px_50px_rgba(26,26,26,0.06)] backdrop-blur-xl">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="text-sm font-semibold text-ink">Profile strength</div>
+                <Link to="/candidate/profile" className="text-accent-text hover:text-accent-deep">
+                  <Pencil size={14} />
+                </Link>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-[#E9E7DE]">
+                <div
+                  className="h-2 rounded-full bg-accent"
+                  style={{ width: `${Math.max(6, profileCompletion)}%` }}
+                />
+              </div>
+              <div className="mt-2 text-xs text-muted">You're {profileCompletion}% ready for employers.</div>
+              {profileCompletion < 100 && (
+                <Link
+                  to="/candidate/profile"
+                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-accent-text hover:underline"
+                >
+                  Complete your profile →
+                </Link>
+              )}
+            </div>
 
-                  {editingSection === 'about' ? (
-                    <div className="space-y-3">
-                      <input
-                        value={(sectionDraft.full_name as string) || ''}
-                        onChange={(event) => updateSectionDraft('full_name', event.target.value)}
-                        placeholder="Full name"
-                        className="w-full rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-2 text-sm text-[#1A1A1A] outline-none ring-0"
-                      />
-                      <input
-                        value={(sectionDraft.headline as string) || ''}
-                        onChange={(event) => updateSectionDraft('headline', event.target.value)}
-                        placeholder="Headline"
-                        className="w-full rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-2 text-sm text-[#1A1A1A] outline-none ring-0"
-                      />
-                      <textarea
-                        value={(sectionDraft.bio as string) || ''}
-                        onChange={(event) => updateSectionDraft('bio', event.target.value)}
-                        placeholder="Tell employers who you are and what you do best"
-                        rows={4}
-                        className="w-full rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-2 text-sm text-[#1A1A1A] outline-none ring-0"
-                      />
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <input
-                          value={(sectionDraft.location as string) || ''}
-                          onChange={(event) => updateSectionDraft('location', event.target.value)}
-                          placeholder="Location"
-                          className="w-full rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-2 text-sm text-[#1A1A1A] outline-none ring-0"
-                        />
-                        <input
-                          value={(sectionDraft.years_experience as string) || ''}
-                          onChange={(event) => updateSectionDraft('years_experience', event.target.value)}
-                          placeholder="Years of experience"
-                          className="w-full rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-2 text-sm text-[#1A1A1A] outline-none ring-0"
-                        />
-                      </div>
-                      <input
-                        value={(sectionDraft.work_authorization as string) || ''}
-                        onChange={(event) => updateSectionDraft('work_authorization', event.target.value)}
-                        placeholder="Work authorization (e.g. Authorized to work in Nigeria)"
-                        className="w-full rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-2 text-sm text-[#1A1A1A] outline-none ring-0"
-                      />
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-[#1A1A1A]">
-                        {candidateProfile?.headline || 'Add a headline that tells employers what you do best'}
-                      </p>
-                      <p className="text-sm leading-relaxed text-[#5F5E5A]">
-                        {candidateProfile?.bio ||
-                          'Add a short summary about your background, what you build, and the kind of roles you want.'}
-                      </p>
-                      {candidateProfile?.work_authorization && (
-                        <p className="text-xs text-[#B4B2A9]">{candidateProfile.work_authorization}</p>
-                      )}
-                    </div>
-                  )}
+            <div className="rounded-panel border border-white/70 bg-white/78 p-5 shadow-[0_18px_50px_rgba(26,26,26,0.06)] backdrop-blur-xl">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="text-sm font-semibold text-ink">Marketplace pulse</div>
+                <span className="text-xs text-faint">Live data</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 border-b border-line pb-4">
+                <div className="rounded-2xl border border-[#E8E4DA] bg-[#FBFAF7] px-3 py-3">
+                  <div className="text-xs text-muted">Live jobs</div>
+                  <div className="mt-1 text-lg font-semibold text-ink">{marketplaceStats.live}</div>
                 </div>
-
-                <div className="rounded-[28px] border border-[#D3D1C7] bg-white p-5 shadow-[0_10px_24px_rgba(26,26,26,0.03)]">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div className="text-sm font-semibold text-[#1A1A1A]">Experience</div>
-                    {editingSection === 'experience' ? (
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={saveSectionChanges}
-                          disabled={savingSection}
-                          className="inline-flex items-center gap-1.5 rounded-full bg-[#1D9E75] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#168a63] disabled:opacity-60"
-                        >
-                          <Check size={12} /> {savingSection ? 'Saving...' : 'Save'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={cancelEditingSection}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-[#D3D1C7] bg-white px-3 py-1.5 text-xs font-semibold text-[#5F5E5A] transition hover:bg-[#F7F6F2]"
-                        >
-                          <X size={12} /> Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => startEditingSection('experience')}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-1.5 text-xs font-semibold text-[#1A1A1A] transition hover:bg-[#F2EEE7]"
-                      >
-                        <Pencil size={12} /> Edit
-                      </button>
-                    )}
-                  </div>
-
-                  {editingSection === 'experience' ? (
-                    <div className="space-y-3">
-                      {experienceDraft.map((item, index) => (
-                        <div key={`experience-draft-${index}`} className="rounded-[18px] border border-[#D3D1C7] bg-[#FBFAF7] p-3">
-                          <div className="mb-2 flex items-center justify-between gap-2">
-                            <span className="text-xs font-semibold uppercase tracking-[0.5px] text-[#5F5E5A]">
-                              Entry {index + 1}
-                            </span>
-                            {experienceDraft.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => removeListDraftItem('experience', index)}
-                                className="text-xs font-semibold text-[#B74D3A]"
-                              >
-                                Remove
-                              </button>
-                            )}
-                          </div>
-                          <textarea
-                            value={item}
-                            onChange={(event) => updateListDraft('experience', index, event.target.value)}
-                            placeholder="Role, company, achievements, dates"
-                            rows={4}
-                            className="w-full rounded-2xl border border-[#D3D1C7] bg-white px-3 py-2 text-sm text-[#1A1A1A] outline-none ring-0"
-                          />
-                        </div>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => addListDraftItem('experience')}
-                        className="inline-flex items-center gap-1 rounded-full border border-[#D3D1C7] bg-[#FBFAF7] px-2.5 py-1 text-xs font-semibold text-[#1A1A1A]"
-                      >
-                        <Plus size={12} /> Add another
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {candidateProfile?.experience ? (
-                        candidateProfile.experience
-                          .split(/\n\s*---\s*\n/)
-                          .map((item) => item.trim())
-                          .filter(Boolean)
-                          .map((entry, index) => (
-                            <div key={`experience-${index}`} className="rounded-[18px] border border-[#D3D1C7] bg-[#FBFAF7] p-3">
-                              <p className="whitespace-pre-line text-sm leading-relaxed text-[#5F5E5A]">{entry}</p>
-                            </div>
-                          ))
-                      ) : (
-                        <div className="rounded-[18px] border border-dashed border-[#D3D1C7] bg-[#FBFAF7] p-3 text-sm text-[#5F5E5A]">
-                          List your recent roles, responsibilities, and measurable outcomes here.
-                        </div>
-                      )}
-                    </div>
-                  )}
+                <div className="rounded-2xl border border-[#E8E4DA] bg-[#FBFAF7] px-3 py-3">
+                  <div className="text-xs text-muted">Companies</div>
+                  <div className="mt-1 text-lg font-semibold text-ink">{marketplaceStats.companies}</div>
                 </div>
-
-                <div className="rounded-[28px] border border-[#D3D1C7] bg-white p-5 shadow-[0_10px_24px_rgba(26,26,26,0.03)]">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div className="text-sm font-semibold text-[#1A1A1A]">Projects</div>
-                    {editingSection === 'projects' ? (
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={saveSectionChanges}
-                          disabled={savingSection}
-                          className="inline-flex items-center gap-1.5 rounded-full bg-[#1D9E75] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#168a63] disabled:opacity-60"
-                        >
-                          <Check size={12} /> {savingSection ? 'Saving...' : 'Save'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={cancelEditingSection}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-[#D3D1C7] bg-white px-3 py-1.5 text-xs font-semibold text-[#5F5E5A] transition hover:bg-[#F7F6F2]"
-                        >
-                          <X size={12} /> Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => startEditingSection('projects')}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-1.5 text-xs font-semibold text-[#1A1A1A] transition hover:bg-[#F2EEE7]"
-                      >
-                        <Pencil size={12} /> Edit
-                      </button>
-                    )}
-                  </div>
-
-                  {editingSection === 'projects' ? (
-                    <div className="space-y-3">
-                      {projectsDraft.map((item, index) => (
-                        <div key={`project-draft-${index}`} className="rounded-[18px] border border-[#D3D1C7] bg-[#FBFAF7] p-3">
-                          <div className="mb-2 flex items-center justify-between gap-2">
-                            <span className="text-xs font-semibold uppercase tracking-[0.5px] text-[#5F5E5A]">
-                              Entry {index + 1}
-                            </span>
-                            {projectsDraft.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => removeListDraftItem('projects', index)}
-                                className="text-xs font-semibold text-[#B74D3A]"
-                              >
-                                Remove
-                              </button>
-                            )}
-                          </div>
-                          <textarea
-                            value={item}
-                            onChange={(event) => updateListDraft('projects', index, event.target.value)}
-                            placeholder="Project name, impact, tools used"
-                            rows={4}
-                            className="w-full rounded-2xl border border-[#D3D1C7] bg-white px-3 py-2 text-sm text-[#1A1A1A] outline-none ring-0"
-                          />
-                        </div>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => addListDraftItem('projects')}
-                        className="inline-flex items-center gap-1 rounded-full border border-[#D3D1C7] bg-[#FBFAF7] px-2.5 py-1 text-xs font-semibold text-[#1A1A1A]"
-                      >
-                        <Plus size={12} /> Add another
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {candidateProfile?.projects ? (
-                        candidateProfile.projects
-                          .split(/\n\s*---\s*\n/)
-                          .map((item) => item.trim())
-                          .filter(Boolean)
-                          .map((entry, index) => (
-                            <div key={`project-${index}`} className="rounded-[18px] border border-[#D3D1C7] bg-[#FBFAF7] p-3">
-                              <p className="whitespace-pre-line text-sm leading-relaxed text-[#5F5E5A]">{entry}</p>
-                            </div>
-                          ))
-                      ) : (
-                        <div className="rounded-[18px] border border-dashed border-[#D3D1C7] bg-[#FBFAF7] p-3 text-sm text-[#5F5E5A]">
-                          Showcase a few projects that prove your skills and impact.
-                        </div>
-                      )}
-                    </div>
-                  )}
+                <div className="rounded-2xl border border-[#E8E4DA] bg-[#FBFAF7] px-3 py-3">
+                  <div className="text-xs text-muted">New today</div>
+                  <div className="mt-1 text-lg font-semibold text-ink">{marketplaceStats.new}</div>
                 </div>
-
-                <div className="rounded-[28px] border border-[#D3D1C7] bg-white p-5 shadow-[0_10px_24px_rgba(26,26,26,0.03)]">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1A1A1A]">
-                      <GraduationCap size={14} /> Education
-                    </div>
-                    {editingSection === 'education' ? (
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={saveSectionChanges}
-                          disabled={savingSection}
-                          className="inline-flex items-center gap-1.5 rounded-full bg-[#1D9E75] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#168a63] disabled:opacity-60"
-                        >
-                          <Check size={12} /> {savingSection ? 'Saving...' : 'Save'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={cancelEditingSection}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-[#D3D1C7] bg-white px-3 py-1.5 text-xs font-semibold text-[#5F5E5A] transition hover:bg-[#F7F6F2]"
-                        >
-                          <X size={12} /> Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => startEditingSection('education')}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-1.5 text-xs font-semibold text-[#1A1A1A] transition hover:bg-[#F2EEE7]"
-                      >
-                        <Pencil size={12} /> Edit
-                      </button>
-                    )}
-                  </div>
-
-                  {editingSection === 'education' ? (
-                    <textarea
-                      value={(sectionDraft.education as string) || ''}
-                      onChange={(event) => updateSectionDraft('education', event.target.value)}
-                      placeholder="School, degree, certifications"
-                      rows={4}
-                      className="w-full rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-2 text-sm text-[#1A1A1A] outline-none ring-0"
-                    />
-                  ) : (
-                    <p className="whitespace-pre-line text-sm leading-relaxed text-[#5F5E5A]">
-                      {candidateProfile?.education ||
-                        'Add your school, degree, certifications, or important training.'}
-                    </p>
-                  )}
+                <div className="rounded-2xl border border-[#E8E4DA] bg-[#FBFAF7] px-3 py-3">
+                  <div className="text-xs text-muted">Verified</div>
+                  <div className="mt-1 text-lg font-semibold text-ink">100%</div>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="rounded-[28px] border border-[#D3D1C7] bg-white p-5 shadow-[0_10px_24px_rgba(26,26,26,0.03)]">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div className="text-sm font-semibold text-[#1A1A1A]">Skills</div>
-                    {editingSection === 'skills' ? (
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={saveSectionChanges}
-                          disabled={savingSection}
-                          className="inline-flex items-center gap-1.5 rounded-full bg-[#1D9E75] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#168a63] disabled:opacity-60"
-                        >
-                          <Check size={12} /> {savingSection ? 'Saving...' : 'Save'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={cancelEditingSection}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-[#D3D1C7] bg-white px-3 py-1.5 text-xs font-semibold text-[#5F5E5A] transition hover:bg-[#F7F6F2]"
-                        >
-                          <X size={12} /> Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => startEditingSection('skills')}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-1.5 text-xs font-semibold text-[#1A1A1A] transition hover:bg-[#F2EEE7]"
-                      >
-                        <Pencil size={12} /> Edit
-                      </button>
-                    )}
-                  </div>
-
-                  {editingSection === 'skills' ? (
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap gap-2">
-                        {skillsDraft.map((skill) => (
-                          <button
-                            key={skill}
-                            type="button"
-                            onClick={() => removeDraftSkill(skill)}
-                            className="inline-flex items-center gap-1 rounded-full border border-[#D3D1C7] bg-[#FBFAF7] px-2.5 py-1 text-xs font-semibold text-[#1A1A1A]"
-                          >
-                            {skill} <X size={12} />
-                          </button>
-                        ))}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {suggestedSkills
-                          .filter((skill) => !skillsDraft.includes(skill))
-                          .slice(0, 8)
-                          .map((skill) => (
-                            <button
-                              key={skill}
-                              type="button"
-                              onClick={() => setSkillsDraft((prev) => [...prev, skill])}
-                              className="rounded-full border border-[#D3D1C7] bg-white px-2.5 py-1 text-xs font-semibold text-[#5F5E5A]"
-                            >
-                              + {skill}
-                            </button>
-                          ))}
-                      </div>
-                      <div className="flex gap-2">
-                        <input
-                          value={skillInput}
-                          onChange={(event) => setSkillInput(event.target.value)}
-                          onKeyDown={handleSkillInputKeyDown}
-                          placeholder="Type a skill and press Enter"
-                          className="w-full rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-2 text-sm text-[#1A1A1A] outline-none ring-0"
-                        />
-                        <button
-                          type="button"
-                          onClick={addDraftSkill}
-                          className="rounded-xl border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-2 text-sm font-semibold text-[#1A1A1A]"
-                        >
-                          Add
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {candidateProfile?.skills?.length ? (
-                        candidateProfile.skills.map((skill) => (
-                          <span
-                            key={skill}
-                            className="rounded-full border border-[#D3D1C7] bg-[#FBFAF7] px-2.5 py-1 text-xs font-semibold text-[#5F5E5A]"
-                          >
-                            {skill}
-                          </span>
-                        ))
-                      ) : (
-                        <p className="text-sm text-[#5F5E5A]">
-                          Add skills so employers can find you for the right roles.
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-[28px] border border-[#D3D1C7] bg-white p-5 shadow-[0_10px_24px_rgba(26,26,26,0.03)]">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div className="text-sm font-semibold text-[#1A1A1A]">Contact</div>
-                    {editingSection === 'contact' ? (
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={saveSectionChanges}
-                          disabled={savingSection}
-                          className="inline-flex items-center gap-1.5 rounded-full bg-[#1D9E75] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#168a63] disabled:opacity-60"
-                        >
-                          <Check size={12} /> {savingSection ? 'Saving...' : 'Save'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={cancelEditingSection}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-[#D3D1C7] bg-white px-3 py-1.5 text-xs font-semibold text-[#5F5E5A] transition hover:bg-[#F7F6F2]"
-                        >
-                          <X size={12} /> Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => startEditingSection('contact')}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-1.5 text-xs font-semibold text-[#1A1A1A] transition hover:bg-[#F2EEE7]"
-                      >
-                        <Pencil size={12} /> Edit
-                      </button>
-                    )}
-                  </div>
-
-                  {editingSection === 'contact' ? (
-                    <div className="space-y-3">
-                      <input
-                        value={(sectionDraft.whatsapp_number as string) || ''}
-                        onChange={(event) => updateSectionDraft('whatsapp_number', event.target.value)}
-                        placeholder="WhatsApp number"
-                        className="w-full rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-2 text-sm text-[#1A1A1A] outline-none ring-0"
-                      />
-                      <input
-                        value={(sectionDraft.github_url as string) || ''}
-                        onChange={(event) => updateSectionDraft('github_url', event.target.value)}
-                        placeholder="GitHub URL"
-                        className="w-full rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-2 text-sm text-[#1A1A1A] outline-none ring-0"
-                      />
-                      <input
-                        value={(sectionDraft.linkedin_url as string) || ''}
-                        onChange={(event) => updateSectionDraft('linkedin_url', event.target.value)}
-                        placeholder="LinkedIn URL"
-                        className="w-full rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-2 text-sm text-[#1A1A1A] outline-none ring-0"
-                      />
-                      <input
-                        value={(sectionDraft.portfolio_url as string) || ''}
-                        onChange={(event) => updateSectionDraft('portfolio_url', event.target.value)}
-                        placeholder="Portfolio URL"
-                        className="w-full rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-2 text-sm text-[#1A1A1A] outline-none ring-0"
-                      />
-                    </div>
-                  ) : (
-                    <>
-                      <div className="space-y-2">
-                        {contactItems.map((item) => {
-                          const Icon = item.icon;
-                          const content = (
-                            <div className="flex items-center gap-2 text-sm text-[#5F5E5A]">
-                              <Icon size={14} />
-                              <span className="break-all">{item.label}</span>
-                            </div>
-                          );
-
-                          return item.href ? (
-                            <a key={item.label} href={item.href} target="_blank" rel="noreferrer" className="block">
-                              {content}
-                            </a>
-                          ) : (
-                            <div key={item.label}>{content}</div>
-                          );
-                        })}
-                      </div>
-                      <p className="mt-3 text-xs leading-relaxed text-[#B4B2A9]">
-                        Visible to employers only. Reach out directly, there is no in-app messaging.
-                      </p>
-                    </>
-                  )}
-                </div>
-
-                <div className="rounded-[28px] border border-[#D3D1C7] bg-white p-5 shadow-[0_10px_24px_rgba(26,26,26,0.03)]">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div className="text-sm font-semibold text-[#1A1A1A]">Preferences</div>
-                    {editingSection === 'preferences' ? (
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={saveSectionChanges}
-                          disabled={savingSection}
-                          className="inline-flex items-center gap-1.5 rounded-full bg-[#1D9E75] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#168a63] disabled:opacity-60"
-                        >
-                          <Check size={12} /> {savingSection ? 'Saving...' : 'Save'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={cancelEditingSection}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-[#D3D1C7] bg-white px-3 py-1.5 text-xs font-semibold text-[#5F5E5A] transition hover:bg-[#F7F6F2]"
-                        >
-                          <X size={12} /> Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => startEditingSection('preferences')}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-1.5 text-xs font-semibold text-[#1A1A1A] transition hover:bg-[#F2EEE7]"
-                      >
-                        <Pencil size={12} /> Edit
-                      </button>
-                    )}
-                  </div>
-
-                  {editingSection === 'preferences' ? (
-                    <div className="space-y-3 text-sm">
-                      <div className="flex items-center justify-between rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-2">
-                        <span className="text-[#5F5E5A]">Open to work</span>
-                        <input
-                          type="checkbox"
-                          checked={Boolean(sectionDraft.open_to_work)}
-                          onChange={(event) => updateSectionDraft('open_to_work', event.target.checked)}
-                          className="h-4 w-4 rounded border-[#D3D1C7] text-[#1D9E75] focus:ring-[#1D9E75]"
-                        />
-                      </div>
-                      <input
-                        value={(sectionDraft.work_preference as string) || ''}
-                        onChange={(event) => updateSectionDraft('work_preference', event.target.value)}
-                        placeholder="Work preference"
-                        className="w-full rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-2 text-sm text-[#1A1A1A] outline-none ring-0"
-                      />
-                      <input
-                        value={(sectionDraft.preferred_salary as string) || ''}
-                        onChange={(event) => updateSectionDraft('preferred_salary', event.target.value)}
-                        placeholder="Preferred salary"
-                        className="w-full rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-2 text-sm text-[#1A1A1A] outline-none ring-0"
-                      />
-                      <input
-                        value={(sectionDraft.preferred_locations as string) || ''}
-                        onChange={(event) => updateSectionDraft('preferred_locations', event.target.value)}
-                        placeholder="Preferred locations"
-                        className="w-full rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-2 text-sm text-[#1A1A1A] outline-none ring-0"
-                      />
-                      <input
-                        value={(sectionDraft.availability as string) || ''}
-                        onChange={(event) => updateSectionDraft('availability', event.target.value)}
-                        placeholder="Availability"
-                        className="w-full rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-2 text-sm text-[#1A1A1A] outline-none ring-0"
-                      />
-                      <select
-                        value={(sectionDraft.visibility_to_employers as string) || 'open'}
-                        onChange={(event) => updateSectionDraft('visibility_to_employers', event.target.value)}
-                        className="w-full rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-2 text-sm text-[#1A1A1A] outline-none ring-0"
-                      >
-                        <option value="open">Visible to employers</option>
-                        <option value="not_open">Not open, but visible</option>
-                        <option value="hidden">Hidden from employers</option>
-                      </select>
-                    </div>
-                  ) : (
-                    <div className="space-y-2 text-sm">
-                      {preferences.map((item) => (
-                        <div key={item.label} className="flex items-start justify-between gap-3">
-                          <span className="text-[#B4B2A9]">{item.label}</span>
-                          <span className="text-right text-[#1A1A1A]">{item.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={handleDownloadCv}
-                    className={`inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1D9E75] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(29,158,117,0.18)] transition-all duration-200 hover:bg-[#168a63] active:scale-[0.98] ${
-                      candidateProfile?.resume_url ? '' : 'pointer-events-none opacity-60'
+              <form className="mt-4" onSubmit={handleSubscribe}>
+                <div className="mb-2 text-sm font-semibold text-ink">Get job alerts</div>
+                <p className="mb-3 text-xs leading-relaxed text-muted">
+                  Stay on top of new roles without checking the board every day.
+                </p>
+                <input
+                  type="email"
+                  value={subscriptionEmail}
+                  onChange={(event) => setSubscriptionEmail(event.target.value)}
+                  placeholder="Your email address"
+                  className="field-shell mb-2 px-3 py-2 text-[13px]"
+                />
+                <button
+                  type="submit"
+                  disabled={subscriptionState === 'saving'}
+                  className="w-full rounded-lg bg-[#1D9E75] py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[#168a63] disabled:opacity-60"
+                >
+                  {subscriptionState === 'saving' ? 'Saving...' : 'Notify me'}
+                </button>
+                {subscriptionMessage && (
+                  <div
+                    className={`mt-2 text-[12px] ${
+                      subscriptionState === 'success' ? 'text-[#085041]' : 'text-[#A15A00]'
                     }`}
                   >
-                    <Download size={16} /> Download CV
-                  </button>
+                    {subscriptionMessage}
+                  </div>
+                )}
+              </form>
+            </div>
 
-                  <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-[#D3D1C7] bg-[#FBFAF7] px-4 py-3 text-sm font-semibold text-[#1A1A1A] transition-all duration-200 hover:bg-[#F2EEE7] active:scale-[0.98]">
-                    <FileText size={16} />
-                    {uploadingResume ? 'Uploading...' : candidateProfile?.resume_url ? 'Replace CV' : 'Upload CV'}
-                    <input
-                      ref={resumeInputRef}
-                      type="file"
-                      accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                      className="hidden"
-                      disabled={uploadingResume}
-                      onChange={(event) => handleResumeFileChange(event.target.files?.[0] || null)}
-                    />
-                  </label>
-                  {candidateProfile?.resume_url && (
-                    <p className="text-center text-xs text-[#B4B2A9]">{resumeDisplayName}</p>
-                  )}
+            {/* Saved jobs preview */}
+            <div className="rounded-panel border border-white/70 bg-white/78 p-5 shadow-[0_18px_50px_rgba(26,26,26,0.06)] backdrop-blur-xl">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="text-sm font-semibold text-ink">Saved jobs</div>
+                <Link to="/candidate/activity" className="text-xs font-semibold text-accent-text hover:underline">
+                  View all
+                </Link>
+              </div>
+              {savedJobs.length === 0 ? (
+                <div className="rounded-2xl border border-[#E8E4DA] bg-[#FBFAF7] p-6 text-center text-sm text-muted">
+                  No saved jobs yet.
                 </div>
+              ) : (
+                <div className="space-y-2">
+                  {savedJobs.slice(0, 3).map((job) => (
+                    <Link
+                      key={job.id}
+                      to={`/jobs/${job.slug}`}
+                      className="flex items-center gap-3 rounded-2xl border border-[#E8E4DA] bg-[#FBFAF7] px-4 py-3 transition-colors duration-200 hover:border-[#5DCAA5]"
+                    >
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent-light text-accent-text">
+                        <Briefcase size={15} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-ink">{job.title}</div>
+                        <div className="truncate text-xs text-muted">{job.company?.name || 'Company'}</div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-panel border border-white/70 bg-white/78 p-5 shadow-[0_18px_50px_rgba(26,26,26,0.06)] backdrop-blur-xl">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="text-sm font-semibold text-ink">Top companies</div>
+                <Link to="/jobs" className="text-xs font-semibold text-accent-text hover:underline">
+                  Explore jobs
+                </Link>
+              </div>
+              <div className="space-y-2">
+                {topCompanies.slice(0, 3).map((company) => {
+                  const colorMap: Record<string, string> = {
+                    teal: 'bg-[#E1F5EE] text-[#085041]',
+                    blue: 'bg-[#E6F1FB] text-[#0C447C]',
+                    amber: 'bg-[#FAEEDA] text-[#633806]',
+                    purple: 'bg-[#EEEDFE] text-[#3C3489]',
+                    coral: 'bg-[#FAECE7] text-[#712B13]',
+                  };
+
+                  return (
+                    <div key={company.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[#E8E4DA] bg-[#FBFAF7] px-4 py-3 shadow-[0_10px_24px_rgba(26,26,26,0.03)]">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold ${
+                            colorMap[company.avatar_color] || colorMap.teal
+                          }`}
+                        >
+                          {company.logo_initials}
+                        </div>
+                        <div>
+                          <div className="text-sm font-semibold text-ink">{company.name}</div>
+                          <div className="text-xs text-muted">{company.job_count} open roles</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

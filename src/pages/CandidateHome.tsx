@@ -6,6 +6,7 @@ import { fetchProfile } from '../lib/admin';
 import { withTimeout } from '../lib/withTimeout';
 import type { CandidateProfile, Company, Job, Profile } from '../types';
 import JobCard from '../components/JobCard';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const FETCH_TIMEOUT_MS = 25000;
 
@@ -118,8 +119,8 @@ export default function CandidateHome() {
   if (loading) {
     return (
       <div className="page-shell px-4 py-6 sm:px-6 lg:px-8">
-        <div className="panel rounded-[24px] px-5 py-4 text-sm text-[#5F5E5A]">
-          Loading your job feed...
+        <div className="panel rounded-[24px] px-5 py-5">
+          <LoadingSpinner className="text-[#1D9E75]" />
         </div>
       </div>
     );

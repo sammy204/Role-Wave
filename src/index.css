@@ -10,7 +10,14 @@
   }
 
   body {
-    @apply min-h-screen text-[#1A1A1A] antialiased bg-[#FBFAF7];
+    min-height: 100vh;
+    color: #1a1a1a;
+    -webkit-font-smoothing: antialiased;
+    background:
+      radial-gradient(circle at top left, rgba(29, 158, 117, 0.14), transparent 28%),
+      radial-gradient(circle at top right, rgba(91, 64, 136, 0.11), transparent 22%),
+      radial-gradient(circle at 50% 100%, rgba(30, 79, 70, 0.08), transparent 30%),
+      linear-gradient(180deg, #fcfbf8 0%, #f6f2ea 58%, #fbfaf7 100%);
     font-family: 'Manrope', sans-serif;
   }
 
@@ -39,15 +46,30 @@
 
 @layer components {
   .page-shell {
-    @apply min-h-screen flex flex-col;
+    @apply min-h-screen flex flex-col relative isolate overflow-hidden;
+  }
+
+  .page-shell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 15% 15%, rgba(29, 158, 117, 0.09), transparent 28%),
+      radial-gradient(circle at 85% 10%, rgba(91, 64, 136, 0.09), transparent 22%),
+      radial-gradient(circle at 80% 80%, rgba(15, 110, 86, 0.08), transparent 26%);
+    z-index: -1;
   }
 
   .panel {
-    @apply bg-white border border-[#D3D1C7];
+    @apply border border-white/70 bg-white/80 backdrop-blur-xl shadow-[0_18px_50px_rgba(26,26,26,0.06)];
   }
 
   .panel-soft {
-    @apply bg-white border border-[#D3D1C7];
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(251, 250, 247, 0.92));
+    backdrop-filter: blur(18px);
+    box-shadow: 0 16px 42px rgba(26, 26, 26, 0.05);
   }
 
   .hairline {
@@ -67,7 +89,7 @@
   }
 
   .ghost-chip {
-    @apply inline-flex items-center gap-1.5 rounded-full border border-[#D3D1C7] bg-white px-3.5 py-2 text-sm font-medium text-[#5F5E5A] transition-all duration-200;
+    @apply inline-flex items-center gap-1.5 rounded-full border border-white/70 bg-white/75 px-3.5 py-2 text-sm font-medium text-[#5F5E5A] shadow-[0_10px_24px_rgba(26,26,26,0.04)] transition-all duration-200 backdrop-blur-xl;
   }
 
   .ghost-chip:hover {
@@ -79,7 +101,7 @@
   }
 
   .field-shell {
-    @apply w-full rounded-xl border border-[#D3D1C7] bg-white px-3.5 py-3 text-sm text-[#1A1A1A] outline-none transition-colors duration-200;
+    @apply w-full rounded-xl border border-white/70 bg-white/85 px-3.5 py-3 text-sm text-[#1A1A1A] outline-none transition-colors duration-200 backdrop-blur-xl;
   }
 
   .field-shell:focus {

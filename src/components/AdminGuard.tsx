@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { withTimeout } from '../lib/withTimeout';
 import type { Profile } from '../types';
 import { useAuth } from '../lib/useAuth';
+import LoadingSpinner from './LoadingSpinner';
 
 const AUTH_CHECK_TIMEOUT_MS = 7000;
 
@@ -91,10 +92,10 @@ export default function AdminGuard() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F1EFE8]">
-        <div className="max-w-md rounded-xl border border-[#D3D1C7] bg-white px-4 py-3 text-center shadow-sm">
-          <div className="text-[#5F5E5A]">Checking admin access...</div>
-          <div className="mt-1 text-xs text-[#8A867E]">{debugStep}</div>
-          {debugError && <div className="mt-2 text-xs text-[#A15A00]">{debugError}</div>}
+        <div className="max-w-md rounded-xl border border-[#D3D1C7] bg-white px-4 py-4 text-center shadow-sm">
+          <LoadingSpinner className="mx-auto text-[#1D9E75]" />
+          <span className="sr-only">{debugStep}</span>
+          {debugError && <div className="mt-3 text-xs text-[#A15A00]">{debugError}</div>}
         </div>
       </div>
     );

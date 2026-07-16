@@ -12,11 +12,13 @@ import {
   MessageSquareText,
   Search,
   Send,
+  Trash2,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import { useCountUp } from '../hooks/useCountUp';
 import type { CandidateProfile, Company, EmployerProfile, Job, JobApplication, Profile } from '../types';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 type JobStatus = 'active' | 'filled' | 'closed' | 'archived';
 type ApplicationStatus = JobApplication['status'];
@@ -72,6 +74,8 @@ export default function EmployerDashboard() {
   const [applications, setApplications] = useState<(JobApplication & { job?: Job; candidate?: CandidateProfile | null })[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedJobId, setSelectedJobId] = useState<string>('all');
+  const [confirmDeleteJobId, setConfirmDeleteJobId] = useState<string | null>(null);
+  const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -255,7 +259,7 @@ export default function EmployerDashboard() {
     setNotice('');
 
     try {
-      const { error: rpcError } = await supabase.rpc('admin_update_job_status', {
+      const { error: rpcError } = await supabase.rpc('employer_update_job_status', {
         p_job_id: jobId,
         p_status: nextStatus,
       });
@@ -270,11 +274,33 @@ export default function EmployerDashboard() {
     }
   };
 
+  const deleteJob = async (jobId: string) => {
+    setDeletingJobId(jobId);
+    setError('');
+    setNotice('');
+
+    try {
+      const { error: rpcError } = await supabase.rpc('employer_delete_job', {
+        p_job_id: jobId,
+      });
+      if (rpcError) throw rpcError;
+
+      setJobs((prev) => prev.filter((job) => job.id !== jobId));
+      setApplications((prev) => prev.filter((item) => item.job_id !== jobId));
+      setNotice('Job deleted.');
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Could not delete job.');
+    } finally {
+      setDeletingJobId(null);
+      setConfirmDeleteJobId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="page-shell items-center justify-center px-4">
-        <div className="panel motion-safe:animate-fade-up rounded-[24px] px-5 py-4 text-sm text-muted">
-          Loading employer dashboard...
+        <div className="panel motion-safe:animate-fade-up rounded-[24px] px-5 py-5">
+          <LoadingSpinner className="text-[#1D9E75]" />
         </div>
       </div>
     );
@@ -445,6 +471,33 @@ export default function EmployerDashboard() {
                               className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition-all duration-200 hover:bg-accent-deep disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               Reactivate
+                            </button>
+                          )}
+
+                          {confirmDeleteJobId === job.id ? (
+                            <div className="flex flex-row gap-2 lg:flex-col">
+                              <button
+                                onClick={() => deleteJob(job.id)}
+                                disabled={deletingJobId === job.id}
+                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#B3261E] px-4 py-2 text-sm font-semibold text-white transition-all duration-200 hover:bg-[#8C1D17] disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {deletingJobId === job.id ? 'Deleting...' : 'Confirm delete'}
+                              </button>
+                              <button
+                                onClick={() => setConfirmDeleteJobId(null)}
+                                disabled={deletingJobId === job.id}
+                                className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-muted transition-colors duration-200 hover:border-[#5DCAA5] hover:text-ink disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmDeleteJobId(job.id)}
+                              disabled={saving || deletingJobId !== null}
+                              className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-[#B3261E] transition-colors duration-200 hover:border-[#B3261E] hover:bg-[#FAECE7] disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <Trash2 size={14} /> Delete
                             </button>
                           )}
                         </div>

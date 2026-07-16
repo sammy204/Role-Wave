@@ -113,7 +113,7 @@ export interface JobApplication {
   resume_url: string | null;
   portfolio_url: string | null;
   source: 'guest' | 'registered';
-  status: 'submitted' | 'reviewed' | 'shortlisted' | 'rejected' | 'hired';
+  status: 'submitted' | 'reviewed' | 'shortlisted' | 'rejected' | 'hired' | 'withdrawn';
   created_at: string;
   updated_at: string;
 }

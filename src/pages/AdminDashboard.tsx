@@ -18,6 +18,7 @@ import { supabase } from '../lib/supabase';
 import { withTimeout } from '../lib/withTimeout';
 import { fetchProfile, slugify } from '../lib/admin';
 import type { Company, Job, JobSubmission, Profile } from '../types';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 type SubmissionTab = 'pending' | 'reviewed';
 type JobTab = 'all' | 'active' | 'filled' | 'closed' | 'archived';
@@ -549,7 +550,7 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F1EFE8]">
-        <div className="text-[#5F5E5A]">Loading admin dashboard...</div>
+        <LoadingSpinner className="text-[#1D9E75]" />
       </div>
     );
   }

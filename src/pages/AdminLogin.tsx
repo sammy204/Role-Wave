@@ -4,6 +4,7 @@ import { LogIn, UserPlus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import type { Profile } from '../types';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 type AuthMode = 'signup' | 'login';
 
@@ -121,7 +122,7 @@ export default function AdminLogin() {
   if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F1EFE8]">
-        <div className="text-[#5F5E5A]">Checking admin access...</div>
+        <LoadingSpinner className="text-[#1D9E75]" />
       </div>
     );
   }
@@ -182,8 +183,8 @@ export default function AdminLogin() {
           </div>
           <button type="submit" disabled={loading}
             className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-[#1D9E75] px-4 py-3 text-sm font-semibold text-white hover:bg-[#168a63] transition-colors disabled:opacity-60">
-            {mode === 'signup' ? <UserPlus size={16} /> : <LogIn size={16} />}
-            {loading ? 'Please wait...' : mode === 'signup' ? 'Create account' : 'Sign in'}
+            {loading ? <LoadingSpinner size={16} className="text-white" label="Submitting" /> : mode === 'signup' ? <UserPlus size={16} /> : <LogIn size={16} />}
+            <span>{mode === 'signup' ? 'Create account' : 'Sign in'}</span>
           </button>
         </form>
         <div className="mt-5 flex items-center justify-between text-sm">

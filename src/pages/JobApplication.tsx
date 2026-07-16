@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Send } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
-import type { CandidateProfile, Company, Job, Profile } from '../types';
+import type { Company, Job } from '../types';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const emptyForm = {
   name: '',
@@ -21,9 +22,8 @@ export default function JobApplication() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [candidateProfile, setCandidateProfile] = useState<CandidateProfile | null>(null);
   const [job, setJob] = useState<(Job & { company?: Company }) | null>(null);
+  const [existingApplication, setExistingApplication] = useState<{ id: string; status: string } | null>(null);
   const [form, setForm] = useState(emptyForm);
 
   useEffect(() => {
@@ -67,7 +67,6 @@ export default function JobApplication() {
         if (session) {
           const nextProfile = await fetchProfile(session.user.id);
           if (!alive) return;
-          setProfile(nextProfile);
 
           if (nextProfile?.account_type === 'candidate') {
             const { data: nextCandidateProfile } = await supabase
@@ -77,10 +76,19 @@ export default function JobApplication() {
               .maybeSingle();
 
             if (!alive) return;
-            setCandidateProfile((nextCandidateProfile || null) as CandidateProfile | null);
+
+            const { data: applicationRow } = await supabase
+              .from('job_applications')
+              .select('id,status')
+              .eq('job_id', data.id)
+              .eq('candidate_profile_id', session.user.id)
+              .maybeSingle();
+
+            if (!alive) return;
+            setExistingApplication((applicationRow || null) as { id: string; status: string } | null);
 
             if (nextCandidateProfile) {
-              const typed = nextCandidateProfile as CandidateProfile;
+              const typed = nextCandidateProfile as { resume_url?: string | null; portfolio_url?: string | null };
               setForm({
                 name: nextProfile.full_name || '',
                 email: session.user.email || '',
@@ -130,12 +138,14 @@ export default function JobApplication() {
     try {
       if (!job) throw new Error('Job is missing.');
       if (!form.name || !form.email) throw new Error('Please add your name and email.');
+      if (existingApplication) throw new Error('You have already applied to this job.');
 
       const { data } = await supabase.auth.getSession();
       const session = data.session;
 
-      const source = profile?.account_type === 'candidate' ? 'registered' : 'guest';
-      const candidateProfileId = candidateProfile?.id || (source === 'registered' && session ? session.user.id : null);
+      const isSignedIn = Boolean(session);
+      const source = isSignedIn ? 'registered' : 'guest';
+      const candidateProfileId = isSignedIn ? session!.user.id : null;
 
       const { error: submitError } = await supabase.from('job_applications').insert({
         job_id: job.id,
@@ -149,7 +159,12 @@ export default function JobApplication() {
         source,
       });
 
-      if (submitError) throw submitError;
+      if (submitError) {
+        if (submitError.code === '23505') {
+          throw new Error('You have already applied to this job.');
+        }
+        throw submitError;
+      }
       setSuccess(true);
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Could not submit application.');
@@ -161,8 +176,8 @@ export default function JobApplication() {
   if (loading) {
     return (
       <div className="page-shell items-center justify-center px-4">
-        <div className="panel rounded-[24px] px-5 py-4 text-sm text-[#5F5E5A]">
-          Loading application...
+        <div className="panel rounded-[24px] px-5 py-5">
+          <LoadingSpinner className="text-[#1D9E75]" />
         </div>
       </div>
     );
@@ -229,6 +244,14 @@ export default function JobApplication() {
             </div>
           )}
 
+          {existingApplication && (
+            <div className="mb-6 rounded-[18px] border border-[#5DCAA5] bg-[#E1F5EE] p-4 text-sm text-[#085041]">
+              You have already applied to this job. Status: <span className="font-semibold">{existingApplication.status}</span>.
+              {' '}
+              Manage it from your dashboard.
+            </div>
+          )}
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold uppercase tracking-[0.5px] text-[#5F5E5A]">Name</label>
@@ -265,10 +288,10 @@ export default function JobApplication() {
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={submitting}
+            disabled={submitting || Boolean(existingApplication)}
             className="mt-6 rounded-xl bg-[#1D9E75] px-8 py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-[#168a63] disabled:opacity-60"
           >
-            {submitting ? 'Sending...' : 'Submit application'}
+            {submitting ? 'Sending...' : existingApplication ? 'Already applied' : 'Submit application'}
           </button>
         </div>
 
