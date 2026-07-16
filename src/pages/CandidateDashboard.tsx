@@ -302,14 +302,12 @@ try {
     setError('');
 
     try {
-     const { data, error: deleteError } = await supabase
-  .from('job_applications')
-  .update({ candidate_deleted_at: new Date().toISOString() })
-  .eq('id', applicationId)
-  .eq('status', 'withdrawn')
-  .select();
-if (deleteError) throw deleteError;
-console.log('Rows updated (delete):', data);
+      const { error: deleteError } = await supabase
+        .from('job_applications')
+        .update({ candidate_deleted_at: new Date().toISOString() })
+        .eq('id', applicationId)
+        .eq('status', 'withdrawn');
+      if (deleteError) throw deleteError;
 
       setApplications((prev) => prev.filter((item) => item.id !== applicationId));
     } catch (mutationError) {

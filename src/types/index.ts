@@ -114,6 +114,7 @@ export interface JobApplication {
   portfolio_url: string | null;
   source: 'guest' | 'registered';
   status: 'submitted' | 'reviewed' | 'shortlisted' | 'rejected' | 'hired' | 'withdrawn';
+  candidate_deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }

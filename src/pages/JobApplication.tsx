@@ -82,6 +82,7 @@ export default function JobApplication() {
               .select('id,status')
               .eq('job_id', data.id)
               .eq('candidate_profile_id', session.user.id)
+              .neq('status', 'withdrawn')
               .maybeSingle();
 
             if (!alive) return;

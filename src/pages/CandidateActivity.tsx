@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bookmark, CalendarClock, CheckCircle2, Undo2 } from 'lucide-react';
+import { Bookmark, CalendarClock, CheckCircle2, Trash2, Undo2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import { getSavedJobIds } from '../lib/savedJobs';
@@ -28,6 +28,7 @@ export default function CandidateActivity() {
   const [error, setError] = useState('');
   const [confirmWithdrawId, setConfirmWithdrawId] = useState<string | null>(null);
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
+  const [dismissingId, setDismissingId] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -120,6 +121,25 @@ export default function CandidateActivity() {
     } finally {
       setWithdrawingId(null);
       setConfirmWithdrawId(null);
+    }
+  };
+
+  const dismissApplication = async (applicationId: string) => {
+    setDismissingId(applicationId);
+    setError('');
+
+    try {
+      const { error: dismissError } = await supabase
+        .from('job_applications')
+        .update({ candidate_deleted_at: new Date().toISOString() })
+        .eq('id', applicationId);
+      if (dismissError) throw dismissError;
+
+      setApplications((prev) => prev.filter((item) => item.id !== applicationId));
+    } catch (dismissError) {
+      setError(dismissError instanceof Error ? dismissError.message : 'Could not remove application.');
+    } finally {
+      setDismissingId(null);
     }
   };
 
@@ -224,14 +244,23 @@ export default function CandidateActivity() {
 
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       {isWithdrawn ? (
-                        job && (
-                          <Link
-                            to={`/jobs/${job.slug}/apply`}
-                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1D9E75] px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#168a63]"
+                        <>
+                          {job && (
+                            <Link
+                              to={`/jobs/${job.slug}/apply`}
+                              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1D9E75] px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#168a63]"
+                            >
+                              Reapply
+                            </Link>
+                          )}
+                          <button
+                            onClick={() => dismissApplication(application.id)}
+                            disabled={dismissingId === application.id}
+                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#D3D1C7] bg-white px-3.5 py-2 text-xs font-semibold text-[#5F5E5A] transition-colors hover:border-[#B3261E] hover:text-[#B3261E] disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            Reapply
-                          </Link>
-                        )
+                            <Trash2 size={13} /> {dismissingId === application.id ? 'Removing...' : 'Remove'}
+                          </button>
+                        </>
                       ) : confirmWithdrawId === application.id ? (
                         <>
                           <button
