@@ -276,17 +276,15 @@ export default function CandidateDashboard() {
   const savedCount = useCountUp(counts.saved);
   const shortlistedCount = useCountUp(counts.shortlisted);
 
-  const withdrawApplication = async (applicationId: string) => {
+ const withdrawApplication = async (applicationId: string) => {
     setMutatingApplicationId(applicationId);
     setError('');
-try {
-      const { data, error: updateError } = await supabase
+    try {
+      const { error: updateError } = await supabase
         .from('job_applications')
         .update({ status: 'withdrawn' })
-        .eq('id', applicationId)
-        .select();
+        .eq('id', applicationId);
       if (updateError) throw updateError;
-      console.log('Rows updated:', data);
       setApplications((prev) =>
         prev.map((item) => (item.id === applicationId ? { ...item, status: 'withdrawn' } : item))
       );
@@ -302,13 +300,10 @@ try {
     setError('');
 
     try {
-      const { error: deleteError } = await supabase
-        .from('job_applications')
-        .update({ candidate_deleted_at: new Date().toISOString() })
-        .eq('id', applicationId)
-        .eq('status', 'withdrawn');
-      if (deleteError) throw deleteError;
-
+  const { error: deleteError } = await supabase
+    .rpc('candidate_delete_application', { p_application_id: applicationId });
+  if (deleteError) throw deleteError;
+  
       setApplications((prev) => prev.filter((item) => item.id !== applicationId));
     } catch (mutationError) {
       setError(mutationError instanceof Error ? mutationError.message : 'Could not delete application.');

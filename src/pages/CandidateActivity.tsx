@@ -107,11 +107,9 @@ export default function CandidateActivity() {
     setError('');
 
     try {
-      const { error: withdrawError } = await supabase
-        .from('job_applications')
-        .update({ status: 'withdrawn' })
-        .eq('id', applicationId);
-      if (withdrawError) throw withdrawError;
+     const { error } = await supabase
+  .rpc('candidate_delete_application', { p_application_id: applicationId });
+if (error) throw error;
 
       setApplications((prev) =>
         prev.map((item) => (item.id === applicationId ? { ...item, status: 'withdrawn' } : item))
