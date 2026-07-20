@@ -114,10 +114,34 @@ export interface JobApplication {
   portfolio_url: string | null;
   source: 'guest' | 'registered';
   status: 'submitted' | 'reviewed' | 'shortlisted' | 'rejected' | 'hired' | 'withdrawn';
-  candidate_deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export type WorkType = 'Remote' | 'Hybrid' | 'On-site';
 export type JobType = 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
+
+export interface Conversation {
+  id: string;
+  company_id: string;
+  candidate_profile_id: string;
+  source_job_id: string | null;
+  employer_last_read_at: string | null;
+  candidate_last_read_at: string | null;
+  last_message_at: string;
+  created_at: string;
+  company?: Company;
+  candidate?: CandidateProfile;
+  candidate_full_name?: string | null;
+  source_job?: Job;
+}
+
+export interface Message {
+  id: string;
+  conversation_id: string;
+  sender_profile_id: string;
+  body: string;
+  created_at: string;
+  edited_at: string | null;
+  deleted_at: string | null;
+}

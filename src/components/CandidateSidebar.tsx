@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Bookmark, Briefcase, Info, LayoutDashboard, LogOut, Mail, Menu, User, X } from 'lucide-react';
+import { Bookmark, Briefcase, Info, LayoutDashboard, LogOut, Mail, MessageSquareText, Menu, User, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 const links = [
@@ -8,6 +8,7 @@ const links = [
   { to: '/candidate/profile', label: 'Profile', icon: User },
   { to: '/jobs', label: 'Browse jobs', icon: Briefcase },
   { to: '/candidate/activity', label: 'Saved & Applied', icon: Bookmark },
+  { to: '/candidate/messages', label: 'Messages', icon: MessageSquareText },
 ];
 
 const utilityLinks = [

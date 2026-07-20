@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Briefcase, Building2, LayoutDashboard, LogOut, Menu, PencilLine, X } from 'lucide-react';
+import { Briefcase, Building2, LayoutDashboard, LogOut, Menu, MessageSquareText, PencilLine, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 type WorkspaceRole = 'candidate' | 'employer';
@@ -25,11 +25,13 @@ export default function WorkspaceNav({ role }: { role: WorkspaceRole }) {
           { to: '/employer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
           { to: '/employer/onboarding', label: 'Company', icon: Building2 },
           { to: '/post', label: 'Post job', icon: Briefcase },
+          { to: '/employer/messages', label: 'Messages', icon: MessageSquareText },
         ]
       : [
           { to: '/candidate/dashboard', label: 'Dashboard', icon: LayoutDashboard },
           { to: '/candidate/profile', label: 'Edit profile', icon: PencilLine },
           { to: '/jobs', label: 'Browse jobs', icon: Briefcase },
+          { to: '/candidate/messages', label: 'Messages', icon: MessageSquareText },
         ];
 
   return (

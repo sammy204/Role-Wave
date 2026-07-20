@@ -8,7 +8,7 @@ import { withTimeout } from '../lib/withTimeout';
 import type { Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 
-type AuthMode = 'signup' | 'login';
+type AuthMode = 'signup' | 'login' | 'forgot';
 type MarketplaceRole = 'candidate' | 'employer';
 
 export default function MarketplaceEntry() {
@@ -25,6 +25,7 @@ export default function MarketplaceEntry() {
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [resetSent, setResetSent] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const { session, loading: authLoading } = useAuth();
   const isSignup = mode === 'signup';
@@ -69,6 +70,13 @@ export default function MarketplaceEntry() {
       alive = false;
     };
   }, [authLoading, navigate, session]);
+
+  const switchMode = (next: AuthMode) => {
+    setMode(next);
+    setError('');
+    setInfo('');
+    setResetSent(false);
+  };
 
   const handleGoogle = async () => {
     setLoading(true);
@@ -168,6 +176,28 @@ export default function MarketplaceEntry() {
     }
   };
 
+  const handleForgotPassword = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoading(true);
+    setError('');
+    setInfo('');
+
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (resetError) throw resetError;
+
+      setResetSent(true);
+      setInfo('Check your email for a password reset link.');
+    } catch (authError) {
+      setError(authError instanceof Error ? authError.message : 'Could not send reset email.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const perforationHorizontal: React.CSSProperties = {
     backgroundImage: 'radial-gradient(circle, #D3D1C7 1.6px, transparent 1.8px)',
     backgroundSize: '14px 100%',
@@ -190,9 +220,274 @@ export default function MarketplaceEntry() {
     );
   }
 
+  const messageBanners = (
+    <>
+      {profile && (
+        <div className="mt-4 rounded-xl border border-line bg-paper px-4 py-3 text-sm text-muted">
+          Signed in as {profile.full_name || 'member'}.
+        </div>
+      )}
+      {info && (
+        <div className="mt-4 rounded-xl border border-accent bg-paper px-4 py-3 text-sm text-accent">
+          {info}
+        </div>
+      )}
+      {error && (
+        <div className="mt-4 rounded-xl border border-[#F0D080] bg-[#FFF8E6] px-4 py-3 text-sm text-[#7A5000]">
+          {error}
+        </div>
+      )}
+    </>
+  );
+
+  const signInForm = (
+    <div className="w-full max-w-sm">
+      <h2 className="font-display text-[28px] font-semibold leading-[1.05] tracking-[-0.02em] text-ink">
+        Sign in
+      </h2>
+      <p className="mt-2 text-sm leading-relaxed text-muted">
+        Your details are saved and the dashboard is waiting.
+      </p>
+
+      {messageBanners}
+
+      <form className="mt-4 space-y-3" onSubmit={handleAuth}>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
+            Email
+          </label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="field-shell"
+            placeholder="you@example.com"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
+            Password
+          </label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="field-shell"
+            placeholder="Enter password"
+            required
+          />
+          <div className="mt-1.5 text-right">
+            <button
+              type="button"
+              onClick={() => switchMode('forgot')}
+              className="text-xs font-semibold text-accent hover:underline"
+            >
+              Forgot password?
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white transition-colors duration-150 hover:bg-[#168a63] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loading ? <LoadingSpinner size={16} className="text-white" label="Submitting" /> : <LogIn size={16} />}
+          <span>Sign in</span>
+        </button>
+      </form>
+
+      <div className="mt-3">
+        <button
+          type="button"
+          onClick={handleGoogle}
+          disabled={loading}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-3 text-sm font-semibold text-ink transition-colors duration-150 hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loading ? (
+            <LoadingSpinner size={16} className="text-ink" label="Signing in with Google" />
+          ) : (
+            <>
+              <GoogleIcon />
+              Continue with Google
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+
+  const forgotForm = (
+    <div className="w-full max-w-sm">
+      <h2 className="font-display text-[28px] font-semibold leading-[1.05] tracking-[-0.02em] text-ink">
+        Reset your password
+      </h2>
+      <p className="mt-2 text-sm leading-relaxed text-muted">
+        Enter the email on your account and we&apos;ll send you a reset link.
+      </p>
+
+      {messageBanners}
+
+      {!resetSent && (
+        <form className="mt-4 space-y-3" onSubmit={handleForgotPassword}>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
+              Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="field-shell"
+              placeholder="you@example.com"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white transition-colors duration-150 hover:bg-[#168a63] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? <LoadingSpinner size={16} className="text-white" label="Sending" /> : 'Send reset link'}
+          </button>
+        </form>
+      )}
+
+      <button
+        type="button"
+        onClick={() => switchMode('login')}
+        className="mt-4 text-sm font-semibold text-muted hover:text-ink"
+      >
+        ← Back to sign in
+      </button>
+    </div>
+  );
+
+  const signUpForm = (
+    <div className="w-full max-w-sm">
+      <h2 className="font-display text-[28px] font-semibold leading-[1.05] tracking-[-0.02em] text-ink">
+        Create your account
+      </h2>
+      <p className="mt-2 text-sm leading-relaxed text-muted">
+        Pick a role first, then fill in the essentials.
+      </p>
+
+      <div className="mt-4">
+        <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.5px] text-muted">Sign up as</div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setRole('candidate')}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-2.5 py-2.5 text-xs font-semibold transition-all duration-200 ${
+              role === 'candidate'
+                ? 'border-accent bg-white text-ink shadow-[0_10px_24px_rgba(29,158,117,0.1)]'
+                : 'border-line bg-paper/60 text-muted hover:border-accent/60'
+            }`}
+          >
+            <Briefcase size={14} className={role === 'candidate' ? 'text-accent' : 'text-muted'} />
+            Job seeker
+          </button>
+          <button
+            type="button"
+            onClick={() => setRole('employer')}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-2.5 py-2.5 text-xs font-semibold transition-all duration-200 ${
+              role === 'employer'
+                ? 'border-accent bg-white text-ink shadow-[0_10px_24px_rgba(29,158,117,0.1)]'
+                : 'border-line bg-paper/60 text-muted hover:border-accent/60'
+            }`}
+          >
+            <Building2 size={14} className={role === 'employer' ? 'text-accent' : 'text-muted'} />
+            Employer
+          </button>
+        </div>
+      </div>
+
+      {messageBanners}
+
+      <form className="mt-4 space-y-3" onSubmit={handleAuth}>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
+            Full name
+          </label>
+          <input
+            type="text"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            className="field-shell"
+            placeholder="Samuel Ade"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
+            Email
+          </label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="field-shell"
+            placeholder="you@example.com"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
+            Password
+          </label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="field-shell"
+            placeholder="Enter password"
+            required
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white transition-colors duration-150 hover:bg-[#168a63] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loading ? <LoadingSpinner size={16} className="text-white" label="Submitting" /> : <UserPlus size={16} />}
+          <span>Create account</span>
+        </button>
+      </form>
+
+      <div className="mt-3">
+        <button
+          type="button"
+          onClick={handleGoogle}
+          disabled={loading || role === 'employer'}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-3 text-sm font-semibold text-ink transition-colors duration-150 hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loading ? (
+            <LoadingSpinner size={16} className="text-ink" label="Signing in with Google" />
+          ) : (
+            <>
+              <GoogleIcon />
+              Continue with Google
+            </>
+          )}
+        </button>
+        {role === 'employer' && (
+          <p className="mt-2 text-xs leading-relaxed text-muted">
+            Employer accounts can use email and password for now.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="page-shell items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
-      <div className="relative z-10 mx-auto w-full max-w-[480px]">
+      <div className="relative z-10 mx-auto w-full max-w-3xl">
         <div className="mb-4 flex justify-start px-1">
           <Link
             to="/"
@@ -202,223 +497,127 @@ export default function MarketplaceEntry() {
           </Link>
         </div>
 
-        <section className="auth-fade-up overflow-hidden rounded-2xl border border-white/70 bg-white/80 shadow-[0_20px_60px_rgba(26,26,26,0.08)] backdrop-blur-xl">
-          {/* Masthead band */}
-          <div className="flex items-center justify-between gap-4 bg-[#0E3A2E] px-5 py-3.5 sm:px-7">
-            <div className="flex items-baseline gap-2.5 min-w-0">
-              <span className="font-display whitespace-nowrap text-[15px] font-semibold uppercase tracking-[0.08em] text-white">
-                RoleWave
-              </span>
-            
+        {/* ============ DESKTOP: sliding overlay panel ============ */}
+        <section className="auth-fade-up relative hidden overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_20px_60px_rgba(26,26,26,0.08)] backdrop-blur-xl md:block">
+          <div className="relative" style={{ minHeight: 560 }}>
+            {/* Sign-in / forgot panel — fixed on the left */}
+            <div
+              className="absolute inset-y-0 left-0 flex w-1/2 items-center justify-center overflow-y-auto px-10 py-10 transition-opacity duration-500"
+              style={{ opacity: isSignup ? 0 : 1, pointerEvents: isSignup ? 'none' : 'auto' }}
+            >
+              {mode === 'forgot' ? forgotForm : signInForm}
             </div>
+
+            {/* Sign-up panel — fixed on the right */}
+            <div
+              className="absolute inset-y-0 right-0 flex w-1/2 items-center justify-center overflow-y-auto px-10 py-10 transition-opacity duration-500"
+              style={{ opacity: isSignup ? 1 : 0, pointerEvents: isSignup ? 'auto' : 'none' }}
+            >
+              {signUpForm}
+            </div>
+
+            {/* Teal overlay — slides across, always covering the inactive side */}
+            <div
+              className="absolute inset-y-0 z-30 flex w-1/2 flex-col items-center justify-center bg-[#0E3A2E] px-8 text-center transition-transform duration-700 ease-in-out"
+              style={{ transform: isSignup ? 'translateX(0%)' : 'translateX(100%)' }}
+            >
+              <div className="mb-4 inline-flex items-center gap-2 self-start">
+                <span className="font-display text-[13px] font-semibold uppercase tracking-[0.08em] text-white">
+                  RoleWave
+                </span>
+              </div>
+
+              {isSignup ? (
+                <div key="welcome-back" className="auth-fade-up">
+                  <h3 className="font-display text-2xl font-semibold text-white">Welcome Back!</h3>
+                  <p className="mt-3 text-sm leading-relaxed text-[#CFEEE1]">
+                    To keep connected with us, please sign in with your personal info.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => switchMode('login')}
+                    className="mt-6 inline-flex items-center justify-center rounded-full border border-white/70 px-6 py-2.5 text-sm font-semibold text-white transition-colors duration-150 hover:bg-white/10"
+                  >
+                    Sign in
+                  </button>
+                </div>
+              ) : (
+                <div key="hello-friend" className="auth-fade-up">
+                  <h3 className="font-display text-2xl font-semibold text-white">Hello, Friend!</h3>
+                  <p className="mt-3 text-sm leading-relaxed text-[#CFEEE1]">
+                    Enter your details and start your journey with RoleWave.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => switchMode('signup')}
+                    className="mt-6 inline-flex items-center justify-center rounded-full border border-white/70 px-6 py-2.5 text-sm font-semibold text-white transition-colors duration-150 hover:bg-white/10"
+                  >
+                    Sign up
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* ============ MOBILE: stacked pill-tab card (no room to slide) ============ */}
+        <section className="auth-fade-up overflow-hidden rounded-2xl border border-white/70 bg-white/80 shadow-[0_20px_60px_rgba(26,26,26,0.08)] backdrop-blur-xl md:hidden">
+          <div className="flex items-center justify-between gap-4 bg-[#0E3A2E] px-5 py-3.5 sm:px-7">
+            <span className="font-display whitespace-nowrap text-[15px] font-semibold uppercase tracking-[0.08em] text-white">
+              RoleWave
+            </span>
             <span className="whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.1em] text-[#6FD9AE]">
-              {isSignup ? 'New membership' : 'Returning'}
+              {mode === 'forgot' ? 'Reset password' : isSignup ? 'New membership' : 'Returning'}
             </span>
           </div>
-          <p className="bg-[#0E3A2E] px-5 pb-3.5 text-[13px] leading-snug text-[#CFEEE1] sm:px-7">
-           
-          </p>
 
-          {/* Perforation */}
           <div className="h-px" style={perforationHorizontal} />
 
-          {/* Form side */}
           <div className="px-5 py-5 sm:px-7 sm:py-6">
-            <div className="relative flex rounded-2xl border border-line bg-paper/70 p-1 shadow-[inset_0_1px_2px_rgba(26,26,26,0.04)] backdrop-blur-md">
-              <div
-                className="absolute left-1 top-1 h-[calc(100%-8px)] w-[calc(50%-4px)] rounded-xl border border-white/70 bg-white/90 shadow-[0_10px_30px_rgba(26,26,26,0.1)] backdrop-blur-xl transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
-                style={{ transform: isSignup ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
-              />
-              <button
-                type="button"
-                onClick={() => setMode('signup')}
-                className={`relative z-10 flex-1 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors duration-200 ${
-                  isSignup ? 'text-ink' : 'text-muted hover:text-ink'
-                }`}
-              >
-                Sign up
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('login')}
-                className={`relative z-10 flex-1 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors duration-200 ${
-                  !isSignup ? 'text-ink' : 'text-muted hover:text-ink'
-                }`}
-              >
-                Log in
-              </button>
-            </div>
-
-            <div key={mode} className="auth-fade-up mt-5">
-              <div className="max-w-sm">
-                <h2 className="font-display text-[28px] font-semibold leading-[1.05] tracking-[-0.02em] text-ink sm:text-[32px]">
-                  {isSignup ? 'Create your account' : 'Sign in'}
-                </h2>
-                <p className="mt-2 text-sm leading-relaxed text-muted">
-                  {isSignup ? 'Pick a role first, then fill in the essentials.' : 'Your details are saved and the dashboard is waiting.'}
-                </p>
-              </div>
-
-              {isSignup && (
-                <div className="mt-4">
-                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.5px] text-muted">
-                    Sign up as
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setRole('candidate')}
-                      className={`flex w-full min-w-0 items-start gap-2.5 rounded-xl border p-2.5 text-left backdrop-blur-md transition-all duration-200 ${
-                        role === 'candidate'
-                          ? 'border-accent bg-white/85 text-ink shadow-[0_10px_24px_rgba(29,158,117,0.1)]'
-                          : 'border-white/70 bg-white/60 text-ink hover:-translate-y-[1px] hover:border-accent/60 hover:bg-white/80 hover:shadow-[0_10px_24px_rgba(26,26,26,0.05)]'
-                      }`}
-                    >
-                      <Briefcase
-                        size={16}
-                        className={`mt-0.5 shrink-0 ${role === 'candidate' ? 'text-accent' : 'text-muted'}`}
-                      />
-                      <span className="min-w-0">
-                        <span className="block text-[14px] font-semibold leading-snug">Job seeker</span>
-                        <span className="mt-1 block text-xs leading-relaxed text-muted">
-                          Browse jobs, save your profile, and apply with less friction.
-                        </span>
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRole('employer')}
-                      className={`flex w-full min-w-0 items-start gap-2.5 rounded-xl border p-2.5 text-left backdrop-blur-md transition-all duration-200 ${
-                        role === 'employer'
-                          ? 'border-accent bg-white/85 text-ink shadow-[0_10px_24px_rgba(29,158,117,0.1)]'
-                          : 'border-white/70 bg-white/60 text-ink hover:-translate-y-[1px] hover:border-accent/60 hover:bg-white/80 hover:shadow-[0_10px_24px_rgba(26,26,26,0.05)]'
-                      }`}
-                    >
-                      <Building2
-                        size={16}
-                        className={`mt-0.5 shrink-0 ${role === 'employer' ? 'text-accent' : 'text-muted'}`}
-                      />
-                      <span className="min-w-0">
-                        <span className="block text-[14px] font-semibold leading-snug">Employer</span>
-                        <span className="mt-1 block text-xs leading-relaxed text-muted">
-                          Create a company account and post jobs later.
-                        </span>
-                      </span>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {profile && (
-                <div className="mt-4 rounded-xl border border-line bg-paper px-4 py-3 text-sm text-muted">
-                  Signed in as {profile.full_name || 'member'}.
-                </div>
-              )}
-
-              {info && (
-                <div className="mt-4 rounded-xl border border-accent bg-paper px-4 py-3 text-sm text-accent">
-                  {info}
-                </div>
-              )}
-
-              {error && (
-                <div className="mt-4 rounded-xl border border-[#F0D080] bg-[#FFF8E6] px-4 py-3 text-sm text-[#7A5000]">
-                  {error}
-                </div>
-              )}
-
-              <form className="mt-4 space-y-3" onSubmit={handleAuth}>
-                {isSignup && (
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
-                      Full name
-                    </label>
-                    <input
-                      type="text"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      className="field-shell"
-                      placeholder="Samuel Ade"
-                      required
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="field-shell"
-                    placeholder="you@example.com"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="field-shell"
-                    placeholder="Enter password"
-                    required
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white transition-colors duration-150 hover:bg-[#168a63] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {loading ? (
-                    <LoadingSpinner size={16} className="text-white" label="Submitting" />
-                  ) : isSignup ? (
-                    <UserPlus size={16} />
-                  ) : (
-                    <LogIn size={16} />
-                  )}
-                  <span>{isSignup ? 'Create account' : 'Sign in'}</span>
-                </button>
-              </form>
-
-              <div className="mt-3">
+            {mode !== 'forgot' && (
+              <div className="relative flex rounded-2xl border border-line bg-paper/70 p-1 shadow-[inset_0_1px_2px_rgba(26,26,26,0.04)] backdrop-blur-md">
+                <div
+                  className="absolute left-1 top-1 h-[calc(100%-8px)] w-[calc(50%-4px)] rounded-xl border border-white/70 bg-white/90 shadow-[0_10px_30px_rgba(26,26,26,0.1)] backdrop-blur-xl transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                  style={{ transform: isSignup ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
+                />
                 <button
                   type="button"
-                  onClick={handleGoogle}
-                  disabled={loading || (isSignup && role === 'employer')}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-3 text-sm font-semibold text-ink transition-colors duration-150 hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={() => switchMode('signup')}
+                  className={`relative z-10 flex-1 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors duration-200 ${
+                    isSignup ? 'text-ink' : 'text-muted hover:text-ink'
+                  }`}
                 >
-                  {loading ? (
-                    <LoadingSpinner size={16} className="text-ink" label="Signing in with Google" />
-                  ) : (
-                    <>
-                      <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-                        <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
-                        <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z" />
-                        <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z" />
-                        <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z" />
-                      </svg>
-                      Continue with Google
-                    </>
-                  )}
+                  Sign up
                 </button>
-                {isSignup && role === 'employer' && (
-                  <p className="mt-2 text-xs leading-relaxed text-muted">
-                    Employer accounts can use email and password for now.
-                  </p>
-                )}
+                <button
+                  type="button"
+                  onClick={() => switchMode('login')}
+                  className={`relative z-10 flex-1 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors duration-200 ${
+                    !isSignup ? 'text-ink' : 'text-muted hover:text-ink'
+                  }`}
+                >
+                  Log in
+                </button>
               </div>
+            )}
+
+            <div key={mode} className="auth-fade-up mt-5">
+              {mode === 'forgot' ? forgotForm : mode === 'signup' ? signUpForm : signInForm}
             </div>
           </div>
         </section>
       </div>
     </div>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
+      <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z" />
+      <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z" />
+      <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z" />
+    </svg>
   );
 }

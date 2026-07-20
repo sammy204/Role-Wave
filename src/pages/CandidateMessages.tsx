@@ -1,0 +1,447 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Building2, Check, MessageSquareText, Pencil, Send, Trash2, X } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { fetchProfile } from '../lib/admin';
+import {
+  fetchCandidateConversations,
+  fetchMessages,
+  markConversationRead,
+  sendMessage,
+  editMessage,
+  deleteMessage,
+  subscribeToConversationMessages,
+  isConversationUnread,
+} from '../lib/messages';
+import type { Conversation, Message } from '../types';
+import LoadingSpinner from '../components/LoadingSpinner';
+
+function formatRelative(date: string) {
+  const now = new Date();
+  const then = new Date(date);
+  const diff = Math.floor((now.getTime() - then.getTime()) / 1000);
+  if (diff < 60) return 'Just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+  return then.toLocaleDateString();
+}
+
+function formatTime(date: string) {
+  return new Date(date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+export default function CandidateMessages() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [userId, setUserId] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [sending, setSending] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadData() {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const session = data.session;
+        if (!session) {
+          navigate('/start?mode=login', { replace: true });
+          return;
+        }
+
+        const nextProfile = await fetchProfile(session.user.id);
+        if (!alive) return;
+
+        if (nextProfile?.account_type !== 'candidate') {
+          navigate('/', { replace: true });
+          return;
+        }
+
+        setUserId(session.user.id);
+        const rows = await fetchCandidateConversations(session.user.id);
+        if (!alive) return;
+
+        setConversations(rows);
+
+        const requested = searchParams.get('conversation');
+        const initial = requested && rows.some((c) => c.id === requested) ? requested : rows[0]?.id || null;
+        setActiveId(initial);
+      } catch (loadError) {
+        if (alive) setError(loadError instanceof Error ? loadError.message : 'Could not load your messages.');
+      } finally {
+        if (alive) setLoading(false);
+      }
+    }
+
+    loadData();
+
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!activeId) {
+      setMessages([]);
+      return;
+    }
+
+    let alive = true;
+    setMessagesLoading(true);
+    setEditingId(null);
+    setConfirmDeleteId(null);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('conversation', activeId);
+      return next;
+    }, { replace: true });
+
+    (async () => {
+      try {
+        const rows = await fetchMessages(activeId);
+        if (!alive) return;
+        setMessages(rows);
+        await markConversationRead(activeId);
+        if (!alive) return;
+        setConversations((prev) =>
+          prev.map((c) => (c.id === activeId ? { ...c, candidate_last_read_at: new Date().toISOString() } : c))
+        );
+      } catch (loadError) {
+        if (alive) setError(loadError instanceof Error ? loadError.message : 'Could not load conversation.');
+      } finally {
+        if (alive) setMessagesLoading(false);
+      }
+    })();
+
+    const unsubscribe = subscribeToConversationMessages(activeId, {
+      onInsert: (message) => {
+        setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
+        setConversations((prev) =>
+          prev.map((c) => (c.id === activeId ? { ...c, last_message_at: message.created_at } : c))
+        );
+      },
+      onUpdate: (message) => {
+        setMessages((prev) => prev.map((m) => (m.id === message.id ? message : m)));
+      },
+    });
+
+    return () => {
+      alive = false;
+      unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+  }, [messages]);
+
+  const activeConversation = useMemo(
+    () => conversations.find((c) => c.id === activeId) || null,
+    [conversations, activeId]
+  );
+
+  const handleSend = async () => {
+    if (!activeId || !userId || !draft.trim() || sending) return;
+
+    setSending(true);
+    setError('');
+    try {
+      const message = await sendMessage(activeId, userId, draft);
+      setMessages((prev) => [...prev, message]);
+      setConversations((prev) =>
+        prev.map((c) => (c.id === activeId ? { ...c, last_message_at: message.created_at } : c))
+      );
+      setDraft('');
+    } catch (sendError) {
+      setError(sendError instanceof Error ? sendError.message : 'Could not send message.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const startEdit = (message: Message) => {
+    setEditingId(message.id);
+    setEditDraft(message.body);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditDraft('');
+  };
+
+  const saveEdit = async () => {
+    if (!editingId || !userId || !editDraft.trim() || savingEdit) return;
+
+    setSavingEdit(true);
+    setError('');
+    try {
+      const updated = await editMessage(editingId, userId, editDraft);
+      setMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+      setEditingId(null);
+      setEditDraft('');
+    } catch (editError) {
+      setError(editError instanceof Error ? editError.message : 'Could not edit message.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDelete = async (messageId: string) => {
+    if (!userId) return;
+
+    setDeletingId(messageId);
+    setError('');
+    try {
+      const updated = await deleteMessage(messageId, userId);
+      setMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Could not delete message.');
+    } finally {
+      setDeletingId(null);
+      setConfirmDeleteId(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="page-shell items-center justify-center px-4">
+        <div className="panel motion-safe:animate-fade-up rounded-[24px] px-5 py-5">
+          <LoadingSpinner className="text-[#1D9E75]" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="page-shell">
+      <div className="mx-auto w-full max-w-[1320px] px-4 pb-8 pt-6 sm:px-6 lg:px-8">
+        <div className="mb-6">
+          <h1 className="font-display text-3xl font-bold tracking-[-0.03em] text-ink sm:text-4xl">Messages</h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted">Conversations with employers who've reached out.</p>
+        </div>
+
+        {error && (
+          <div className="mb-4 rounded-xl border border-[#F0D080] bg-[#FFF8E6] px-4 py-3 text-sm text-[#7A5000]">
+            {error}
+          </div>
+        )}
+
+        <div className="panel grid overflow-hidden rounded-[28px] lg:grid-cols-[320px_1fr]" style={{ minHeight: '65vh' }}>
+          {/* Thread list */}
+          <div className="border-b border-line lg:border-b-0 lg:border-r">
+            {conversations.length === 0 ? (
+              <div className="p-6 text-center text-sm text-muted">
+                No conversations yet. When an employer messages you about an application, it'll show up here.
+              </div>
+            ) : (
+              <div className="max-h-[65vh] overflow-y-auto">
+                {conversations.map((conversation) => {
+                  const unread = isConversationUnread(conversation, 'candidate');
+                  const active = conversation.id === activeId;
+                  return (
+                    <button
+                      key={conversation.id}
+                      onClick={() => setActiveId(conversation.id)}
+                      className={`flex w-full items-start gap-3 border-b border-line px-4 py-3 text-left transition-colors duration-150 ${
+                        active ? 'bg-accent-light' : 'hover:bg-[#F1EFE8]'
+                      }`}
+                    >
+                      <div className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#1D9E75] text-xs font-bold text-white">
+                        {conversation.company?.logo_initials || <Building2 size={14} />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`truncate text-sm ${unread ? 'font-bold text-ink' : 'font-semibold text-ink'}`}>
+                            {conversation.company?.name || 'Employer'}
+                          </span>
+                          <span className="flex-shrink-0 text-xs text-faint">{formatRelative(conversation.last_message_at)}</span>
+                        </div>
+                        {conversation.source_job?.title && (
+                          <div className="truncate text-xs text-muted">Re: {conversation.source_job.title}</div>
+                        )}
+                      </div>
+                      {unread && <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-[#1D9E75]" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Active conversation */}
+          <div className="flex flex-col">
+            {!activeConversation ? (
+              <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted">
+                <MessageSquareText size={28} className="text-faint" />
+                Select a conversation to view messages.
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-3 border-b border-line px-5 py-4">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#1D9E75] text-xs font-bold text-white">
+                    {activeConversation.company?.logo_initials || <Building2 size={14} />}
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-ink">{activeConversation.company?.name || 'Employer'}</div>
+                    {activeConversation.source_job?.title && (
+                      <div className="text-xs text-muted">Re: {activeConversation.source_job.title}</div>
+                    )}
+                  </div>
+                </div>
+
+                <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-5 py-4" style={{ maxHeight: '52vh' }}>
+                  {messagesLoading ? (
+                    <div className="flex justify-center py-6">
+                      <LoadingSpinner className="text-[#1D9E75]" size={20} />
+                    </div>
+                  ) : (
+                    messages.map((message) => {
+                      const isMine = message.sender_profile_id === userId;
+                      const isDeleted = Boolean(message.deleted_at);
+                      const isEditing = editingId === message.id;
+
+                      if (isDeleted) {
+                        return (
+                          <div key={message.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                            <div className="max-w-[75%] rounded-2xl border border-line bg-transparent px-4 py-2.5 text-sm italic text-faint">
+                              Message deleted
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div key={message.id} className={`group flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                          {isMine && !isEditing && (
+                            <div className="mr-1.5 flex items-start gap-1 self-center opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                              <button
+                                onClick={() => startEdit(message)}
+                                aria-label="Edit message"
+                                className="rounded-full p-1.5 text-faint hover:bg-[#F1EFE8] hover:text-ink"
+                              >
+                                <Pencil size={13} />
+                              </button>
+                              {confirmDeleteId === message.id ? (
+                                <button
+                                  onClick={() => handleDelete(message.id)}
+                                  disabled={deletingId === message.id}
+                                  aria-label="Confirm delete"
+                                  className="rounded-full p-1.5 text-white bg-[#B3261E] hover:bg-[#8C1D17]"
+                                >
+                                  <Check size={13} />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => setConfirmDeleteId(message.id)}
+                                  aria-label="Delete message"
+                                  className="rounded-full p-1.5 text-faint hover:bg-[#FAECE7] hover:text-[#B3261E]"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              )}
+                            </div>
+                          )}
+
+                          <div
+                            className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
+                              isMine ? 'bg-[#1D9E75] text-white' : 'bg-[#F1EFE8] text-ink'
+                            }`}
+                          >
+                            {isEditing ? (
+                              <div className="min-w-[220px]">
+                                <textarea
+                                  value={editDraft}
+                                  onChange={(e) => setEditDraft(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                      e.preventDefault();
+                                      saveEdit();
+                                    }
+                                    if (e.key === 'Escape') cancelEdit();
+                                  }}
+                                  autoFocus
+                                  rows={2}
+                                  maxLength={5000}
+                                  className="w-full resize-none rounded-lg border-none bg-white/15 px-2 py-1.5 text-sm text-white outline-none placeholder:text-white/60"
+                                />
+                                <div className="mt-1.5 flex justify-end gap-1">
+                                  <button
+                                    onClick={cancelEdit}
+                                    className="rounded-full p-1 text-white/80 hover:bg-white/15"
+                                    aria-label="Cancel edit"
+                                  >
+                                    <X size={13} />
+                                  </button>
+                                  <button
+                                    onClick={saveEdit}
+                                    disabled={!editDraft.trim() || savingEdit}
+                                    className="rounded-full p-1 text-white/80 hover:bg-white/15 disabled:opacity-50"
+                                    aria-label="Save edit"
+                                  >
+                                    <Check size={13} />
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="whitespace-pre-wrap break-words">{message.body}</div>
+                                <div className={`mt-1 flex items-center gap-1 text-[11px] ${isMine ? 'text-white/70' : 'text-faint'}`}>
+                                  {formatTime(message.created_at)}
+                                  {message.edited_at && <span>(edited)</span>}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="flex items-end gap-2 border-t border-line px-4 py-3">
+                  <textarea
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSend();
+                      }
+                    }}
+                    placeholder="Write a reply..."
+                    rows={1}
+                    maxLength={5000}
+                    className="flex-1 resize-none rounded-2xl border border-line bg-white px-4 py-2.5 text-sm outline-none transition-colors duration-200 focus:border-accent"
+                  />
+                  <button
+                    onClick={handleSend}
+                    disabled={!draft.trim() || sending}
+                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#1D9E75] text-white transition-all duration-200 hover:bg-accent-deep disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label="Send message"
+                  >
+                    <Send size={16} />
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

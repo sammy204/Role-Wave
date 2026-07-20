@@ -25,6 +25,8 @@ import CandidateActivity from './pages/CandidateActivity';
 import EmployerOnboarding from './pages/EmployerOnboarding';
 import JobApplication from './pages/JobApplication';
 import EmployerDashboard from './pages/EmployerDashboard';
+import CandidateMessages from './pages/CandidateMessages';
+import EmployerMessages from './pages/EmployerMessages';
 import CandidateMobileNav from './components/CandidateMobileNav';
 
 function App() {
@@ -114,8 +116,10 @@ function AppShell() {
       <Route path="/candidate/profile" element={<CandidateProfile />} />
       <Route path="/candidate/home" element={<CandidateHome />} />
       <Route path="/candidate/activity" element={<CandidateActivity />} />
+      <Route path="/candidate/messages" element={<CandidateMessages />} />
       <Route path="/employer/onboarding" element={<EmployerOnboarding />} />
       <Route path="/employer/dashboard" element={<EmployerDashboard />} />
+      <Route path="/employer/messages" element={<EmployerMessages />} />
       <Route path="/post" element={<PostJob />} />
       <Route path="/about" element={<About />} />
       <Route path="/contact" element={<Contact />} />

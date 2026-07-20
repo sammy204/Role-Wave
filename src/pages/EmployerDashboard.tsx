@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
+import { startConversation } from '../lib/messages';
 import { useCountUp } from '../hooks/useCountUp';
 import type { CandidateProfile, Company, EmployerProfile, Job, JobApplication, Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -76,6 +77,7 @@ export default function EmployerDashboard() {
   const [selectedJobId, setSelectedJobId] = useState<string>('all');
   const [confirmDeleteJobId, setConfirmDeleteJobId] = useState<string | null>(null);
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
+  const [messagingId, setMessagingId] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -293,6 +295,20 @@ export default function EmployerDashboard() {
     } finally {
       setDeletingJobId(null);
       setConfirmDeleteJobId(null);
+    }
+  };
+
+  const handleMessageCandidate = async (candidateProfileId: string, jobId: string) => {
+    setMessagingId(candidateProfileId);
+    setError('');
+
+    try {
+      const conversation = await startConversation(candidateProfileId, jobId);
+      navigate(`/employer/messages?conversation=${conversation.id}`);
+    } catch (messageError) {
+      setError(messageError instanceof Error ? messageError.message : 'Could not start conversation.');
+    } finally {
+      setMessagingId(null);
     }
   };
 
@@ -602,6 +618,16 @@ export default function EmployerDashboard() {
                             >
                               <Eye size={14} /> Portfolio
                             </a>
+                          )}
+                          {application.candidate_profile_id && (
+                            <button
+                              onClick={() => handleMessageCandidate(application.candidate_profile_id!, application.job_id)}
+                              disabled={messagingId === application.candidate_profile_id}
+                              className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#5DCAA5] bg-accent-light px-4 py-2 text-sm font-semibold text-accent-text transition-all duration-200 hover:-translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <MessageSquareText size={14} />
+                              {messagingId === application.candidate_profile_id ? 'Opening...' : 'Message'}
+                            </button>
                           )}
                           <button
                             onClick={() => updateApplicationStatus(application.id, 'shortlisted')}
