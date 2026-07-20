@@ -340,17 +340,100 @@ export default function EmployerMessages() {
                   ) : (
                     messages.map((message) => {
                       const isMine = message.sender_profile_id === userId;
+                      const isDeleted = Boolean(message.deleted_at);
+                      const isEditing = editingId === message.id;
+
+                      if (isDeleted) {
+                        return (
+                          <div key={message.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                            <div className="max-w-[75%] rounded-2xl border border-line bg-transparent px-4 py-2.5 text-sm italic text-faint">
+                              Message deleted
+                            </div>
+                          </div>
+                        );
+                      }
+
                       return (
-                        <div key={message.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                        <div key={message.id} className={`group flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                          {isMine && !isEditing && (
+                            <div className="mr-1.5 flex items-start gap-1 self-center opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                              <button
+                                onClick={() => startEdit(message)}
+                                aria-label="Edit message"
+                                className="rounded-full p-1.5 text-faint hover:bg-[#F1EFE8] hover:text-ink"
+                              >
+                                <Pencil size={13} />
+                              </button>
+                              {confirmDeleteId === message.id ? (
+                                <button
+                                  onClick={() => handleDelete(message.id)}
+                                  disabled={deletingId === message.id}
+                                  aria-label="Confirm delete"
+                                  className="rounded-full p-1.5 text-white bg-[#B3261E] hover:bg-[#8C1D17]"
+                                >
+                                  <Check size={13} />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => setConfirmDeleteId(message.id)}
+                                  aria-label="Delete message"
+                                  className="rounded-full p-1.5 text-faint hover:bg-[#FAECE7] hover:text-[#B3261E]"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              )}
+                            </div>
+                          )}
+
                           <div
                             className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
                               isMine ? 'bg-[#1D9E75] text-white' : 'bg-[#F1EFE8] text-ink'
                             }`}
                           >
-                            <div className="whitespace-pre-wrap break-words">{message.body}</div>
-                            <div className={`mt-1 text-[11px] ${isMine ? 'text-white/70' : 'text-faint'}`}>
-                              {formatTime(message.created_at)}
-                            </div>
+                            {isEditing ? (
+                              <div className="min-w-[220px]">
+                                <textarea
+                                  value={editDraft}
+                                  onChange={(e) => setEditDraft(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                      e.preventDefault();
+                                      saveEdit();
+                                    }
+                                    if (e.key === 'Escape') cancelEdit();
+                                  }}
+                                  autoFocus
+                                  rows={2}
+                                  maxLength={5000}
+                                  className="w-full resize-none rounded-lg border-none bg-white/15 px-2 py-1.5 text-sm text-white outline-none placeholder:text-white/60"
+                                />
+                                <div className="mt-1.5 flex justify-end gap-1">
+                                  <button
+                                    onClick={cancelEdit}
+                                    className="rounded-full p-1 text-white/80 hover:bg-white/15"
+                                    aria-label="Cancel edit"
+                                  >
+                                    <X size={13} />
+                                  </button>
+                                  <button
+                                    onClick={saveEdit}
+                                    disabled={!editDraft.trim() || savingEdit}
+                                    className="rounded-full p-1 text-white/80 hover:bg-white/15 disabled:opacity-50"
+                                    aria-label="Save edit"
+                                  >
+                                    <Check size={13} />
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="whitespace-pre-wrap break-words">{message.body}</div>
+                                <div className={`mt-1 flex items-center gap-1 text-[11px] ${isMine ? 'text-white/70' : 'text-faint'}`}>
+                                  {formatTime(message.created_at)}
+                                  {message.edited_at && <span>(edited)</span>}
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
                       );

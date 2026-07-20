@@ -147,7 +147,7 @@ export default function Home() {
               </h1>
 
               <p className="mb-6 max-w-xl text-sm leading-relaxed text-white/76 sm:text-base">
-                Verified roles from real companies, laid out cleanly so the board feels calm, fast, and easy to trust.
+                Verified roles, laid out cleanly so you can focus on the jobs that fit your skills, location, and work style.
               </p>
 
               <div className="mb-4 flex items-center overflow-hidden rounded-[18px] border border-white/20 bg-white/95 shadow-[0_18px_44px_rgba(0,0,0,0.16)] ring-1 ring-black/5 sm:hidden">
@@ -285,7 +285,7 @@ export default function Home() {
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
               <h2 className="font-display text-xl font-bold text-[#1A1A1A] sm:text-2xl">Featured jobs</h2>
-              <p className="mt-1 text-sm text-[#5F5E5A]">Hand-picked openings from real employers across Nigeria.</p>
+              
             </div>
             <button
               onClick={() => navigate('/jobs')}
