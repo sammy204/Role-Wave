@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type UIEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Check, MessageSquareText, Pencil, Send, Trash2, User, X } from 'lucide-react';
+import { ArrowLeft, Check, MessageSquareText, Pencil, Send, Trash2, User, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import {
@@ -12,6 +12,8 @@ import {
   deleteMessage,
   subscribeToConversationMessages,
   isConversationUnread,
+  MESSAGES_PAGE_SIZE,
+  type ConnectionStatus,
 } from '../lib/messages';
 import type { Conversation, EmployerProfile, Message } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -39,8 +41,13 @@ export default function EmployerMessages() {
   const [userId, setUserId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [mobileView, setMobileView] = useState<'list' | 'conversation'>('list');
   const [messages, setMessages] = useState<Message[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [loadingMoreMessages, setLoadingMoreMessages] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
+  const wasDisconnectedRef = useRef(false);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -49,6 +56,34 @@ export default function EmployerMessages() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const pendingScrollRef = useRef<
+    { type: 'bottom' } | { type: 'preserve'; prevScrollHeight: number; prevScrollTop: number } | null
+  >(null);
+
+  /**
+   * Runs after `messages` has actually committed to the DOM (unlike
+   * requestAnimationFrame after an async setState, which can fire before
+   * the new list has painted and land the scroll in the wrong place —
+   * e.g. appearing to jump to the top of a long thread). Whoever changes
+   * `messages` sets pendingScrollRef first to say what should happen.
+   */
+  useLayoutEffect(() => {
+    const container = scrollRef.current;
+    const pending = pendingScrollRef.current;
+    if (!container || !pending) return;
+    // The message list is only rendered once messagesLoading is false (a
+    // spinner occupies the container until then), so applying the scroll
+    // while it's still true measures the spinner's height, not the
+    // thread's — leave the pending action queued until it's actually safe.
+    if (messagesLoading) return;
+
+    if (pending.type === 'bottom') {
+      container.scrollTop = container.scrollHeight;
+    } else {
+      container.scrollTop = container.scrollHeight - pending.prevScrollHeight + pending.prevScrollTop;
+    }
+    pendingScrollRef.current = null;
+  }, [messages, messagesLoading, mobileView]);
 
   useEffect(() => {
     let alive = true;
@@ -124,6 +159,8 @@ export default function EmployerMessages() {
     setMessagesLoading(true);
     setEditingId(null);
     setConfirmDeleteId(null);
+    setConnectionStatus('connecting');
+    wasDisconnectedRef.current = false;
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('conversation', activeId);
@@ -132,9 +169,11 @@ export default function EmployerMessages() {
 
     (async () => {
       try {
-        const rows = await fetchMessages(activeId);
+        const { messages: rows, hasMore } = await fetchMessages(activeId);
         if (!alive) return;
+        pendingScrollRef.current = { type: 'bottom' };
         setMessages(rows);
+        setHasMoreMessages(hasMore);
         await markConversationRead(activeId);
         if (!alive) return;
         setConversations((prev) =>
@@ -149,6 +188,7 @@ export default function EmployerMessages() {
 
     const unsubscribe = subscribeToConversationMessages(activeId, {
       onInsert: (message) => {
+        pendingScrollRef.current = { type: 'bottom' };
         setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
         setConversations((prev) =>
           prev.map((c) => (c.id === activeId ? { ...c, last_message_at: message.created_at } : c))
@@ -156,6 +196,36 @@ export default function EmployerMessages() {
       },
       onUpdate: (message) => {
         setMessages((prev) => prev.map((m) => (m.id === message.id ? message : m)));
+      },
+      onStatusChange: (status) => {
+        setConnectionStatus(status);
+
+        if (status === 'disconnected') {
+          wasDisconnectedRef.current = true;
+          return;
+        }
+
+        // Reconnected after a drop: postgres_changes only streams while the
+        // socket is live, so re-sync the latest page to pick up anything
+        // sent or edited while we were disconnected.
+        if (status === 'connected' && wasDisconnectedRef.current) {
+          wasDisconnectedRef.current = false;
+          (async () => {
+            try {
+              const { messages: rows } = await fetchMessages(activeId, { limit: MESSAGES_PAGE_SIZE });
+              if (!alive) return;
+              setMessages((prev) => {
+                const latestById = new Map(rows.map((m) => [m.id, m]));
+                const refreshed = prev.map((m) => latestById.get(m.id) ?? m);
+                const missing = rows.filter((m) => !prev.some((p) => p.id === m.id));
+                return [...refreshed, ...missing].sort((a, b) => a.created_at.localeCompare(b.created_at));
+              });
+            } catch {
+              // Best-effort recovery — the connection indicator already
+              // cleared, and the next realtime event will self-correct.
+            }
+          })();
+        }
       },
     });
 
@@ -166,9 +236,42 @@ export default function EmployerMessages() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId]);
 
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages]);
+  /**
+   * Loads the next page of older messages and preserves scroll position
+   * (rather than jumping to bottom, which is only appropriate for new
+   * messages) by re-anchoring on the scroll height delta after render.
+   */
+  const handleLoadOlderMessages = async () => {
+    if (!activeId || loadingMoreMessages || !hasMoreMessages || messages.length === 0) return;
+
+    const container = scrollRef.current;
+    const prevScrollHeight = container?.scrollHeight ?? 0;
+    const prevScrollTop = container?.scrollTop ?? 0;
+
+    setLoadingMoreMessages(true);
+    try {
+      const { messages: older, hasMore } = await fetchMessages(activeId, {
+        limit: MESSAGES_PAGE_SIZE,
+        before: messages[0].created_at,
+      });
+      pendingScrollRef.current = { type: 'preserve', prevScrollHeight, prevScrollTop };
+      setMessages((prev) => {
+        const existingIds = new Set(prev.map((m) => m.id));
+        return [...older.filter((m) => !existingIds.has(m.id)), ...prev];
+      });
+      setHasMoreMessages(hasMore);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Could not load older messages.');
+    } finally {
+      setLoadingMoreMessages(false);
+    }
+  };
+
+  const handleMessagesScroll = (event: UIEvent<HTMLDivElement>) => {
+    if (event.currentTarget.scrollTop < 80) {
+      handleLoadOlderMessages();
+    }
+  };
 
   const activeConversation = useMemo(
     () => conversations.find((c) => c.id === activeId) || null,
@@ -182,6 +285,7 @@ export default function EmployerMessages() {
     setError('');
     try {
       const message = await sendMessage(activeId, userId, draft);
+      pendingScrollRef.current = { type: 'bottom' };
       setMessages((prev) => [...prev, message]);
       setConversations((prev) =>
         prev.map((c) => (c.id === activeId ? { ...c, last_message_at: message.created_at } : c))
@@ -263,7 +367,7 @@ export default function EmployerMessages() {
 
         <div className="panel grid overflow-hidden rounded-[28px] lg:grid-cols-[320px_1fr]" style={{ minHeight: '65vh' }}>
           {/* Thread list */}
-          <div className="border-b border-line lg:border-b-0 lg:border-r">
+          <div className={`${mobileView === 'list' ? 'block' : 'hidden'} border-b border-line lg:block lg:border-b-0 lg:border-r`}>
             {conversations.length === 0 ? (
               <div className="p-6 text-center text-sm text-muted">
                 No conversations yet. Message a candidate from your applicant list to start one.
@@ -276,7 +380,11 @@ export default function EmployerMessages() {
                   return (
                     <button
                       key={conversation.id}
-                      onClick={() => setActiveId(conversation.id)}
+                      onClick={() => {
+                        setActiveId(conversation.id);
+                        pendingScrollRef.current = { type: 'bottom' };
+                        setMobileView('conversation');
+                      }}
                       className={`flex w-full items-start gap-3 border-b border-line px-4 py-3 text-left transition-colors duration-150 ${
                         active ? 'bg-accent-light' : 'hover:bg-[#F1EFE8]'
                       }`}
@@ -307,7 +415,7 @@ export default function EmployerMessages() {
           </div>
 
           {/* Active conversation */}
-          <div className="flex flex-col">
+          <div className={`${mobileView === 'conversation' ? 'flex' : 'hidden'} flex-col lg:flex`}>
             {!activeConversation ? (
               <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted">
                 <MessageSquareText size={28} className="text-faint" />
@@ -315,11 +423,19 @@ export default function EmployerMessages() {
               </div>
             ) : (
               <>
-                <div className="flex items-center gap-3 border-b border-line px-5 py-4">
+                <div className="flex items-center gap-3 border-b border-line px-4 py-4 sm:px-5">
+                  <button
+                    type="button"
+                    onClick={() => setMobileView('list')}
+                    aria-label="Back to conversations"
+                    className="rounded-full p-1.5 text-muted hover:bg-[#F1EFE8] hover:text-ink lg:hidden"
+                  >
+                    <ArrowLeft size={19} />
+                  </button>
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#1A1A1A] text-white">
                     <User size={14} />
                   </div>
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold text-ink">
                       {activeConversation.candidate_full_name || activeConversation.candidate?.headline || 'Candidate'}
                     </div>
@@ -330,14 +446,43 @@ export default function EmployerMessages() {
                       <div className="text-xs text-muted">Re: {activeConversation.source_job.title}</div>
                     )}
                   </div>
+                  {connectionStatus === 'disconnected' && (
+                    <span className="flex-shrink-0 rounded-full bg-[#FFF8E6] px-2.5 py-1 text-[11px] font-medium text-[#7A5000]">
+                      Reconnecting…
+                    </span>
+                  )}
                 </div>
 
-                <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-5 py-4" style={{ maxHeight: '52vh' }}>
+                <div
+                  ref={scrollRef}
+                  onScroll={handleMessagesScroll}
+                  className="flex-1 space-y-3 overflow-y-auto px-5 py-4"
+                  style={{ maxHeight: '52vh' }}
+                >
                   {messagesLoading ? (
                     <div className="flex justify-center py-6">
                       <LoadingSpinner className="text-[#1D9E75]" size={20} />
                     </div>
                   ) : (
+                    <>
+                      {loadingMoreMessages && (
+                        <div className="flex justify-center pb-2">
+                          <LoadingSpinner className="text-[#1D9E75]" size={16} />
+                        </div>
+                      )}
+                      {!loadingMoreMessages && hasMoreMessages && (
+                        <div className="flex justify-center pb-2">
+                          <button
+                            onClick={handleLoadOlderMessages}
+                            className="text-xs font-medium text-muted hover:text-ink"
+                          >
+                            Load earlier messages
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {!messagesLoading &&
                     messages.map((message) => {
                       const isMine = message.sender_profile_id === userId;
                       const isDeleted = Boolean(message.deleted_at);
@@ -437,8 +582,7 @@ export default function EmployerMessages() {
                           </div>
                         </div>
                       );
-                    })
-                  )}
+                    })}
                 </div>
 
                 <div className="flex items-end gap-2 border-t border-line px-4 py-3">

@@ -22,7 +22,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 
 type SubmissionTab = 'pending' | 'reviewed';
 type JobTab = 'all' | 'active' | 'filled' | 'closed' | 'archived';
-type AdminView = 'submissions' | 'jobs' | 'create';
+type AdminView = 'submissions' | 'jobs' | 'companies' | 'create';
 type JobStatus = 'active' | 'filled' | 'closed' | 'archived';
 
 const FETCH_TIMEOUT_MS = 10000;
@@ -274,6 +274,12 @@ export default function AdminDashboard() {
     return result;
   }, [searchQuery, selectedJobTab, jobs]);
 
+  const filteredCompanies = useMemo(() => {
+    if (!searchQuery.trim()) return companies;
+    const q = searchQuery.toLowerCase();
+    return companies.filter((item) => item.name.toLowerCase().includes(q));
+  }, [searchQuery, companies]);
+
   const selectedSubmissionSummary = useMemo(
     () => ({
       pending: submissions.filter((item) => item.status === 'pending').length,
@@ -505,6 +511,32 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleToggleVerified = async (companyId: string, nextVerified: boolean) => {
+    setProcessingId(companyId);
+    setNotice('');
+    setError('');
+
+    const target = companies.find((item) => item.id === companyId);
+    if (!target) {
+      setProcessingId(null);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('companies').update({ verified: nextVerified }).eq('id', companyId);
+      if (error) throw error;
+
+      setCompanies((prev) =>
+        prev.map((item) => (item.id === companyId ? { ...item, verified: nextVerified } : item))
+      );
+      setNotice(`${target.name} is now ${nextVerified ? 'verified' : 'unverified'}.`);
+    } catch (verifyError) {
+      setError(verifyError instanceof Error ? verifyError.message : 'Failed to update verification status.');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   const handleDeleteJob = async (jobId: string) => {
     setProcessingId(jobId);
     setNotice('');
@@ -651,7 +683,7 @@ export default function AdminDashboard() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 mb-5">
-          {(['submissions', 'jobs', 'create'] as AdminView[]).map((view) => (
+          {(['submissions', 'jobs', 'companies', 'create'] as AdminView[]).map((view) => (
             <button
               key={view}
               onClick={() => setSelectedView(view)}
@@ -661,7 +693,13 @@ export default function AdminDashboard() {
                   : 'bg-white text-[#5F5E5A] border-[#D3D1C7]'
               }`}
             >
-              {view === 'submissions' ? 'Submissions' : view === 'jobs' ? 'Jobs' : 'Create job'}
+              {view === 'submissions'
+                ? 'Submissions'
+                : view === 'jobs'
+                ? 'Jobs'
+                : view === 'companies'
+                ? 'Companies'
+                : 'Create job'}
             </button>
           ))}
           <div className="flex-1 min-w-[120px]" />
@@ -881,6 +919,61 @@ export default function AdminDashboard() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {selectedView === 'companies' && (
+          <div className="space-y-5">
+            {filteredCompanies.length === 0 ? (
+              <div className="rounded-2xl border border-[#D3D1C7] bg-white p-8 text-center text-[#5F5E5A]">
+                No companies match your search.
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {filteredCompanies.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex flex-col gap-4 rounded-2xl border border-[#D3D1C7] bg-white p-5 shadow-[0_2px_10px_rgba(0,0,0,0.03)] sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-11 h-11 rounded-xl bg-[#F1EFE8] text-[#1A1A1A] flex items-center justify-center font-bold text-sm flex-shrink-0">
+                        {item.logo_initials || 'CO'}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h2 className="text-lg font-semibold text-[#1A1A1A]">{item.name}</h2>
+                          {item.verified ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-[#5DCAA5] bg-[#E1F5EE] px-2.5 py-1 text-xs font-semibold text-[#085041]">
+                              <BadgeCheck size={12} /> Verified
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-[#D3D1C7] bg-[#F1EFE8] px-2.5 py-1 text-xs font-medium text-[#5F5E5A]">
+                              Unverified
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-[#8A867E] mt-1">
+                          {item.job_count} job{item.job_count === 1 ? '' : 's'}
+                          {item.location ? ` - ${item.location}` : ''}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleToggleVerified(item.id, !item.verified)}
+                      disabled={processingId === item.id}
+                      className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-60 ${
+                        item.verified
+                          ? 'border border-[#D3D1C7] bg-white text-[#5F5E5A]'
+                          : 'bg-[#1D9E75] text-white'
+                      }`}
+                    >
+                      <BadgeCheck size={14} /> {item.verified ? 'Remove verification' : 'Mark verified'}
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Star } from 'lucide-react';
+import { Star, BadgeCheck } from 'lucide-react';
 import type { Job, Company } from '../types';
 
 interface JobCardProps {
@@ -62,8 +62,13 @@ export default function JobCard({ job }: JobCardProps) {
             <div className="text-[15px] sm:text-[16px] font-semibold text-[#1A1A1A] truncate group-hover:text-[#085041]">
               {job.title}
             </div>
-            <div className="mt-0.5 text-xs sm:text-[13px] text-[#5F5E5A]">
-              {company?.name || 'Unknown'} · {job.location}
+            <div className="mt-0.5 flex items-center gap-1 text-xs sm:text-[13px] text-[#5F5E5A]">
+              <span className="truncate">
+                {company?.name || 'Unknown'} · {job.location}
+              </span>
+              {company?.verified && (
+                <BadgeCheck size={13} className="flex-shrink-0 text-[#1D9E75]" aria-label="Verified employer" />
+              )}
             </div>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">

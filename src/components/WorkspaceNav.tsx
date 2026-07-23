@@ -2,16 +2,23 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Briefcase, Building2, LayoutDashboard, LogOut, Menu, MessageSquareText, PencilLine, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useUnreadMessagesCount } from '../hooks/useUnreadMessages';
 
 type WorkspaceRole = 'candidate' | 'employer';
+
+function UnreadDot() {
+  return <span aria-label="Unread messages" className="h-2 w-2 flex-shrink-0 rounded-full bg-[#1D9E75]" />;
+}
 
 export default function WorkspaceNav({ role }: { role: WorkspaceRole }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const path = location.pathname;
+  const unreadCount = useUnreadMessagesCount(role);
 
   const basePath = role === 'employer' ? '/employer' : '/candidate';
+  const messagesPath = role === 'employer' ? '/employer/messages' : '/candidate/messages';
   const isActive = (route: string) => path.startsWith(route);
 
   const handleSignOut = async () => {
@@ -54,6 +61,7 @@ export default function WorkspaceNav({ role }: { role: WorkspaceRole }) {
         <div className="hidden items-center gap-2 rounded-full border border-[#D3D1C7] bg-white/80 p-1.5 shadow-[0_8px_20px_rgba(26,26,26,0.04)] lg:flex">
           {links.map((item) => {
             const Icon = item.icon;
+            const showUnread = item.to === messagesPath && unreadCount > 0;
             return (
               <Link
                 key={item.to}
@@ -65,6 +73,7 @@ export default function WorkspaceNav({ role }: { role: WorkspaceRole }) {
                 }`}
               >
                 <Icon size={14} /> {item.label}
+                {showUnread && <UnreadDot />}
               </Link>
             );
           })}
@@ -81,11 +90,14 @@ export default function WorkspaceNav({ role }: { role: WorkspaceRole }) {
         </div>
 
         <button
-          className="rounded-full border border-[#D3D1C7] bg-white p-2 text-[#1A1A1A] shadow-[0_8px_18px_rgba(26,26,26,0.04)] lg:hidden"
+          className="relative rounded-full border border-[#D3D1C7] bg-white p-2 text-[#1A1A1A] shadow-[0_8px_18px_rgba(26,26,26,0.04)] lg:hidden"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle workspace menu"
         >
           {menuOpen ? <X size={22} /> : <Menu size={22} />}
+          {!menuOpen && unreadCount > 0 && (
+            <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-[#1D9E75] ring-2 ring-white" />
+          )}
         </button>
 
         {menuOpen && (
@@ -100,6 +112,7 @@ export default function WorkspaceNav({ role }: { role: WorkspaceRole }) {
               <div className="grid gap-2">
                 {links.map((item) => {
                   const Icon = item.icon;
+                  const showUnread = item.to === messagesPath && unreadCount > 0;
                   return (
                     <Link
                       key={item.to}
@@ -112,6 +125,7 @@ export default function WorkspaceNav({ role }: { role: WorkspaceRole }) {
                       }`}
                     >
                       <Icon size={14} /> {item.label}
+                      {showUnread && <UnreadDot />}
                     </Link>
                   );
                 })}

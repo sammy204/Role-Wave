@@ -141,7 +141,6 @@ export default function EmployerOnboarding() {
         location: form.companyLocation || null,
         website: form.companyWebsite || null,
         description: form.description || null,
-        verified: true,
         job_count: 0,
       };
 

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { BadgeCheck } from 'lucide-react';
 import type { Job, Company } from '../types';
 
 interface MobileJobCardProps {
@@ -63,8 +64,13 @@ export default function MobileJobCard({ job }: MobileJobCardProps) {
           </div>
           <div>
             <div className="text-[14px] font-semibold text-[#1A1A1A]">{job.title}</div>
-            <div className="text-[11px] text-[#5F5E5A]">
-              {company?.name || 'Unknown'} · {job.location}
+            <div className="flex items-center gap-1 text-[11px] text-[#5F5E5A]">
+              <span>
+                {company?.name || 'Unknown'} · {job.location}
+              </span>
+              {company?.verified && (
+                <BadgeCheck size={12} className="flex-shrink-0 text-[#1D9E75]" aria-label="Verified employer" />
+              )}
             </div>
           </div>
         </div>
