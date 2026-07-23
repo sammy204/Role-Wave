@@ -5,6 +5,7 @@ import {
   Briefcase,
   ArrowRight,
   MapPin,
+  MessageSquareText,
   Pencil,
   Send,
   Trash2,
@@ -16,6 +17,7 @@ import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import { getSavedJobIds } from '../lib/savedJobs';
 import { useCountUp } from '../hooks/useCountUp';
+import { useUnreadMessagesCount } from '../hooks/useUnreadMessages';
 import type { CandidateProfile, Company, Job, JobApplication, Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -52,6 +54,7 @@ function formatStatus(status: string) {
 
 export default function CandidateDashboard() {
   const navigate = useNavigate();
+  const unreadMessagesCount = useUnreadMessagesCount('candidate');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -59,7 +62,7 @@ export default function CandidateDashboard() {
   const [applications, setApplications] = useState<(JobApplication & { job?: Job & { company?: Company } })[]>([]);
   const [savedJobs, setSavedJobs] = useState<(Job & { company?: Company })[]>([]);
   const [matchedJobs, setMatchedJobs] = useState<(Job & { company?: Company })[]>([]);
-  const [marketplaceStats, setMarketplaceStats] = useState({ live: 0, companies: 0, new: 0 });
+  const [marketplaceStats, setMarketplaceStats] = useState({ live: 0, companies: 0, new: 0, verifiedPct: 0 });
   const [topCompanies, setTopCompanies] = useState<Company[]>([]);
   const [subscriptionEmail, setSubscriptionEmail] = useState('');
   const [subscriptionState, setSubscriptionState] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
@@ -118,11 +121,12 @@ export default function CandidateDashboard() {
         ]);
 
         if (alive) {
-          setMarketplaceStats({
+          setMarketplaceStats((prev) => ({
+            ...prev,
             live: liveCount || 0,
             companies: companyCount || 0,
             new: newCount || 0,
-          });
+          }));
         }
 
         const { data: companiesData } = await supabase
@@ -132,6 +136,12 @@ export default function CandidateDashboard() {
         const companyMap = new Map((companiesData || []).map((c: Company) => [c.id, c]));
         if (alive) {
           setTopCompanies((companiesData || []).slice(0, 3));
+          const totalCompanies = (companiesData || []).length;
+          const verifiedCompanies = (companiesData || []).filter((c: Company) => c.verified).length;
+          setMarketplaceStats((prev) => ({
+            ...prev,
+            verifiedPct: totalCompanies > 0 ? Math.round((verifiedCompanies / totalCompanies) * 100) : 0,
+          }));
         }
 
         const { data: applicationRows } = await supabase
@@ -372,13 +382,25 @@ export default function CandidateDashboard() {
                 <div className="mt-2 font-display text-3xl font-bold text-[#1A1A1A]">{profileCompletion}%</div>
                 <div className="mt-1 text-xs text-[#5F5E5A]">Ready for employers</div>
               </div>
-              <div className="rounded-[24px] border border-white/70 bg-[#1A1A1A] p-4 text-white shadow-[0_10px_24px_rgba(26,26,26,0.12)]">
-                <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/45">
-                  Saved jobs
+              <Link
+                to="/candidate/messages"
+                className="group rounded-[24px] border border-white/70 bg-[#1A1A1A] p-4 text-white shadow-[0_10px_24px_rgba(26,26,26,0.12)] transition-transform duration-200 hover:-translate-y-[1px]"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/45">Messages</div>
+                  {unreadMessagesCount > 0 && (
+                    <span className="h-2 w-2 rounded-full bg-[#5DCAA5]" />
+                  )}
                 </div>
-                <div className="mt-2 font-display text-3xl font-bold">{savedCount}</div>
-                <div className="mt-1 text-xs text-white/65">Keep the good ones close</div>
-              </div>
+                <div className="mt-2 font-display text-3xl font-bold">{unreadMessagesCount}</div>
+                <div className="mt-1 text-xs text-white/65">
+                  {unreadMessagesCount > 0
+                    ? unreadMessagesCount === 1
+                      ? 'You got a message'
+                      : "You've got messages"
+                    : 'All caught up'}
+                </div>
+              </Link>
             </div>
           </div>
         </div>
@@ -471,7 +493,7 @@ export default function CandidateDashboard() {
             </div>
 
             {/* Jobs matching your skills */}
-            {matchedJobs.length > 0 && (
+            {matchedJobs.length > 0 ? (
               <div className="rounded-panel border border-white/70 bg-white/78 p-5 shadow-[0_18px_50px_rgba(26,26,26,0.06)] backdrop-blur-xl">
                 <div className="mb-3 flex items-center gap-2">
                   <Sparkles size={15} className="text-accent-deep" />
@@ -493,6 +515,22 @@ export default function CandidateDashboard() {
                   ))}
                 </div>
               </div>
+            ) : (
+              !candidateProfile?.skills?.length && (
+                <div className="rounded-panel border border-dashed border-[#D3D1C7] bg-white/50 p-5 text-center backdrop-blur-xl">
+                  <Sparkles size={18} className="mx-auto text-accent-deep" />
+                  <div className="mt-2 text-sm font-semibold text-ink">Add your skills to see matches</div>
+                  <p className="mt-1 text-xs text-muted">
+                    Tell us what you're good at and we'll surface jobs that fit — right here.
+                  </p>
+                  <Link
+                    to="/candidate/profile"
+                    className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-accent-text hover:underline"
+                  >
+                    Add skills to your profile →
+                  </Link>
+                </div>
+              )
             )}
           </div>
 
@@ -543,7 +581,7 @@ export default function CandidateDashboard() {
                 </div>
                 <div className="rounded-2xl border border-[#E8E4DA] bg-[#FBFAF7] px-3 py-3">
                   <div className="text-xs text-muted">Verified</div>
-                  <div className="mt-1 text-lg font-semibold text-ink">100%</div>
+                  <div className="mt-1 text-lg font-semibold text-ink">{marketplaceStats.verifiedPct}%</div>
                 </div>
               </div>
 

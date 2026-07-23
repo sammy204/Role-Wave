@@ -521,10 +521,8 @@ export default function MarketplaceEntry() {
               className="absolute inset-y-0 z-30 flex w-1/2 flex-col items-center justify-center bg-[#0E3A2E] px-8 text-center transition-transform duration-700 ease-in-out"
               style={{ transform: isSignup ? 'translateX(0%)' : 'translateX(100%)' }}
             >
-              <div className="mb-4 inline-flex items-center gap-2 self-start">
-                <span className="font-display text-[13px] font-semibold uppercase tracking-[0.08em] text-white">
-                  RoleWave
-                </span>
+              <div className="mb-4 inline-flex -translate-y-8 items-center justify-center">
+                <img src="/rolewave-favicon.svg" alt="RoleWave" className="h-12 w-12 rounded-[14px]" />
               </div>
 
               {isSignup ? (
@@ -562,10 +560,12 @@ export default function MarketplaceEntry() {
 
         {/* ============ MOBILE: stacked pill-tab card (no room to slide) ============ */}
         <section className="auth-fade-up overflow-hidden rounded-2xl border border-white/70 bg-white/80 shadow-[0_20px_60px_rgba(26,26,26,0.08)] backdrop-blur-xl md:hidden">
-          <div className="flex items-center justify-between gap-4 bg-[#0E3A2E] px-5 py-3.5 sm:px-7">
-            <span className="font-display whitespace-nowrap text-[15px] font-semibold uppercase tracking-[0.08em] text-white">
-              RoleWave
-            </span>
+          <div className="relative flex items-center justify-end gap-4 bg-[#0E3A2E] px-5 py-3.5 sm:px-7">
+            <img
+              src="/rolewave-favicon.svg"
+              alt="RoleWave"
+              className="absolute left-1/2 h-9 w-9 -translate-x-1/2 rounded-[10px]"
+            />
             <span className="whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.1em] text-[#6FD9AE]">
               {mode === 'forgot' ? 'Reset password' : isSignup ? 'New membership' : 'Returning'}
             </span>

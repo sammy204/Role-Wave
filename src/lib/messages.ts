@@ -71,15 +71,46 @@ export async function fetchCandidateConversations(candidateProfileId: string): P
   return (data || []) as Conversation[];
 }
 
-export async function fetchMessages(conversationId: string): Promise<Message[]> {
-  const { data, error } = await supabase
+export const MESSAGES_PAGE_SIZE = 40;
+
+export interface MessagesPage {
+  messages: Message[];
+  hasMore: boolean;
+}
+
+/**
+ * Fetches one page of messages for a conversation, newest-first under the
+ * hood but returned in ascending (chat) order. Pass `before` (an ISO
+ * timestamp, typically the `created_at` of the oldest message currently
+ * loaded) to page further back in history. Without it, this returns the
+ * most recent page — so opening a long conversation only pulls the last
+ * `limit` messages instead of the entire thread.
+ */
+export async function fetchMessages(
+  conversationId: string,
+  options: { limit?: number; before?: string } = {}
+): Promise<MessagesPage> {
+  const limit = options.limit ?? MESSAGES_PAGE_SIZE;
+
+  let query = supabase
     .from('messages')
     .select('*')
     .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: false })
+    .limit(limit + 1);
 
+  if (options.before) {
+    query = query.lt('created_at', options.before);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
-  return (data || []) as Message[];
+
+  const rows = (data || []) as Message[];
+  const hasMore = rows.length > limit;
+  const page = hasMore ? rows.slice(0, limit) : rows;
+
+  return { messages: page.reverse(), hasMore };
 }
 
 export async function sendMessage(conversationId: string, senderProfileId: string, body: string): Promise<Message> {
@@ -137,14 +168,25 @@ export async function deleteMessage(messageId: string, senderProfileId: string):
   return data as Message;
 }
 
+export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
+
 /**
  * Subscribes to new and edited/deleted messages in a single conversation.
  * Returns an unsubscribe function — always call it on cleanup (e.g.
  * useEffect return) to avoid leaking realtime channels.
+ *
+ * The optional onStatusChange callback reports connection health so the
+ * UI can show a "reconnecting" indicator and, more importantly, refetch
+ * on reconnect — postgres_changes only streams events while the socket
+ * is live, so anything sent during a drop is otherwise lost silently.
  */
 export function subscribeToConversationMessages(
   conversationId: string,
-  handlers: { onInsert: (message: Message) => void; onUpdate: (message: Message) => void }
+  handlers: {
+    onInsert: (message: Message) => void;
+    onUpdate: (message: Message) => void;
+    onStatusChange?: (status: ConnectionStatus) => void;
+  }
 ): () => void {
   const channel: RealtimeChannel = supabase
     .channel(`messages:${conversationId}`)
@@ -158,7 +200,15 @@ export function subscribeToConversationMessages(
       { event: 'UPDATE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
       (payload) => handlers.onUpdate(payload.new as Message)
     )
-    .subscribe();
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        handlers.onStatusChange?.('connected');
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        handlers.onStatusChange?.('disconnected');
+      }
+    });
+
+  handlers.onStatusChange?.('connecting');
 
   return () => {
     supabase.removeChannel(channel);

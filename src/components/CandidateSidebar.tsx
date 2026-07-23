@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Bookmark, Briefcase, Info, LayoutDashboard, LogOut, Mail, MessageSquareText, Menu, User, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useUnreadMessagesCount } from '../hooks/useUnreadMessages';
 
 const links = [
   { to: '/candidate/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -16,11 +17,21 @@ const utilityLinks = [
   { to: '/contact', label: 'Contact us', icon: Mail },
 ];
 
+function UnreadDot() {
+  return (
+    <span
+      aria-label="Unread messages"
+      className="ml-auto h-2 w-2 flex-shrink-0 rounded-full bg-emerald-400 ring-2 ring-sidebar"
+    />
+  );
+}
+
 export default function CandidateSidebar({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const path = location.pathname;
+  const unreadCount = useUnreadMessagesCount('candidate');
 
   const isActive = (route: string) => {
     if (route === '/candidate/dashboard') {
@@ -45,6 +56,7 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
       {links.map((item) => {
         const Icon = item.icon;
         const active = isActive(item.to);
+        const showUnread = item.to === '/candidate/messages' && unreadCount > 0;
         return (
           <Link
             key={item.to}
@@ -56,6 +68,7 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
           >
             <Icon size={17} />
             {item.label}
+            {showUnread && <UnreadDot />}
           </Link>
         );
       })}
@@ -122,22 +135,32 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
         <button
           onClick={() => setDrawerOpen(true)}
           aria-label="Open menu"
-          className="rounded-full p-2 text-white hover:bg-white/10"
+          className="relative rounded-full p-2 text-white hover:bg-white/10"
         >
           <Menu size={22} />
+          {unreadCount > 0 && (
+            <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-sidebar" />
+          )}
         </button>
       </div>
 
       {/* Mobile drawer */}
-      {drawerOpen && (
-        <>
-          <button
-            type="button"
-            aria-label="Close menu"
-            className="fixed inset-0 z-50 bg-black/30 lg:hidden"
-            onClick={() => setDrawerOpen(false)}
-          />
-          <div className="fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col bg-sidebar px-4 py-6 shadow-card-hover lg:hidden">
+      <>
+        <button
+          type="button"
+          aria-label="Close menu"
+          aria-hidden={!drawerOpen}
+          className={`fixed inset-0 z-50 bg-black/30 transition-opacity duration-300 lg:hidden ${
+            drawerOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+          }`}
+          onClick={() => setDrawerOpen(false)}
+        />
+        <div
+          aria-hidden={!drawerOpen}
+          className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col bg-sidebar px-4 py-6 shadow-card-hover transition-transform duration-300 ease-out lg:hidden ${
+            drawerOpen ? 'translate-x-0' : 'pointer-events-none -translate-x-full'
+          }`}
+        >
             <div className="mb-8 flex items-center justify-between px-1">
               <div className="flex items-center gap-3">
                 <div className="flex h-[34px] w-[34px] items-center justify-center rounded-xl bg-white/15 text-white">
@@ -165,9 +188,8 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
               <LogOut size={17} />
               Sign out
             </button>
-          </div>
-        </>
-      )}
+        </div>
+      </>
 
       {/* Page content */}
       <div className="flex-1 lg:pl-[260px]">{children}</div>
