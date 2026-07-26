@@ -5,7 +5,6 @@ import {
   Briefcase,
   ArrowRight,
   MapPin,
-  MessageSquareText,
   Pencil,
   Send,
   Trash2,
@@ -19,6 +18,7 @@ import { getSavedJobIds } from '../lib/savedJobs';
 import { useCountUp } from '../hooks/useCountUp';
 import { useUnreadMessagesCount } from '../hooks/useUnreadMessages';
 import { formatStatus, statusTone } from '../lib/applicationPipeline';
+import { calculateProfileCompletion } from '../lib/profileCompletion';
 import type { CandidateProfile, Company, Job, JobApplication, Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -228,31 +228,7 @@ export default function CandidateDashboard() {
     setSubscriptionMessage('You are subscribed. We will send you new job alerts.');
   };
 
-  const completionFields = useMemo(
-    () => [
-      candidateProfile?.avatar_url,
-      candidateProfile?.headline,
-      candidateProfile?.bio,
-      candidateProfile?.location,
-      candidateProfile?.years_experience,
-      candidateProfile?.skills?.length ? candidateProfile.skills.length : 0,
-      candidateProfile?.preferred_locations?.length ? candidateProfile.preferred_locations.length : 0,
-      candidateProfile?.preferred_salary,
-      candidateProfile?.work_preference,
-      candidateProfile?.availability,
-      candidateProfile?.resume_url,
-      candidateProfile?.portfolio_url,
-      candidateProfile?.github_url,
-      candidateProfile?.linkedin_url,
-      candidateProfile?.education,
-      candidateProfile?.experience,
-      candidateProfile?.projects,
-      candidateProfile?.whatsapp_number,
-    ],
-    [candidateProfile]
-  );
-  const completedFields = completionFields.filter((v) => (typeof v === 'number' ? v > 0 : Boolean(v))).length;
-  const profileCompletion = Math.round((completedFields / completionFields.length) * 100);
+  const profileCompletion = calculateProfileCompletion(profile, candidateProfile);
 
   const counts = useMemo(
     () => ({

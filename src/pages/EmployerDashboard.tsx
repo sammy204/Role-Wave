@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';import {
+import { Link, useNavigate } from 'react-router-dom';
+import {
   ArrowRight,
   BadgeCheck,
   Briefcase,
@@ -7,6 +8,7 @@ import { Link, useNavigate } from 'react-router-dom';import {
   Clock3,
   Eye,
   FileText,
+  FolderOpen,
   MapPin,
   MessageSquareText,
   Search,
@@ -24,6 +26,7 @@ import {
 } from '../lib/applicationPipeline';
 import type { CandidateProfile, Company, EmployerProfile, Job, JobApplication, Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
+import ApplicantModal from '../components/ApplicantModal';
 
 type JobStatus = 'active' | 'filled' | 'closed' | 'archived';
 type ApplicationStatus = JobApplication['status'];
@@ -76,6 +79,7 @@ export default function EmployerDashboard() {
   const [messagingId, setMessagingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectionReasonDraft, setRejectionReasonDraft] = useState('');
+  const [viewingApplicationId, setViewingApplicationId] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -620,26 +624,12 @@ const updateApplicationStatus = async (
                         </div>
 
                         <div className="flex flex-row flex-wrap gap-2 lg:min-w-[210px] lg:flex-col">
-                          {application.resume_url && (
-                            <a
-                              href={application.resume_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-ink transition-colors duration-200 hover:border-[#5DCAA5]"
-                            >
-                              <FileText size={14} /> Resume
-                            </a>
-                          )}
-                          {application.portfolio_url && (
-                            <a
-                              href={application.portfolio_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-ink transition-colors duration-200 hover:border-[#5DCAA5]"
-                            >
-                              <Eye size={14} /> Portfolio
-                            </a>
-                          )}
+                          <button
+                            onClick={() => setViewingApplicationId(application.id)}
+                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-ink transition-colors duration-200 hover:border-[#5DCAA5]"
+                          >
+                            <FolderOpen size={14} /> Open Application
+                          </button>
                           {application.candidate_profile_id && (
                             <button
                               onClick={() => handleMessageCandidate(application.candidate_profile_id!, application.job_id)}
@@ -716,6 +706,22 @@ const updateApplicationStatus = async (
           </div>
         </div>
       </div>
+      {viewingApplicationId && (() => {
+        const viewingApplication = applications.find((item) => item.id === viewingApplicationId);
+        if (!viewingApplication) return null;
+        return (
+          <ApplicantModal
+            application={viewingApplication}
+            onClose={() => setViewingApplicationId(null)}
+            onMessage={
+              viewingApplication.candidate_profile_id
+                ? () => handleMessageCandidate(viewingApplication.candidate_profile_id!, viewingApplication.job_id)
+                : undefined
+            }
+            messaging={messagingId === viewingApplication.candidate_profile_id}
+          />
+        );
+      })()}
     </div>
   );
 }

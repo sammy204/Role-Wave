@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, type Dispatch, type SetStateAction } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -24,6 +24,33 @@ const cityFilters = [
   { label: 'Remote only' },
 ];
 
+const jobTypeFilters = [
+  { value: 'Full-time', label: 'Full-time' },
+  { value: 'Part-time', label: 'Part-time' },
+  { value: 'Contract', label: 'Contract' },
+  { value: 'Internship', label: 'Internship' },
+];
+
+const experienceFilters = [
+  { value: 'entry', label: 'Entry level' },
+  { value: 'junior', label: 'Junior' },
+  { value: 'mid', label: 'Mid-level' },
+  { value: 'senior', label: 'Senior' },
+  { value: 'lead', label: 'Lead / Principal' },
+];
+
+const authorizationFilters = [
+  { value: 'sponsorship_available', label: 'Visa sponsorship available' },
+  { value: 'authorized_only', label: 'Already authorized only' },
+  { value: 'anywhere', label: 'Open to applicants anywhere' },
+];
+
+const applicationFilters = [
+  { value: 'internal', label: 'Apply on RoleWave' },
+  { value: 'email', label: 'Apply by email' },
+  { value: 'external', label: 'Apply on company site' },
+];
+
 export default function JobListings() {
   const [searchParams] = useSearchParams();
   const initialQ = searchParams.get('q') || '';
@@ -43,6 +70,11 @@ export default function JobListings() {
   const [selectedCities, setSelectedCities] = useState<string[]>(
     initialCity ? [initialCity] : ['Lagos', 'Abuja', 'Port Harcourt', 'Remote only']
   );
+  const [selectedJobTypes, setSelectedJobTypes] = useState<string[]>([]);
+  const [selectedExperienceLevels, setSelectedExperienceLevels] = useState<string[]>([]);
+  const [selectedAuthorizations, setSelectedAuthorizations] = useState<string[]>([]);
+  const [selectedApplicationMethods, setSelectedApplicationMethods] = useState<string[]>([]);
+  const [salaryFloor, setSalaryFloor] = useState('');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   useEffect(() => {
@@ -116,8 +148,42 @@ export default function JobListings() {
       });
     }
 
+    if (selectedJobTypes.length > 0) {
+      result = result.filter((j) => selectedJobTypes.includes(j.job_type));
+    }
+
+    if (selectedExperienceLevels.length > 0) {
+      result = result.filter((j) => j.experience_level && selectedExperienceLevels.includes(j.experience_level));
+    }
+
+    if (selectedAuthorizations.length > 0) {
+      result = result.filter((j) => j.work_authorization && selectedAuthorizations.includes(j.work_authorization));
+    }
+
+    if (selectedApplicationMethods.length > 0) {
+      result = result.filter((j) => j.apply_method && selectedApplicationMethods.includes(j.apply_method));
+    }
+
+    if (salaryFloor) {
+      const minimum = Number(salaryFloor);
+      result = result.filter(
+        (j) => (!j.salary_currency || j.salary_currency === 'NGN') && (j.salary_max ?? j.salary_min ?? 0) >= minimum
+      );
+    }
+
     return result;
-  }, [jobs, searchQuery, activeChip, selectedWorkTypes, selectedCities]);
+  }, [
+    jobs,
+    searchQuery,
+    activeChip,
+    selectedWorkTypes,
+    selectedCities,
+    selectedJobTypes,
+    selectedExperienceLevels,
+    selectedAuthorizations,
+    selectedApplicationMethods,
+    salaryFloor,
+  ]);
 
   const getFilterCount = (items: { label: string }[], key: 'work_type' | 'location') => {
     return items.map((item) => {
@@ -145,6 +211,10 @@ export default function JobListings() {
     setSelectedCities((prev) =>
       prev.includes(label) ? prev.filter((x) => x !== label) : [...prev, label]
     );
+  };
+
+  const toggleFilter = (setter: React.Dispatch<React.SetStateAction<string[]>>, value: string) => {
+    setter((prev) => (prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]));
   };
 
   const FilterSection = () => (
@@ -202,6 +272,55 @@ export default function JobListings() {
           </div>
         ))}
       </div>
+
+      <div className="mt-7 border-t border-[#E9E7DE] pt-5">
+        <div className="mb-3 text-[11px] font-bold uppercase tracking-[1.5px] text-[#B4B2A9]">Salary minimum</div>
+        <select
+          value={salaryFloor}
+          onChange={(event) => setSalaryFloor(event.target.value)}
+          className="w-full rounded-xl border border-[#D3D1C7] bg-white px-3 py-2 text-[13px] text-[#5F5E5A] outline-none"
+        >
+          <option value="">Any salary</option>
+          <option value="100000">₦100,000+</option>
+          <option value="250000">₦250,000+</option>
+          <option value="500000">₦500,000+</option>
+          <option value="1000000">₦1,000,000+</option>
+        </select>
+      </div>
+
+      {([
+        { title: 'Employment type', items: jobTypeFilters, selected: selectedJobTypes, setter: setSelectedJobTypes },
+        { title: 'Experience level', items: experienceFilters, selected: selectedExperienceLevels, setter: setSelectedExperienceLevels },
+        { title: 'Work authorization', items: authorizationFilters, selected: selectedAuthorizations, setter: setSelectedAuthorizations },
+        { title: 'Application method', items: applicationFilters, selected: selectedApplicationMethods, setter: setSelectedApplicationMethods },
+      ] as Array<{
+        title: string;
+        items: Array<{ value: string; label: string }>;
+        selected: string[];
+        setter: Dispatch<SetStateAction<string[]>>;
+      }>).map((section) => (
+        <div key={section.title} className="mt-7 border-t border-[#E9E7DE] pt-5">
+          <div className="mb-3 text-[11px] font-bold uppercase tracking-[1.5px] text-[#B4B2A9]">{section.title}</div>
+          {section.items.map((item) => {
+            const value = item.value;
+            return (
+              <button
+                key={value}
+                type="button"
+                className="mb-2 flex w-full items-center justify-between text-left"
+                onClick={() => toggleFilter(section.setter, value)}
+              >
+                <span className="flex items-center gap-2 text-[13px] text-[#5F5E5A]">
+                  <span className={`flex h-3.5 w-3.5 items-center justify-center rounded text-[9px] ${section.selected.includes(value) ? 'border-[#1D9E75] bg-[#1D9E75] text-white' : 'border-[1.5px] border-[#D3D1C7]'}`}>
+                    {section.selected.includes(value) && '✓'}
+                  </span>
+                  {item.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 

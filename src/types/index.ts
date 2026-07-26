@@ -31,6 +31,12 @@ export interface Job {
   apply_method?: 'external' | 'email' | 'internal';
   apply_url?: string | null;
   application_email?: string | null;
+  experience_level?: string | null;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  salary_currency?: string;
+  salary_period?: string;
+  work_authorization?: string;
   created_at: string;
   updated_at: string;
   company?: Company;

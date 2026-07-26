@@ -50,6 +50,12 @@ const emptyForm = {
   workType: 'Remote',
   jobType: 'Full-time',
   salary: '',
+  salaryMin: '',
+  salaryMax: '',
+  salaryCurrency: 'NGN',
+  salaryPeriod: 'month',
+  experienceLevel: 'entry',
+  workAuthorization: 'anywhere',
   description: '',
   requirements: '',
   whatYoullDo: '',
@@ -62,6 +68,17 @@ const emptyForm = {
 
 function buildJobSlug(title: string, companyName: string) {
   return `${slugify(title)}-${slugify(companyName)}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+function formatSalaryRange(form: typeof emptyForm) {
+  const min = Number(form.salaryMin);
+  const max = Number(form.salaryMax);
+  if (!min && !max) return form.salary || '';
+
+  const currency = form.salaryCurrency === 'NGN' ? '₦' : form.salaryCurrency;
+  const format = (value: number) => `${currency}${value.toLocaleString()}`;
+  const range = min && max ? `${format(min)} – ${format(max)}` : min ? `${format(min)}+` : `Up to ${format(max)}`;
+  return `${range}/${form.salaryPeriod}`;
 }
 
 export default function PostJob() {
@@ -203,6 +220,12 @@ export default function PostJob() {
         work_type: string;
         job_type: string;
         salary: string | null;
+        salary_min: number | null;
+        salary_max: number | null;
+        salary_currency: string;
+        salary_period: string;
+        experience_level: string;
+        work_authorization: string;
         tags: string[];
         featured: boolean;
         status: JobStatus;
@@ -219,7 +242,13 @@ export default function PostJob() {
         location: form.city,
         work_type: form.workType,
         job_type: form.jobType,
-        salary: form.salary || null,
+        salary: formatSalaryRange(form) || null,
+        salary_min: form.salaryMin ? Number(form.salaryMin) : null,
+        salary_max: form.salaryMax ? Number(form.salaryMax) : null,
+        salary_currency: form.salaryCurrency,
+        salary_period: form.salaryPeriod,
+        experience_level: form.experienceLevel,
+        work_authorization: form.workAuthorization,
         tags,
         featured: false,
         status: form.status,
@@ -354,13 +383,59 @@ export default function PostJob() {
                   </select>
                 </Field>
                 <Field label="Salary">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="Minimum"
+                      className="admin-input"
+                      value={form.salaryMin}
+                      onChange={(e) => updateField('salaryMin', e.target.value)}
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="Maximum"
+                      className="admin-input"
+                      value={form.salaryMax}
+                      onChange={(e) => updateField('salaryMax', e.target.value)}
+                    />
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <select className="admin-input" value={form.salaryCurrency} onChange={(e) => updateField('salaryCurrency', e.target.value)}>
+                      <option value="NGN">NGN (₦)</option>
+                      <option value="USD">USD ($)</option>
+                      <option value="GBP">GBP (£)</option>
+                    </select>
+                    <select className="admin-input" value={form.salaryPeriod} onChange={(e) => updateField('salaryPeriod', e.target.value)}>
+                      <option value="hour">Per hour</option>
+                      <option value="month">Per month</option>
+                      <option value="year">Per year</option>
+                    </select>
+                  </div>
                   <input
                     type="text"
-                    placeholder="e.g. ₦300,000/month"
-                    className="admin-input"
+                    placeholder="Optional display text for older/custom salary formats"
+                    className="admin-input mt-2"
                     value={form.salary}
                     onChange={(e) => updateField('salary', e.target.value)}
                   />
+                </Field>
+                <Field label="Experience level">
+                  <select className="admin-input" value={form.experienceLevel} onChange={(e) => updateField('experienceLevel', e.target.value)}>
+                    <option value="entry">Entry level</option>
+                    <option value="junior">Junior</option>
+                    <option value="mid">Mid-level</option>
+                    <option value="senior">Senior</option>
+                    <option value="lead">Lead / Principal</option>
+                  </select>
+                </Field>
+                <Field label="Work authorization">
+                  <select className="admin-input" value={form.workAuthorization} onChange={(e) => updateField('workAuthorization', e.target.value)}>
+                    <option value="anywhere">Open to applicants anywhere</option>
+                    <option value="authorized_only">Must already be authorized to work</option>
+                    <option value="sponsorship_available">Visa sponsorship available</option>
+                  </select>
                 </Field>
                 <Field label="Status">
                   <select className="admin-input" value={form.status} onChange={(e) => updateField('status', e.target.value)}>
@@ -545,7 +620,7 @@ export default function PostJob() {
               </span>
               <span>{form.workType}</span>
               <span>{form.jobType}</span>
-              {form.salary && <span>{form.salary}</span>}
+              {formatSalaryRange(form) && <span>{formatSalaryRange(form)}</span>}
             </div>
 
             <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-2.5 py-1 text-xs font-semibold text-muted">

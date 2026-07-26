@@ -1,0 +1,173 @@
+import { LogIn } from 'lucide-react';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { GoogleIcon } from './AuthLayout';
+
+interface SignInProps {
+  email: string;
+  setEmail: (value: string) => void;
+  password: string;
+  setPassword: (value: string) => void;
+  loading: boolean;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  onGoogle: () => void;
+  onForgotClick: () => void;
+  messageBanners: React.ReactNode;
+}
+
+export function SignIn({
+  email,
+  setEmail,
+  password,
+  setPassword,
+  loading,
+  onSubmit,
+  onGoogle,
+  onForgotClick,
+  messageBanners,
+}: SignInProps) {
+  return (
+    <div className="w-full max-w-sm">
+      <h2 className="font-display text-[28px] font-semibold leading-[1.05] tracking-[-0.02em] text-ink">
+        Sign in
+      </h2>
+      <p className="mt-2 text-sm leading-relaxed text-muted">
+        Your details are saved and the dashboard is waiting.
+      </p>
+
+      {messageBanners}
+
+      <form className="mt-4 space-y-3" onSubmit={onSubmit}>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
+            Email
+          </label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="field-shell"
+            placeholder="you@example.com"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
+            Password
+          </label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="field-shell"
+            placeholder="Enter password"
+            required
+          />
+          <div className="mt-1.5 text-right">
+            <button
+              type="button"
+              onClick={onForgotClick}
+              className="text-xs font-semibold text-accent hover:underline"
+            >
+              Forgot password?
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white transition-colors duration-150 hover:bg-[#168a63] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loading ? <LoadingSpinner size={16} className="text-white" label="Submitting" /> : <LogIn size={16} />}
+          <span>Sign in</span>
+        </button>
+      </form>
+
+      <div className="mt-3">
+        <button
+          type="button"
+          onClick={onGoogle}
+          disabled={loading}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-3 text-sm font-semibold text-ink transition-colors duration-150 hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loading ? (
+            <LoadingSpinner size={16} className="text-ink" label="Signing in with Google" />
+          ) : (
+            <>
+              <GoogleIcon />
+              Continue with Google
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface ForgotPasswordFormProps {
+  email: string;
+  setEmail: (value: string) => void;
+  loading: boolean;
+  resetSent: boolean;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  onBack: () => void;
+  messageBanners: React.ReactNode;
+}
+
+export function ForgotPasswordForm({
+  email,
+  setEmail,
+  loading,
+  resetSent,
+  onSubmit,
+  onBack,
+  messageBanners,
+}: ForgotPasswordFormProps) {
+  return (
+    <div className="w-full max-w-sm">
+      <h2 className="font-display text-[28px] font-semibold leading-[1.05] tracking-[-0.02em] text-ink">
+        Reset your password
+      </h2>
+      <p className="mt-2 text-sm leading-relaxed text-muted">
+        Enter the email on your account and we&apos;ll send you a reset link.
+      </p>
+
+      {messageBanners}
+
+      {!resetSent && (
+        <form className="mt-4 space-y-3" onSubmit={onSubmit}>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
+              Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="field-shell"
+              placeholder="you@example.com"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white transition-colors duration-150 hover:bg-[#168a63] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? <LoadingSpinner size={16} className="text-white" label="Sending" /> : 'Send reset link'}
+          </button>
+        </form>
+      )}
+
+      <button
+        type="button"
+        onClick={onBack}
+        className="mt-4 text-sm font-semibold text-muted hover:text-ink"
+      >
+        ← Back to sign in
+      </button>
+    </div>
+  );
+}
