@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Star, BadgeCheck } from 'lucide-react';
 import type { Job, Company } from '../types';
+import { formatApplicationMethod, formatExperienceLevel, formatJobSalary, formatWorkAuthorization } from '../lib/jobMetadata';
 
 interface JobCardProps {
   job: Job & { company?: Company };
@@ -104,6 +105,12 @@ export default function JobCard({ job }: JobCardProps) {
               {tag}
             </span>
           ))}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[#5F5E5A] sm:text-xs">
+          {formatJobSalary(job) && <span className="font-semibold text-[#176B52]">{formatJobSalary(job)}</span>}
+          {formatExperienceLevel(job.experience_level) && <span>{formatExperienceLevel(job.experience_level)}</span>}
+          {formatWorkAuthorization(job.work_authorization) && <span>{formatWorkAuthorization(job.work_authorization)}</span>}
+          {formatApplicationMethod(job.apply_method) && <span>{formatApplicationMethod(job.apply_method)}</span>}
         </div>
       </div>
 

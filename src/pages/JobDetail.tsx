@@ -7,6 +7,7 @@ import { fetchProfile } from '../lib/admin';
 import { useAuth } from '../lib/useAuth';
 import { isJobSaved, toggleSavedJob } from '../lib/savedJobs';
 import type { Job, Company } from '../types';
+import { formatApplicationMethod, formatExperienceLevel, formatJobSalary, formatWorkAuthorization } from '../lib/jobMetadata';
 
 const colorMap: Record<string, { bg: string; text: string }> = {
   teal: { bg: 'bg-[#E1F5EE]', text: 'text-[#085041]' },
@@ -33,6 +34,7 @@ export default function JobDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCopied, setShowCopied] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [candidateId, setCandidateId] = useState('');
   const [saved, setSaved] = useState(false);
   const FETCH_TIMEOUT_MS = 10000;
@@ -104,10 +106,71 @@ export default function JobDetail() {
     setSaved(isJobSaved(candidateId, job.id));
   }, [candidateId, job]);
 
-  const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href);
+  useEffect(() => {
+    if (!job) return;
+
+    const shareTitle = `${job.title} at ${job.company?.name || 'RoleWave'}`;
+    const shareDescription = `${job.title} · ${job.location} · Find and share this opportunity on RoleWave.`;
+    const shareUrl = `${window.location.origin}/jobs/${job.slug}`;
+    const previousTitle = document.title;
+    document.title = shareTitle;
+
+    const tags = [
+      ['og:title', shareTitle],
+      ['og:description', shareDescription],
+      ['og:url', shareUrl],
+      ['og:image', `${window.location.origin}/rolewave-og.svg`],
+      ['twitter:card', 'summary_large_image'],
+      ['twitter:title', shareTitle],
+      ['twitter:description', shareDescription],
+      ['twitter:image', `${window.location.origin}/rolewave-og.svg`],
+    ];
+
+    const createdTags = tags.map(([property, content]) => {
+      const attribute = property.startsWith('twitter:') ? 'name' : 'property';
+      let meta = document.head.querySelector(`meta[${attribute}="${property}"]`);
+      const created = !meta;
+      if (!meta) {
+        meta = document.createElement('meta');
+        meta.setAttribute(attribute, property);
+        document.head.appendChild(meta);
+      }
+      meta.setAttribute('content', content);
+      return { meta, created };
+    });
+
+    return () => {
+      document.title = previousTitle;
+      createdTags.forEach(({ meta, created }) => {
+        if (created) meta.remove();
+      });
+    };
+  }, [job]);
+
+  const shareUrl = job ? `${window.location.origin}/jobs/${job.slug}` : window.location.href;
+  const shareTitle = job ? `${job.title} at ${job.company?.name || 'RoleWave'}` : 'RoleWave job opportunity';
+  const shareText = job
+    ? `${job.title} at ${job.company?.name || 'RoleWave'} · ${job.location}`
+    : 'Check out this opportunity on RoleWave.';
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+    } catch {
+      const input = document.createElement('input');
+      input.value = shareUrl;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      input.remove();
+    }
     setShowCopied(true);
     setTimeout(() => setShowCopied(false), 2000);
+  };
+
+  const handleNativeShare = async () => {
+    if (!navigator.share) return;
+    await navigator.share({ title: shareTitle, text: shareText, url: shareUrl }).catch(() => {});
   };
 
   if (loading) {
@@ -208,6 +271,11 @@ export default function JobDetail() {
             <span className="flex items-center gap-1 rounded-full border border-[#D3D1C7] bg-[#F1EFE8] px-2.5 py-1 text-xs font-semibold text-[#5F5E5A]">
               <Clock size={12} /> Posted {timeAgo(job.created_at)}
             </span>
+            {formatJobSalary(job) && (
+              <span className="rounded-full border border-[#BFE5D5] bg-[#EAF8F1] px-2.5 py-1 text-xs font-semibold text-[#176B52]">
+                {formatJobSalary(job)}
+              </span>
+            )}
           </div>
 
           <div className="mb-6 rounded-[24px] border border-[#D3D1C7] bg-[#FBFAF7] p-4 sm:p-5">
@@ -272,11 +340,57 @@ export default function JobDetail() {
               </a>
             )}
             <button
-              onClick={handleShare}
+              type="button"
+              onClick={() => setShareOpen((open) => !open)}
+              aria-expanded={shareOpen}
               className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-white/25 bg-transparent py-2.5 text-[13px] text-white/70 transition-colors hover:bg-white/10"
             >
-              <Share2 size={14} /> {showCopied ? 'Copied!' : 'Share this job'}
+              <Share2 size={14} /> Share this job
             </button>
+            {shareOpen && (
+              <div className="mt-2 grid gap-1.5 rounded-xl border border-white/15 bg-black/10 p-2">
+                {typeof navigator !== 'undefined' && 'share' in navigator && (
+                  <button
+                    type="button"
+                    onClick={handleNativeShare}
+                    className="rounded-lg px-3 py-2 text-left text-xs font-semibold text-white/85 transition-colors hover:bg-white/10"
+                  >
+                    Share from your device
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  className="rounded-lg px-3 py-2 text-left text-xs font-semibold text-white/85 transition-colors hover:bg-white/10"
+                >
+                  {showCopied ? 'Link copied' : 'Copy link'}
+                </button>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(`${shareText} ${shareUrl}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg px-3 py-2 text-left text-xs font-semibold text-white/85 transition-colors hover:bg-white/10"
+                >
+                  Share on WhatsApp
+                </a>
+                <a
+                  href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg px-3 py-2 text-left text-xs font-semibold text-white/85 transition-colors hover:bg-white/10"
+                >
+                  Share on LinkedIn
+                </a>
+                <a
+                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg px-3 py-2 text-left text-xs font-semibold text-white/85 transition-colors hover:bg-white/10"
+                >
+                  Share on X
+                </a>
+              </div>
+            )}
             <button
               onClick={handleSave}
               disabled={!candidateId}
@@ -300,6 +414,30 @@ export default function JobDetail() {
             <span className="text-[13px] text-[#B4B2A9]">Job type</span>
             <span className="text-[13px] font-medium text-[#1A1A1A]">{job.job_type}</span>
           </div>
+          {formatExperienceLevel(job.experience_level) && (
+            <div className="flex justify-between border-b border-[#D3D1C7] py-2.5">
+              <span className="text-[13px] text-[#B4B2A9]">Experience level</span>
+              <span className="text-right text-[13px] font-medium text-[#1A1A1A]">{formatExperienceLevel(job.experience_level)}</span>
+            </div>
+          )}
+          {formatJobSalary(job) && (
+            <div className="flex justify-between border-b border-[#D3D1C7] py-2.5">
+              <span className="text-[13px] text-[#B4B2A9]">Salary</span>
+              <span className="text-right text-[13px] font-medium text-[#176B52]">{formatJobSalary(job)}</span>
+            </div>
+          )}
+          {formatWorkAuthorization(job.work_authorization) && (
+            <div className="flex justify-between border-b border-[#D3D1C7] py-2.5">
+              <span className="text-[13px] text-[#B4B2A9]">Work authorization</span>
+              <span className="max-w-[180px] text-right text-[13px] font-medium text-[#1A1A1A]">{formatWorkAuthorization(job.work_authorization)}</span>
+            </div>
+          )}
+          {formatApplicationMethod(job.apply_method) && (
+            <div className="flex justify-between border-b border-[#D3D1C7] py-2.5">
+              <span className="text-[13px] text-[#B4B2A9]">Application</span>
+              <span className="max-w-[180px] text-right text-[13px] font-medium text-[#1A1A1A]">{formatApplicationMethod(job.apply_method)}</span>
+            </div>
+          )}
           <div className="flex justify-between border-b border-[#D3D1C7] py-2.5">
             <span className="text-[13px] text-[#B4B2A9]">Posted</span>
             <span className="text-[13px] font-medium text-[#1A1A1A]">{timeAgo(job.created_at)}</span>

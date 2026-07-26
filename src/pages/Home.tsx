@@ -285,7 +285,6 @@ export default function Home() {
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
               <h2 className="font-display text-xl font-bold text-[#1A1A1A] sm:text-2xl">Featured jobs</h2>
-              
             </div>
             <button
               onClick={() => navigate('/jobs')}

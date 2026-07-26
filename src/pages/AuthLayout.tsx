@@ -1,17 +1,30 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowRight, Briefcase, Building2, LogIn, UserPlus } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import { useAuth } from '../lib/useAuth';
 import { withTimeout } from '../lib/withTimeout';
 import type { Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { SignIn, ForgotPasswordForm } from './SignIn';
+import { SignUp } from './Signup';
 
-type AuthMode = 'signup' | 'login' | 'forgot';
-type MarketplaceRole = 'candidate' | 'employer';
+export type AuthMode = 'signup' | 'login' | 'forgot';
+export type MarketplaceRole = 'candidate' | 'employer';
 
-export default function MarketplaceEntry() {
+export function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
+      <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z" />
+      <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z" />
+      <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z" />
+    </svg>
+  );
+}
+
+export default function AuthLayout() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<AuthMode>(searchParams.get('mode') === 'login' ? 'login' : 'signup');
@@ -114,6 +127,7 @@ export default function MarketplaceEntry() {
               full_name: fullName,
               account_type: role,
             },
+            emailRedirectTo: `${window.location.origin}/confirmed`,
           },
         });
 
@@ -149,15 +163,13 @@ export default function MarketplaceEntry() {
         password,
       });
 
-      console.log('Sign in response:', JSON.stringify(signInData), JSON.stringify(signInError));
-
       if (signInError) throw signInError;
 
       const { data } = await withTimeout(supabase.auth.getSession(), 6000, 'Session lookup');
-      const session = data.session;
-      if (!session) return;
+      const activeSession = data.session;
+      if (!activeSession) return;
 
-      const nextProfile = await fetchProfile(session.user.id);
+      const nextProfile = await fetchProfile(activeSession.user.id);
       const nextRole = nextProfile?.account_type === 'employer' ? 'employer' : 'candidate';
       navigate(
         nextProfile?.onboarding_completed
@@ -169,6 +181,8 @@ export default function MarketplaceEntry() {
             : '/candidate',
         { replace: true }
       );
+
+      void signInData;
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : 'Authentication failed.');
     } finally {
@@ -240,249 +254,46 @@ export default function MarketplaceEntry() {
     </>
   );
 
-  const signInForm = (
-    <div className="w-full max-w-sm">
-      <h2 className="font-display text-[28px] font-semibold leading-[1.05] tracking-[-0.02em] text-ink">
-        Sign in
-      </h2>
-      <p className="mt-2 text-sm leading-relaxed text-muted">
-        Your details are saved and the dashboard is waiting.
-      </p>
+  const signInPanel =
+    mode === 'forgot' ? (
+      <ForgotPasswordForm
+        email={email}
+        setEmail={setEmail}
+        loading={loading}
+        resetSent={resetSent}
+        onSubmit={handleForgotPassword}
+        onBack={() => switchMode('login')}
+        messageBanners={messageBanners}
+      />
+    ) : (
+      <SignIn
+        email={email}
+        setEmail={setEmail}
+        password={password}
+        setPassword={setPassword}
+        loading={loading}
+        onSubmit={handleAuth}
+        onGoogle={handleGoogle}
+        onForgotClick={() => switchMode('forgot')}
+        messageBanners={messageBanners}
+      />
+    );
 
-      {messageBanners}
-
-      <form className="mt-4 space-y-3" onSubmit={handleAuth}>
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
-            Email
-          </label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="field-shell"
-            placeholder="you@example.com"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
-            Password
-          </label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="field-shell"
-            placeholder="Enter password"
-            required
-          />
-          <div className="mt-1.5 text-right">
-            <button
-              type="button"
-              onClick={() => switchMode('forgot')}
-              className="text-xs font-semibold text-accent hover:underline"
-            >
-              Forgot password?
-            </button>
-          </div>
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white transition-colors duration-150 hover:bg-[#168a63] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {loading ? <LoadingSpinner size={16} className="text-white" label="Submitting" /> : <LogIn size={16} />}
-          <span>Sign in</span>
-        </button>
-      </form>
-
-      <div className="mt-3">
-        <button
-          type="button"
-          onClick={handleGoogle}
-          disabled={loading}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-3 text-sm font-semibold text-ink transition-colors duration-150 hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {loading ? (
-            <LoadingSpinner size={16} className="text-ink" label="Signing in with Google" />
-          ) : (
-            <>
-              <GoogleIcon />
-              Continue with Google
-            </>
-          )}
-        </button>
-      </div>
-    </div>
-  );
-
-  const forgotForm = (
-    <div className="w-full max-w-sm">
-      <h2 className="font-display text-[28px] font-semibold leading-[1.05] tracking-[-0.02em] text-ink">
-        Reset your password
-      </h2>
-      <p className="mt-2 text-sm leading-relaxed text-muted">
-        Enter the email on your account and we&apos;ll send you a reset link.
-      </p>
-
-      {messageBanners}
-
-      {!resetSent && (
-        <form className="mt-4 space-y-3" onSubmit={handleForgotPassword}>
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="field-shell"
-              placeholder="you@example.com"
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white transition-colors duration-150 hover:bg-[#168a63] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loading ? <LoadingSpinner size={16} className="text-white" label="Sending" /> : 'Send reset link'}
-          </button>
-        </form>
-      )}
-
-      <button
-        type="button"
-        onClick={() => switchMode('login')}
-        className="mt-4 text-sm font-semibold text-muted hover:text-ink"
-      >
-        ← Back to sign in
-      </button>
-    </div>
-  );
-
-  const signUpForm = (
-    <div className="w-full max-w-sm">
-      <h2 className="font-display text-[28px] font-semibold leading-[1.05] tracking-[-0.02em] text-ink">
-        Create your account
-      </h2>
-      <p className="mt-2 text-sm leading-relaxed text-muted">
-        Pick a role first, then fill in the essentials.
-      </p>
-
-      <div className="mt-4">
-        <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.5px] text-muted">Sign up as</div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setRole('candidate')}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-2.5 py-2.5 text-xs font-semibold transition-all duration-200 ${
-              role === 'candidate'
-                ? 'border-accent bg-white text-ink shadow-[0_10px_24px_rgba(29,158,117,0.1)]'
-                : 'border-line bg-paper/60 text-muted hover:border-accent/60'
-            }`}
-          >
-            <Briefcase size={14} className={role === 'candidate' ? 'text-accent' : 'text-muted'} />
-            Job seeker
-          </button>
-          <button
-            type="button"
-            onClick={() => setRole('employer')}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-2.5 py-2.5 text-xs font-semibold transition-all duration-200 ${
-              role === 'employer'
-                ? 'border-accent bg-white text-ink shadow-[0_10px_24px_rgba(29,158,117,0.1)]'
-                : 'border-line bg-paper/60 text-muted hover:border-accent/60'
-            }`}
-          >
-            <Building2 size={14} className={role === 'employer' ? 'text-accent' : 'text-muted'} />
-            Employer
-          </button>
-        </div>
-      </div>
-
-      {messageBanners}
-
-      <form className="mt-4 space-y-3" onSubmit={handleAuth}>
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
-            Full name
-          </label>
-          <input
-            type="text"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className="field-shell"
-            placeholder="Samuel Ade"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
-            Email
-          </label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="field-shell"
-            placeholder="you@example.com"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
-            Password
-          </label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="field-shell"
-            placeholder="Enter password"
-            required
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white transition-colors duration-150 hover:bg-[#168a63] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {loading ? <LoadingSpinner size={16} className="text-white" label="Submitting" /> : <UserPlus size={16} />}
-          <span>Create account</span>
-        </button>
-      </form>
-
-      <div className="mt-3">
-        <button
-          type="button"
-          onClick={handleGoogle}
-          disabled={loading || role === 'employer'}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-3 text-sm font-semibold text-ink transition-colors duration-150 hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {loading ? (
-            <LoadingSpinner size={16} className="text-ink" label="Signing in with Google" />
-          ) : (
-            <>
-              <GoogleIcon />
-              Continue with Google
-            </>
-          )}
-        </button>
-        {role === 'employer' && (
-          <p className="mt-2 text-xs leading-relaxed text-muted">
-            Employer accounts can use email and password for now.
-          </p>
-        )}
-      </div>
-    </div>
+  const signUpPanel = (
+    <SignUp
+      fullName={fullName}
+      setFullName={setFullName}
+      email={email}
+      setEmail={setEmail}
+      password={password}
+      setPassword={setPassword}
+      role={role}
+      setRole={setRole}
+      loading={loading}
+      onSubmit={handleAuth}
+      onGoogle={handleGoogle}
+      messageBanners={messageBanners}
+    />
   );
 
   return (
@@ -505,7 +316,7 @@ export default function MarketplaceEntry() {
               className="absolute inset-y-0 left-0 flex w-1/2 items-center justify-center overflow-y-auto px-10 py-10 transition-opacity duration-500"
               style={{ opacity: isSignup ? 0 : 1, pointerEvents: isSignup ? 'none' : 'auto' }}
             >
-              {mode === 'forgot' ? forgotForm : signInForm}
+              {signInPanel}
             </div>
 
             {/* Sign-up panel — fixed on the right */}
@@ -513,7 +324,7 @@ export default function MarketplaceEntry() {
               className="absolute inset-y-0 right-0 flex w-1/2 items-center justify-center overflow-y-auto px-10 py-10 transition-opacity duration-500"
               style={{ opacity: isSignup ? 1 : 0, pointerEvents: isSignup ? 'auto' : 'none' }}
             >
-              {signUpForm}
+              {signUpPanel}
             </div>
 
             {/* Teal overlay — slides across, always covering the inactive side */}
@@ -602,22 +413,11 @@ export default function MarketplaceEntry() {
             )}
 
             <div key={mode} className="auth-fade-up mt-5">
-              {mode === 'forgot' ? forgotForm : mode === 'signup' ? signUpForm : signInForm}
+              {mode === 'forgot' ? signInPanel : mode === 'signup' ? signUpPanel : signInPanel}
             </div>
           </div>
         </section>
       </div>
     </div>
-  );
-}
-
-function GoogleIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-      <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
-      <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z" />
-      <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z" />
-      <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z" />
-    </svg>
   );
 }

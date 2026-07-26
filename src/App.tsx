@@ -17,7 +17,8 @@ import About from './pages/About';
 import Contact from './pages/Contact';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
-import MarketplaceEntry from './pages/MarketplaceEntry';
+import AuthLayout from './pages/AuthLayout';
+import Confirmed from './pages/Confirmed';
 import CandidateDashboard from './pages/CandidateDashboard';
 import CandidateProfile from './pages/CandidateProfile';
 import CandidateHome from './pages/CandidateHome';
@@ -66,7 +67,12 @@ function AppShell() {
     (isCandidateOnlyRoute || (isSharedBrowseRoute && isCandidate) || isSidebarUtilityRoute);
 
   const showPublicChrome =
-    !isAdminRoute && !isApplyRoute && !isEmployerRoute && !showCandidateSidebar && path !== '/start';
+    !isAdminRoute &&
+    !isApplyRoute &&
+    !isEmployerRoute &&
+    !showCandidateSidebar &&
+    path !== '/start' &&
+    path !== '/confirmed';
 
   useEffect(() => {
     if (authLoading) return;
@@ -110,7 +116,8 @@ function AppShell() {
       <Route path="/jobs" element={<JobListings />} />
       <Route path="/jobs/:slug" element={<JobDetail />} />
       <Route path="/jobs/:slug/apply" element={<JobApplication />} />
-      <Route path="/start" element={<MarketplaceEntry />} />
+      <Route path="/start" element={<AuthLayout />} />
+      <Route path="/confirmed" element={<Confirmed />} />
       <Route path="/candidate" element={<CandidateDashboard />} />
       <Route path="/candidate/dashboard" element={<CandidateDashboard />} />
       <Route path="/candidate/profile" element={<CandidateProfile />} />

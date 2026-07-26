@@ -1,4 +1,4 @@
-import { Mail, Twitter, Instagram, Linkedin, AlertTriangle, ArrowRight, Check, Zap } from 'lucide-react';
+import { Mail, Twitter, Instagram, Linkedin, AlertTriangle, Check, Zap } from 'lucide-react';
 
 export default function About() {
   return (
