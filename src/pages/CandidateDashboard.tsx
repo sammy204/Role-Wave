@@ -18,6 +18,7 @@ import { fetchProfile } from '../lib/admin';
 import { getSavedJobIds } from '../lib/savedJobs';
 import { useCountUp } from '../hooks/useCountUp';
 import { useUnreadMessagesCount } from '../hooks/useUnreadMessages';
+import { formatStatus, statusTone } from '../lib/applicationPipeline';
 import type { CandidateProfile, Company, Job, JobApplication, Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -31,26 +32,6 @@ function timeAgo(date: string): string {
   return `${Math.floor(diff / 2592000)} months ago`;
 }
 
-function statusTone(status: string) {
-  switch (status) {
-    case 'withdrawn':
-      return 'bg-[#FFF1E6] text-[#A15A00] border-[#F0D080]';
-    case 'shortlisted':
-      return 'bg-pill-blue-bg text-pill-blue-text border-pill-blue-border';
-    case 'hired':
-      return 'bg-pill-green-bg text-pill-green-text border-pill-green-border';
-    case 'rejected':
-      return 'bg-pill-red-bg text-pill-red-text border-pill-red-border';
-    case 'reviewed':
-      return 'bg-pill-amber-bg text-pill-amber-text border-pill-amber-border';
-    default:
-      return 'bg-[#F1EFE8] text-muted border-line';
-  }
-}
-
-function formatStatus(status: string) {
-  return status.charAt(0).toUpperCase() + status.slice(1);
-}
 
 export default function CandidateDashboard() {
   const navigate = useNavigate();
@@ -456,9 +437,12 @@ export default function CandidateDashboard() {
                         <div className="truncate text-sm font-semibold text-ink">
                           {application.job?.title || 'Job listing removed'}
                         </div>
-                        <div className="truncate text-xs text-muted">
+                      <div className="truncate text-xs text-muted">
                           {application.job?.company?.name || 'Unknown company'} · {timeAgo(application.created_at)}
                         </div>
+                        {application.status === 'rejected' && application.rejection_reason && (
+                          <div className="mt-1 text-xs text-pill-red-text">{application.rejection_reason}</div>
+                        )}
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span

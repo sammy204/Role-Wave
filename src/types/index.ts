@@ -112,8 +112,9 @@ export interface JobApplication {
   cover_letter: string | null;
   resume_url: string | null;
   portfolio_url: string | null;
-  source: 'guest' | 'registered';
-  status: 'submitted' | 'reviewed' | 'shortlisted' | 'rejected' | 'hired' | 'withdrawn';
+ source: 'guest' | 'registered';
+  status: 'submitted' | 'reviewed' | 'shortlisted' | 'interview' | 'offer' | 'rejected' | 'hired' | 'withdrawn';
+  rejection_reason: string | null;
   created_at: string;
   updated_at: string;
 }

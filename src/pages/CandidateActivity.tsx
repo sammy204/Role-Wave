@@ -4,6 +4,7 @@ import { Bookmark, CalendarClock, CheckCircle2, Trash2, Undo2 } from 'lucide-rea
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import { getSavedJobIds } from '../lib/savedJobs';
+import { formatStatus, statusTone } from '../lib/applicationPipeline';
 import type { CandidateProfile, Job, JobApplication } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -215,11 +216,8 @@ if (error) throw error;
             </div>
           ) : (
             <div className="space-y-3">
-              {appliedJobs.map(({ application, job }) => {
+            {appliedJobs.map(({ application, job }) => {
                 const isWithdrawn = application.status === 'withdrawn';
-                const statusPillClass = isWithdrawn
-                  ? 'bg-[#F1EFE8] text-[#5F5E5A]'
-                  : 'bg-[#E1F5EE] text-[#085041]';
 
                 return (
                   <div key={application.id} className="rounded-2xl border border-[#D3D1C7] bg-white p-4">
@@ -235,13 +233,18 @@ if (error) throw error;
                         <div className="mt-1 text-sm text-[#5F5E5A]">{job?.company?.name || 'Application submitted'}</div>
                         <div className="mt-1 text-xs text-[#B4B2A9]">{formatRelative(application.created_at)}</div>
                       </div>
-                      <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${statusPillClass}`}>
-                        <CheckCircle2 size={12} /> {application.status}
+                      <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${statusTone(application.status)}`}>
+                        <CheckCircle2 size={12} /> {formatStatus(application.status)}
                       </span>
                     </div>
 
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      {isWithdrawn ? (
+                    {application.status === 'rejected' && application.rejection_reason && (
+                      <div className="mt-3 rounded-xl border border-pill-red-border bg-pill-red-bg px-3 py-2 text-sm text-pill-red-text">
+                        {application.rejection_reason}
+                      </div>
+                    )}
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">                      {isWithdrawn ? (
                         <>
                           {job && (
                             <Link

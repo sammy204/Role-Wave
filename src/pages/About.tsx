@@ -11,7 +11,7 @@ export default function About() {
             tech job board.
           </h1>
           <p className="max-w-xl text-sm leading-relaxed text-white/70 sm:text-base">
-            Every listing is manually checked before it goes live. No scams, no fake roles. Just real opportunities for Nigerian tech and digital talent.
+            RoleWave connects skilled tech and digital professionals with credible employers across Nigeria. Every listing is manually verified before it goes live, so job seekers can apply with confidence and companies can hire from a serious, work-ready talent pool.
           </p>
 
           <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -29,29 +29,17 @@ export default function About() {
           </div>
         </div>
 
-        <div className="panel rounded-[32px] px-4 py-8 sm:px-8 sm:py-10">
-          <div className="mb-6 text-lg font-bold text-[#1A1A1A] sm:text-xl">How it works</div>
-
-          <div className="mb-6 flex gap-4">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#E1F5EE] text-[#085041]">
-              <ArrowRight size={16} />
-            </div>
-            <div>
-              <div className="mb-1 text-[15px] font-semibold text-[#1A1A1A]">Employer posts a job</div>
-              <div className="text-[13px] leading-relaxed text-[#5F5E5A]">
-                Fill out our simple form in about 3 minutes. Free for everyone, always. No account needed to get started.
-              </div>
-            </div>
-          </div>
+       <div className="panel rounded-[32px] px-4 py-8 sm:px-8 sm:py-10">
+          <div className="mb-6 text-lg font-bold text-[#1A1A1A] sm:text-xl">Why RoleWave</div>
 
           <div className="mb-6 flex gap-4">
             <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#E1F5EE] text-[#085041]">
               <Check size={16} />
             </div>
             <div>
-              <div className="mb-1 text-[15px] font-semibold text-[#1A1A1A]">We verify it manually</div>
+              <div className="mb-1 text-[15px] font-semibold text-[#1A1A1A]">Every listing is verified</div>
               <div className="text-[13px] leading-relaxed text-[#5F5E5A]">
-                Our team checks the company is real, the contact is valid, and the role is genuine before anything goes live.
+                We manually review every job before it publishes, so job seekers can apply with confidence and employers post to a platform people trust.
               </div>
             </div>
           </div>
@@ -61,9 +49,9 @@ export default function About() {
               <Zap size={16} />
             </div>
             <div>
-              <div className="mb-1 text-[15px] font-semibold text-[#1A1A1A]">Published within 24 hours</div>
+              <div className="mb-1 text-[15px] font-semibold text-[#1A1A1A]">Built for Nigeria's tech talent</div>
               <div className="text-[13px] leading-relaxed text-[#5F5E5A]">
-                Verified jobs go live and immediately start reaching Nigeria's best tech and digital talent.
+                RoleWave connects skilled tech and digital professionals with credible employers hiring across Nigeria — free, always.
               </div>
             </div>
           </div>
@@ -71,9 +59,9 @@ export default function About() {
           <div className="mt-6 flex gap-3 rounded-[24px] border border-[#D3D1C7] bg-[#FBFAF7] p-4 sm:gap-4 sm:p-5">
             <AlertTriangle size={24} className="mt-0.5 flex-shrink-0 text-[#633806]" />
             <div>
-              <div className="mb-1.5 text-[15px] font-semibold text-[#1A1A1A]">Spotted a fake listing?</div>
+              <div className="mb-1.5 text-[15px] font-semibold text-[#1A1A1A]">Spotted something that isn't right?</div>
               <div className="text-[13px] leading-relaxed text-[#5F5E5A]">
-                Every job has a Report button. One verified report and we remove it immediately. Help us keep RoleWave clean and trustworthy for everyone.
+                Every listing has a Report option. One verified report and we remove it — helping us keep RoleWave trustworthy for everyone.
               </div>
             </div>
           </div>

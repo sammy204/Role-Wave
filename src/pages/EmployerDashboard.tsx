@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import {
+import { Link, useNavigate } from 'react-router-dom';import {
   ArrowRight,
   BadgeCheck,
   Briefcase,
@@ -11,13 +10,18 @@ import {
   MapPin,
   MessageSquareText,
   Search,
-  Send,
   Trash2,
+  XCircle,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import { startConversation } from '../lib/messages';
 import { useCountUp } from '../hooks/useCountUp';
+import {
+  PIPELINE_STAGES,
+  formatStatus as formatApplicationStatus,
+  statusTone as applicationStatusTone,
+} from '../lib/applicationPipeline';
 import type { CandidateProfile, Company, EmployerProfile, Job, JobApplication, Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -35,7 +39,7 @@ function timeAgo(date: string): string {
   return `${Math.floor(diff / 2592000)} months ago`;
 }
 
-function statusTone(status: string) {
+function jobStatusTone(status: string) {
   switch (status) {
     case 'active':
       return 'bg-[#E1F5EE] text-[#085041] border-[#5DCAA5]';
@@ -45,20 +49,12 @@ function statusTone(status: string) {
       return 'bg-[#F1EFE8] text-[#5F5E5A] border-[#D3D1C7]';
     case 'archived':
       return 'bg-[#FAEEDA] text-[#633806] border-[#F0D080]';
-    case 'shortlisted':
-      return 'bg-[#E6F1FB] text-[#0C447C] border-[#9AC0E8]';
-    case 'reviewed':
-      return 'bg-[#FBFAF7] text-[#5F5E5A] border-[#D3D1C7]';
-    case 'hired':
-      return 'bg-[#E1F5EE] text-[#085041] border-[#5DCAA5]';
-    case 'rejected':
-      return 'bg-[#FAECE7] text-[#712B13] border-[#F0D080]';
     default:
       return 'bg-[#F1EFE8] text-[#5F5E5A] border-[#D3D1C7]';
   }
 }
 
-function formatStatus(status: string) {
+function formatJobStatus(status: string) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
@@ -78,6 +74,8 @@ export default function EmployerDashboard() {
   const [confirmDeleteJobId, setConfirmDeleteJobId] = useState<string | null>(null);
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
   const [messagingId, setMessagingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectionReasonDraft, setRejectionReasonDraft] = useState('');
 
   useEffect(() => {
     let alive = true;
@@ -231,28 +229,46 @@ export default function EmployerDashboard() {
   const activeCount = useCountUp(counts.active);
   const applicationsCount = useCountUp(counts.applications);
   const todayCount = useCountUp(counts.newToday);
-
-  const updateApplicationStatus = async (applicationId: string, nextStatus: ApplicationStatus) => {
+const updateApplicationStatus = async (
+    applicationId: string,
+    nextStatus: ApplicationStatus,
+    rejectionReason?: string
+  ) => {
     setSaving(true);
     setError('');
     setNotice('');
 
     try {
+      const payload: { status: ApplicationStatus; rejection_reason?: string | null } = { status: nextStatus };
+      if (nextStatus === 'rejected') {
+        payload.rejection_reason = rejectionReason?.trim() || null;
+      }
+
       const { error: updateError } = await supabase
         .from('job_applications')
-        .update({ status: nextStatus })
+        .update(payload)
         .eq('id', applicationId);
       if (updateError) throw updateError;
 
       setApplications((prev) =>
-        prev.map((item) => (item.id === applicationId ? { ...item, status: nextStatus } : item))
+        prev.map((item) =>
+          item.id === applicationId
+            ? { ...item, status: nextStatus, rejection_reason: payload.rejection_reason ?? item.rejection_reason }
+            : item
+        )
       );
-      setNotice(`Application updated to ${formatStatus(nextStatus)}.`);
+      setNotice(`Application updated to ${formatApplicationStatus(nextStatus)}.`);
     } catch (updateError) {
       setError(updateError instanceof Error ? updateError.message : 'Could not update application.');
     } finally {
       setSaving(false);
     }
+  };
+
+  const rejectApplication = async (applicationId: string) => {
+    await updateApplicationStatus(applicationId, 'rejected', rejectionReasonDraft);
+    setRejectingId(null);
+    setRejectionReasonDraft('');
   };
 
   const updateJobStatus = async (jobId: string, nextStatus: JobStatus) => {
@@ -268,7 +284,7 @@ export default function EmployerDashboard() {
       if (rpcError) throw rpcError;
 
       setJobs((prev) => prev.map((job) => (job.id === jobId ? { ...job, status: nextStatus } : job)));
-      setNotice(`Job marked as ${formatStatus(nextStatus)}.`);
+      setNotice(`Job marked as ${formatJobStatus(nextStatus)}.`);
     } catch (updateError) {
       setError(updateError instanceof Error ? updateError.message : 'Could not update job.');
     } finally {
@@ -450,8 +466,8 @@ export default function EmployerDashboard() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <h2 className="text-lg font-semibold text-ink">{job.title}</h2>
-                            <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${statusTone(job.status)}`}>
-                              {formatStatus(job.status)}
+                           <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${jobStatusTone(job.status)}`}>
+                              {formatJobStatus(job.status)}
                             </span>
                           </div>
                           <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-muted">
@@ -567,8 +583,8 @@ export default function EmployerDashboard() {
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <h3 className="text-base font-semibold text-ink">{application.applicant_name}</h3>
-                            <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${statusTone(application.status)}`}>
-                              {formatStatus(application.status)}
+                            <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${applicationStatusTone(application.status)}`}>
+                              {formatApplicationStatus(application.status)}
                             </span>
                             <span className="rounded-full border border-line bg-[#F1EFE8] px-2.5 py-1 text-xs font-semibold text-muted">
                               {application.source}
@@ -577,6 +593,11 @@ export default function EmployerDashboard() {
                           <div className="mt-1 text-sm text-muted">
                             {application.job?.title || 'Unknown job'} · {application.applicant_email}
                           </div>
+                          {application.status === 'rejected' && application.rejection_reason && (
+                            <div className="mt-2 rounded-xl border border-pill-red-border bg-pill-red-bg px-3 py-2 text-sm text-pill-red-text">
+                              Reason shared with candidate: {application.rejection_reason}
+                            </div>
+                          )}
                           {application.candidate?.headline && (
                             <div className="mt-2 text-sm text-ink">
                               {application.candidate.headline}
@@ -629,20 +650,62 @@ export default function EmployerDashboard() {
                               {messagingId === application.candidate_profile_id ? 'Opening...' : 'Message'}
                             </button>
                           )}
-                          <button
-                            onClick={() => updateApplicationStatus(application.id, 'shortlisted')}
-                            disabled={saving}
-                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#E6F1FB] px-4 py-2 text-sm font-semibold text-[#0C447C] transition-all duration-200 hover:-translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            <Send size={14} /> Shortlist
-                          </button>
-                          <button
-                            onClick={() => updateApplicationStatus(application.id, 'reviewed')}
-                            disabled={saving}
-                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#F1EFE8] px-4 py-2 text-sm font-semibold text-muted transition-all duration-200 hover:-translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            Mark reviewed
-                          </button>
+                        {application.status !== 'rejected' && application.status !== 'withdrawn' && (
+                            <select
+                              value={application.status}
+                              onChange={(e) => updateApplicationStatus(application.id, e.target.value as ApplicationStatus)}
+                              disabled={saving}
+                              className="rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-ink outline-none transition-colors duration-200 focus:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {PIPELINE_STAGES.map((stage) => (
+                                <option key={stage} value={stage}>
+                                  {formatApplicationStatus(stage)}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+
+                          {rejectingId === application.id ? (
+                            <div className="flex w-full flex-col gap-2 rounded-lg border border-pill-red-border bg-pill-red-bg p-3 lg:w-full">
+                              <textarea
+                                value={rejectionReasonDraft}
+                                onChange={(e) => setRejectionReasonDraft(e.target.value)}
+                                placeholder="Optional reason to share with the candidate"
+                                rows={2}
+                                className="w-full resize-none rounded-md border border-line bg-white p-2 text-xs outline-none focus:border-accent"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => rejectApplication(application.id)}
+                                  disabled={saving}
+                                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#B3261E] px-3 py-2 text-xs font-semibold text-white transition-colors duration-200 hover:bg-[#8C1D17] disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  Confirm reject
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setRejectingId(null);
+                                    setRejectionReasonDraft('');
+                                  }}
+                                  disabled={saving}
+                                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-3 py-2 text-xs font-semibold text-muted transition-colors duration-200 hover:border-[#5DCAA5]"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            application.status !== 'rejected' &&
+                            application.status !== 'withdrawn' && (
+                              <button
+                                onClick={() => setRejectingId(application.id)}
+                                disabled={saving}
+                                className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-[#B3261E] transition-colors duration-200 hover:border-[#B3261E] hover:bg-[#FAECE7] disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <XCircle size={14} /> Reject
+                              </button>
+                            )
+                          )}
                         </div>
                       </div>
                     </div>
