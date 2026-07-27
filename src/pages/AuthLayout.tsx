@@ -333,7 +333,7 @@ export default function AuthLayout() {
               style={{ transform: isSignup ? 'translateX(0%)' : 'translateX(100%)' }}
             >
               <div className="mb-4 inline-flex -translate-y-8 items-center justify-center">
-                <img src="/rolewave-favicon.svg" alt="RoleWave" className="h-12 w-12 rounded-[14px]" />
+                <img src="/rolewave-icon.png" alt="RoleWave" className="h-12 w-12 object-contain" />
               </div>
 
               {isSignup ? (
@@ -373,7 +373,7 @@ export default function AuthLayout() {
         <section className="auth-fade-up overflow-hidden rounded-2xl border border-white/70 bg-white/80 shadow-[0_20px_60px_rgba(26,26,26,0.08)] backdrop-blur-xl md:hidden">
           <div className="relative flex items-center justify-end gap-4 bg-[#0E3A2E] px-5 py-3.5 sm:px-7">
             <img
-              src="/rolewave-favicon.svg"
+              src="/rolewave-icon.png"
               alt="RoleWave"
               className="absolute left-1/2 h-9 w-9 -translate-x-1/2 rounded-[10px]"
             />

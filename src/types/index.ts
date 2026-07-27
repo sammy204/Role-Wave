@@ -153,3 +153,20 @@ export interface Message {
   edited_at: string | null;
   deleted_at: string | null;
 }
+
+export type NotificationType =
+  | 'message_received'
+  | 'application_submitted'
+  | 'application_status_changed'
+  | 'employer_verification_approved'
+  | 'employer_verification_rejected'
+  | 'job_post_approved';
+
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  payload: Record<string, unknown>;
+  read_at: string | null;
+  created_at: string;
+}

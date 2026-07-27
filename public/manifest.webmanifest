@@ -1,0 +1,24 @@
+{
+  "name": "RoleWave",
+  "short_name": "RoleWave",
+  "description": "Verified jobs and trusted companies in Nigeria.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F1EFE8",
+  "theme_color": "#1D9E75",
+  "lang": "en-NG",
+  "icons": [
+    {
+      "src": "/rolewave-pwa-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/rolewave-pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -5,10 +5,8 @@ import { useEffect, useState } from 'react';
  * (added to home screen / launched standalone) rather than in a
  * regular browser tab.
  *
- * Note: on Android/Chrome, `display-mode: standalone` only fires for
- * apps installed via a proper web app manifest with `display: standalone`.
- * This repo does not yet ship a manifest.json, so this will currently
- * only ever return true on iOS Safari's "Add to Home Screen".
+ * On Android/Chrome, `display-mode: standalone` fires for apps installed
+ * via the web app manifest with `display: standalone`.
  */
 export function useIsPwa(): boolean {
   const [isPwa, setIsPwa] = useState(false);

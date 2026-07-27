@@ -1,8 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Briefcase, Building2, LayoutDashboard, LogOut, Menu, MessageSquareText, PencilLine, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useUnreadMessagesCount } from '../hooks/useUnreadMessages';
+import { useAuth } from '../lib/useAuth';
+import type { Company } from '../types';
+import NotificationBell from './NotificationBell';
+import CompanyLogo from './CompanyLogo';
 
 type WorkspaceRole = 'candidate' | 'employer';
 
@@ -14,12 +18,55 @@ export default function WorkspaceNav({ role }: { role: WorkspaceRole }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [company, setCompany] = useState<Pick<Company, 'logo_url' | 'logo_initials' | 'avatar_color'> | null>(null);
   const path = location.pathname;
   const unreadCount = useUnreadMessagesCount(role);
+  const { session, loading: authLoading } = useAuth();
 
   const basePath = role === 'employer' ? '/employer' : '/candidate';
   const messagesPath = role === 'employer' ? '/employer/messages' : '/candidate/messages';
   const isActive = (route: string) => path.startsWith(route);
+
+  useEffect(() => {
+    if (role !== 'employer' || authLoading || !session) {
+      setCompany(null);
+      return;
+    }
+
+    let alive = true;
+
+    void (async () => {
+      try {
+        const { data: employerProfile, error: employerError } = await supabase
+          .from('employer_profiles')
+          .select('company_id')
+          .eq('id', session.user.id)
+          .maybeSingle();
+
+        if (employerError) throw employerError;
+
+        if (!employerProfile?.company_id) {
+          if (alive) setCompany(null);
+          return;
+        }
+
+        const { data: companyRow, error: companyError } = await supabase
+          .from('companies')
+          .select('logo_url, logo_initials, avatar_color')
+          .eq('id', employerProfile.company_id)
+          .maybeSingle();
+
+        if (companyError) throw companyError;
+        if (alive) setCompany((companyRow as Pick<Company, 'logo_url' | 'logo_initials' | 'avatar_color'> | null) || null);
+      } catch {
+        if (alive) setCompany(null);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [authLoading, path, role, session]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
@@ -45,9 +92,18 @@ export default function WorkspaceNav({ role }: { role: WorkspaceRole }) {
     <nav className="sticky top-0 z-50 border-b border-white/70 bg-white/88 backdrop-blur-xl shadow-[0_6px_30px_rgba(26,26,26,0.05)]">
       <div className="mx-auto flex h-[68px] max-w-[1320px] items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link to={basePath} className="flex items-center gap-3">
-          <div className="flex h-[34px] w-[34px] items-center justify-center rounded-xl bg-[#1D9E75] text-white shadow-[0_10px_18px_rgba(29,158,117,0.18)]">
-            {role === 'employer' ? <Building2 size={15} /> : <Briefcase size={15} />}
-          </div>
+          {role === 'employer' && company ? (
+            <CompanyLogo
+              company={company}
+              size={34}
+              radiusClassName="rounded-xl"
+              className="shadow-[0_10px_18px_rgba(29,158,117,0.18)]"
+            />
+          ) : (
+            <div className="flex h-[34px] w-[34px] items-center justify-center rounded-xl bg-[#1D9E75] text-white shadow-[0_10px_18px_rgba(29,158,117,0.18)]">
+              {role === 'employer' ? <Building2 size={15} /> : <Briefcase size={15} />}
+            </div>
+          )}
           <div className="leading-tight">
             <span className="block text-[17px] font-bold text-[#1A1A1A]">
               {role === 'employer' ? 'Employer Account' : 'Candidate Account'}
@@ -79,7 +135,8 @@ export default function WorkspaceNav({ role }: { role: WorkspaceRole }) {
           })}
         </div>
 
-        <div className="hidden lg:block">
+        <div className="hidden items-center gap-2 lg:flex">
+          <NotificationBell role={role} variant="light" />
           <button
             onClick={handleSignOut}
             className="inline-flex items-center gap-2 rounded-full bg-[#1A1A1A] px-[18px] py-2.5 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(26,26,26,0.15)] transition-all duration-200 hover:-translate-y-[1px]"
@@ -89,16 +146,19 @@ export default function WorkspaceNav({ role }: { role: WorkspaceRole }) {
           </button>
         </div>
 
-        <button
-          className="relative rounded-full border border-[#D3D1C7] bg-white p-2 text-[#1A1A1A] shadow-[0_8px_18px_rgba(26,26,26,0.04)] lg:hidden"
-          onClick={() => setMenuOpen(!menuOpen)}
-          aria-label="Toggle workspace menu"
-        >
-          {menuOpen ? <X size={22} /> : <Menu size={22} />}
-          {!menuOpen && unreadCount > 0 && (
-            <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-[#1D9E75] ring-2 ring-white" />
-          )}
-        </button>
+        <div className="flex items-center gap-2 lg:hidden">
+          <NotificationBell role={role} variant="light" />
+          <button
+            className="relative rounded-full border border-[#D3D1C7] bg-white p-2 text-[#1A1A1A] shadow-[0_8px_18px_rgba(26,26,26,0.04)]"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Toggle workspace menu"
+          >
+            {menuOpen ? <X size={22} /> : <Menu size={22} />}
+            {!menuOpen && unreadCount > 0 && (
+              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-[#1D9E75] ring-2 ring-white" />
+            )}
+          </button>
+        </div>
 
         {menuOpen && (
           <>

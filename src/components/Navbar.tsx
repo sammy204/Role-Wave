@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bookmark,  Briefcase, LogOut, Menu, UserCircle2, X } from 'lucide-react';
+import { ArrowLeft, LogOut, Menu, UserCircle2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import { useAuth } from '../lib/useAuth';
@@ -71,8 +71,6 @@ export default function Navbar() {
       : '/candidate';
   const profileLabel = showBrowseJobs ? 'Browse jobs' : 'Profile';
   const ProfileIcon = showBrowseJobs ? ArrowLeft : UserCircle2;
-  const showActivityLink = isSignedIn && profile?.account_type === 'candidate';
-
   const brandPath = isPwa && profile?.account_type === 'candidate' ? '/candidate/home' : '/';
 
   const handleSignOut = async () => {
@@ -87,30 +85,16 @@ export default function Navbar() {
     <nav className="sticky top-0 z-50 border-b border-white/70 bg-white/88 backdrop-blur-xl shadow-[0_6px_30px_rgba(26,26,26,0.05)]">
       <div className="mx-auto flex h-[68px] max-w-[1320px] items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link to={brandPath} className="flex items-center gap-3">
-          <div className="flex h-[34px] w-[34px] items-center justify-center rounded-xl bg-[#1D9E75] text-white shadow-[0_10px_18px_rgba(29,158,117,0.18)]">
-            <Briefcase size={15} />
-          </div>
-          <div className="leading-tight">
-            <span className="block text-[17px] font-bold text-[#1A1A1A]">RoleWave</span>
-            <span className="hidden text-[11px] uppercase tracking-[0.18em] text-[#B4B2A9] sm:block">Verified jobs board</span>
-          </div>
+          <img
+            src="/rolewave-horizontal-tagline.png"
+            alt="RoleWave — Your Career, Rising."
+            className="h-[38px] w-auto object-contain sm:h-[44px]"
+          />
         </Link>
 
         <div className="hidden items-center gap-2 md:flex">
           {sessionReady && isSignedIn ? (
   <>
-    {showActivityLink && (
-      <Link
-        to="/candidate/activity"
-        aria-label="Saved & applied jobs"
-        className={`inline-flex items-center gap-2 rounded-full border border-[#D3D1C7] bg-white px-[18px] py-2.5 text-[13px] font-semibold text-[#1A1A1A] transition-colors hover:border-[#5DCAA5] hover:text-[#085041] ${
-          isActive('/candidate/activity') ? 'border-[#5DCAA5] text-[#085041]' : ''
-        }`}
-      >
-        <Bookmark size={15} />
-        Saved & applied
-      </Link>
-    )}
     <Link
       to={profilePath}
       aria-label={profileLabel}
@@ -170,16 +154,6 @@ export default function Navbar() {
               <div className="grid gap-2">
  {sessionReady && isSignedIn ? (
   <>
-    {showActivityLink && (
-      <Link
-        to="/candidate/activity"
-        onClick={() => setMenuOpen(false)}
-        className="flex items-center justify-center gap-2 rounded-[16px] border border-[#D3D1C7] bg-white px-[18px] py-3 text-center text-[13px] font-semibold text-[#1A1A1A]"
-      >
-        <Bookmark size={15} />
-        Saved & applied
-      </Link>
-    )}
     <Link
       to={profilePath}
       onClick={() => setMenuOpen(false)}
