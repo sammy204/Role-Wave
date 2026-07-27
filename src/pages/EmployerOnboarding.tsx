@@ -1,20 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, BadgeCheck, Save } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Save, Upload, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile, slugify } from '../lib/admin';
 import type { Company } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
+import AvatarCropModal from '../components/AvatarCropModal';
+import CompanyLogo from '../components/CompanyLogo';
 
 const colorOptions: Company['avatar_color'][] = ['teal', 'blue', 'amber', 'purple', 'coral'];
-
-const avatarColorMap: Record<Company['avatar_color'], string> = {
-  teal: 'bg-accent-deep',
-  blue: 'bg-[#0C447C]',
-  amber: 'bg-[#96690A]',
-  purple: 'bg-[#5B4088]',
-  coral: 'bg-[#A6432B]',
-};
 
 const emptyForm = {
   companyName: '',
@@ -48,7 +42,12 @@ export default function EmployerOnboarding() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [cropSourceFile, setCropSourceFile] = useState<File | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoError, setLogoError] = useState('');
 
   useEffect(() => {
     let alive = true;
@@ -61,6 +60,8 @@ export default function EmployerOnboarding() {
           navigate('/start?role=employer', { replace: true });
           return;
         }
+
+        setUserId(session.user.id);
 
         const nextProfile = await fetchProfile(session.user.id);
         if (!alive) return;
@@ -100,6 +101,19 @@ export default function EmployerOnboarding() {
             officeLocation: existing.office_location || '',
             description: '',
           });
+
+          if (existing.company_id) {
+            const { data: companyRow } = await supabase
+              .from('companies')
+              .select('logo_url, description')
+              .eq('id', existing.company_id)
+              .maybeSingle();
+            if (alive && companyRow) {
+              setLogoUrl((companyRow as { logo_url: string | null }).logo_url);
+              const desc = (companyRow as { description: string | null }).description;
+              if (desc) setForm((prev) => ({ ...prev, description: desc }));
+            }
+          }
         }
       } catch (loadError) {
         if (alive) {
@@ -121,6 +135,40 @@ export default function EmployerOnboarding() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleLogoFileChange = (file: File | null) => {
+    if (!file) return;
+    setLogoError('');
+    if (!file.type.startsWith('image/')) {
+      setLogoError('Please upload an image file.');
+      return;
+    }
+    setCropSourceFile(file);
+  };
+
+  const handleLogoCropConfirm = async (croppedFile: File) => {
+    setCropSourceFile(null);
+    if (!userId) return;
+    setUploadingLogo(true);
+    setLogoError('');
+    try {
+      const fileName = `${userId}/logo-${Date.now()}.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from('company-logos')
+        .upload(fileName, croppedFile, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from('company-logos').getPublicUrl(fileName);
+      setLogoUrl(data.publicUrl);
+    } catch (uploadError) {
+      setLogoError(uploadError instanceof Error ? uploadError.message : 'Could not upload that logo.');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoUrl(null);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setError('');
@@ -136,6 +184,7 @@ export default function EmployerOnboarding() {
         name: form.companyName,
         slug: slugify(form.companyName),
         logo_initials: initials(form.companyName) || 'CO',
+        logo_url: logoUrl,
         avatar_color: pickColor(form.companyName),
         owner_profile_id: session.user.id,
         location: form.companyLocation || null,
@@ -200,7 +249,6 @@ export default function EmployerOnboarding() {
   }
 
   const previewInitials = initials(form.companyName) || 'CO';
-  const previewColor = avatarColorMap[pickColor(form.companyName || 'CO')];
 
   return (
     <div className="page-shell px-4 py-6 sm:px-6 lg:px-8">
@@ -229,6 +277,57 @@ export default function EmployerOnboarding() {
               <div className="mb-3 text-[11px] font-bold uppercase tracking-[1.6px] text-faint">
                 Company identity
               </div>
+
+              <div className="mb-5 flex items-center gap-4">
+                <CompanyLogo
+                  company={{
+                    logo_url: logoUrl,
+                    logo_initials: initials(form.companyName) || 'CO',
+                    avatar_color: pickColor(form.companyName || 'CO'),
+                  }}
+                  size={64}
+                  radiusClassName="rounded-2xl"
+                  textClassName="text-lg"
+                />
+                <div>
+                  <div className="flex gap-2">
+                    <label className="ghost-chip cursor-pointer !rounded-lg !px-3 !py-2 !text-[13px]">
+                      <Upload size={14} />
+                      {uploadingLogo ? 'Uploading...' : logoUrl ? 'Replace logo' : 'Upload logo'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploadingLogo}
+                        onChange={(e) => handleLogoFileChange(e.target.files?.[0] || null)}
+                      />
+                    </label>
+                    {logoUrl && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveLogo}
+                        className="ghost-chip !rounded-lg !px-3 !py-2 !text-[13px] !text-[#B3261E]"
+                      >
+                        <Trash2 size={14} /> Remove
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-1.5 text-xs text-muted">PNG or JPG. Square logos look best.</p>
+                  {logoError && <p className="mt-1.5 text-xs text-[#B3261E]">{logoError}</p>}
+                </div>
+              </div>
+
+              {cropSourceFile && (
+                <AvatarCropModal
+                  file={cropSourceFile}
+                  shape="square"
+                  title="Adjust your logo"
+                  outputFileName="logo.jpg"
+                  onCancel={() => setCropSourceFile(null)}
+                  onConfirm={handleLogoCropConfirm}
+                />
+              )}
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Company name">
                   <input className="admin-input" value={form.companyName} onChange={(e) => updateField('companyName', e.target.value)} placeholder="Paystack" />
@@ -294,11 +393,16 @@ export default function EmployerOnboarding() {
             </div>
 
             <div className="flex items-center gap-3">
-              <div
-                className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-lg font-bold text-white transition-colors duration-300 ${previewColor}`}
-              >
-                {previewInitials}
-              </div>
+              <CompanyLogo
+                company={{
+                  logo_url: logoUrl,
+                  logo_initials: previewInitials,
+                  avatar_color: pickColor(form.companyName || 'CO'),
+                }}
+                size={56}
+                radiusClassName="rounded-2xl"
+                textClassName="text-lg"
+              />
               <div className="min-w-0">
                 <div className="truncate font-display text-lg font-bold text-ink">
                   {form.companyName || 'Your company name'}

@@ -8,6 +8,7 @@ import { useAuth } from '../lib/useAuth';
 import { isJobSaved, toggleSavedJob } from '../lib/savedJobs';
 import type { Job, Company } from '../types';
 import { formatApplicationMethod, formatExperienceLevel, formatJobSalary, formatWorkAuthorization } from '../lib/jobMetadata';
+import CompanyLogo from '../components/CompanyLogo';
 
 const colorMap: Record<string, { bg: string; text: string }> = {
   teal: { bg: 'bg-[#E1F5EE]', text: 'text-[#085041]' },
@@ -239,11 +240,13 @@ export default function JobDetail() {
           </Link>
 
           <div className="mb-4 flex items-center gap-3 sm:gap-3.5">
-            <div
-              className={`flex h-12 w-12 items-center justify-center rounded-2xl text-[15px] font-bold ring-1 ring-black/5 sm:h-14 sm:w-14 sm:text-[17px] ${color.bg} ${color.text}`}
-            >
-              {company?.logo_initials || '??'}
-            </div>
+            <CompanyLogo
+              company={company}
+              sizeClassName="h-12 w-12 sm:h-14 sm:w-14"
+              radiusClassName="rounded-2xl ring-1 ring-black/5"
+              textClassName="text-[15px] sm:text-[17px]"
+              fallbackClassName={`${color.bg} ${color.text}`}
+            />
             <div>
               <h1 className="font-display text-[22px] font-bold text-[#1A1A1A] sm:text-[28px]">{job.title}</h1>
               <p className="text-xs text-[#5F5E5A] sm:text-sm">

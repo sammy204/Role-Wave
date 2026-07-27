@@ -3,6 +3,7 @@ export interface Company {
   name: string;
   slug: string;
   logo_initials: string;
+  logo_url: string | null;
   avatar_color: 'teal' | 'blue' | 'amber' | 'purple' | 'coral';
   location: string | null;
   website: string | null;

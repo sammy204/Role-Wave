@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { fetchProfile, slugify } from '../lib/admin';
 import type { Company, EmployerProfile, Job, Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
+import CompanyLogo from '../components/CompanyLogo';
 
 type ApplyMethod = 'external' | 'email' | 'internal';
 type JobStatus = 'active' | 'filled' | 'closed' | 'archived';
@@ -29,14 +30,6 @@ const suggestedTags = [
   'Testing',
   'Remote',
 ];
-
-const avatarColorMap: Record<Company['avatar_color'], string> = {
-  teal: 'bg-accent-deep',
-  blue: 'bg-[#0C447C]',
-  amber: 'bg-[#96690A]',
-  purple: 'bg-[#5B4088]',
-  coral: 'bg-[#A6432B]',
-};
 
 const applyMethodCopy: Record<ApplyMethod, string> = {
   external: 'Applicants will be sent to your external link.',
@@ -289,8 +282,6 @@ export default function PostJob() {
     );
   }
 
-  const companyInitials = company?.logo_initials || 'CO';
-  const companyColor = avatarColorMap[company?.avatar_color || 'teal'];
 
   return (
     <div className="page-shell">
@@ -333,11 +324,12 @@ export default function PostJob() {
           )}
 
           <div className="mb-6 flex items-center gap-3 rounded-[18px] border border-line bg-paper p-4">
-            <div
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white ${companyColor}`}
-            >
-              {companyInitials}
-            </div>
+            <CompanyLogo
+              company={company}
+              size={40}
+              radiusClassName="rounded-xl"
+              textClassName="text-sm"
+            />
             <div className="min-w-0 text-sm text-muted">
               <span className="font-semibold text-ink">{company?.name || employerProfile?.company_name || 'Your company'}</span>
               {' '}· {profile?.full_name || 'Employer'} is posting under this company profile.
@@ -599,11 +591,12 @@ export default function PostJob() {
             </div>
 
             <div className="flex items-start gap-3">
-              <div
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white ${companyColor}`}
-              >
-                {companyInitials}
-              </div>
+              <CompanyLogo
+                company={company}
+                size={44}
+                radiusClassName="rounded-xl"
+                textClassName="text-sm"
+              />
               <div className="min-w-0">
                 <h3 className="truncate font-display text-lg font-bold text-ink">
                   {form.jobTitle || 'Job title'}

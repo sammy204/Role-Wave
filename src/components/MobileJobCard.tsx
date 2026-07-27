@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { BadgeCheck } from 'lucide-react';
 import type { Job, Company } from '../types';
+import CompanyLogo from './CompanyLogo';
 
 interface MobileJobCardProps {
   job: Job & { company?: Company };
@@ -57,11 +58,13 @@ export default function MobileJobCard({ job }: MobileJobCardProps) {
 
       <div className="mb-2 flex items-start justify-between gap-3">
         <div className="flex items-center gap-[10px]">
-          <div
-            className={`flex h-[38px] w-[38px] items-center justify-center rounded-xl text-[11px] font-bold ring-1 ring-black/5 ${color.bg} ${color.text}`}
-          >
-            {job.company?.logo_initials || '??'}
-          </div>
+          <CompanyLogo
+            company={company}
+            size={38}
+            radiusClassName="rounded-xl ring-1 ring-black/5"
+            textClassName="text-[11px]"
+            fallbackClassName={`${color.bg} ${color.text}`}
+          />
           <div>
             <div className="text-[14px] font-semibold text-[#1A1A1A]">{job.title}</div>
             <div className="flex items-center gap-1 text-[11px] text-[#5F5E5A]">
