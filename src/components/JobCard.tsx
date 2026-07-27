@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Star, BadgeCheck } from 'lucide-react';
 import type { Job, Company } from '../types';
 import { formatApplicationMethod, formatExperienceLevel, formatJobSalary, formatWorkAuthorization } from '../lib/jobMetadata';
+import CompanyLogo from './CompanyLogo';
 
 interface JobCardProps {
   job: Job & { company?: Company };
@@ -51,11 +52,13 @@ export default function JobCard({ job }: JobCardProps) {
         isFeatured ? 'border-[#5DCAA5]' : 'border-[#D3D1C7]'
       }`}
     >
-      <div
-        className={`w-10 h-10 sm:w-11 sm:h-11 rounded-[14px] flex-shrink-0 flex items-center justify-center text-[11px] sm:text-[13px] font-bold ring-1 ring-black/5 ${color.bg} ${color.text}`}
-      >
-        {company?.logo_initials || '??'}
-      </div>
+      <CompanyLogo
+        company={company}
+        sizeClassName="w-10 h-10 sm:w-11 sm:h-11"
+        radiusClassName="rounded-[14px] ring-1 ring-black/5"
+        textClassName="text-[11px] sm:text-[13px]"
+        fallbackClassName={`${color.bg} ${color.text}`}
+      />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-3 mb-1">

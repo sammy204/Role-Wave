@@ -24,6 +24,7 @@ import { withTimeout } from '../lib/withTimeout';
 import { fetchProfile, slugify } from '../lib/admin';
 import type { Company, Job, JobSubmission, Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
+import CompanyLogo from '../components/CompanyLogo';
 
 type SubmissionTab = 'pending' | 'reviewed';
 type JobTab = 'all' | 'active' | 'filled' | 'closed' | 'archived';
@@ -1297,9 +1298,13 @@ export default function AdminDashboard() {
                       <tr key={item.id} className="border-b border-[#EFEDE5] last:border-0 hover:bg-[#FBFAF7]">
                         <td className="px-3 py-2.5">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-[#F1EFE8] text-[#1A1A1A] flex items-center justify-center font-bold text-xs flex-shrink-0">
-                              {item.logo_initials || 'CO'}
-                            </div>
+                            <CompanyLogo
+                              company={item}
+                              size={32}
+                              radiusClassName="rounded-lg"
+                              textClassName="text-xs"
+                              fallbackClassName="bg-[#F1EFE8] text-[#1A1A1A]"
+                            />
                             <div className="min-w-0">
                               <div className="font-medium text-[#1A1A1A] truncate">{item.name}</div>
                               {item.website && (

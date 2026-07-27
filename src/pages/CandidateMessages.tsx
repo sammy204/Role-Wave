@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type UIEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Building2, Check, MessageSquareText, Pencil, Send, Trash2, X } from 'lucide-react';
+import CompanyLogo from '../components/CompanyLogo';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import {
@@ -369,9 +370,20 @@ export default function CandidateMessages() {
                         active ? 'bg-accent-light' : 'hover:bg-[#F1EFE8]'
                       }`}
                     >
-                      <div className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#1D9E75] text-xs font-bold text-white">
-                        {conversation.company?.logo_initials || <Building2 size={14} />}
-                      </div>
+                      {conversation.company ? (
+                        <CompanyLogo
+                          company={conversation.company}
+                          size={36}
+                          radiusClassName="rounded-full"
+                          textClassName="text-xs"
+                          fallbackClassName="bg-[#1D9E75] text-white"
+                          className="mt-0.5"
+                        />
+                      ) : (
+                        <div className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#1D9E75] text-xs font-bold text-white">
+                          <Building2 size={14} />
+                        </div>
+                      )}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
                           <span className={`truncate text-sm ${unread ? 'font-bold text-ink' : 'font-semibold text-ink'}`}>
@@ -409,9 +421,19 @@ export default function CandidateMessages() {
                   >
                     <ArrowLeft size={19} />
                   </button>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#1D9E75] text-xs font-bold text-white">
-                    {activeConversation.company?.logo_initials || <Building2 size={14} />}
-                  </div>
+                  {activeConversation.company ? (
+                    <CompanyLogo
+                      company={activeConversation.company}
+                      size={36}
+                      radiusClassName="rounded-full"
+                      textClassName="text-xs"
+                      fallbackClassName="bg-[#1D9E75] text-white"
+                    />
+                  ) : (
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#1D9E75] text-xs font-bold text-white">
+                      <Building2 size={14} />
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold text-ink">{activeConversation.company?.name || 'Employer'}</div>
                     {activeConversation.source_job?.title && (

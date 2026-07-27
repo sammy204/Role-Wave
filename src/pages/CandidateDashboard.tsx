@@ -21,6 +21,7 @@ import { formatStatus, statusTone } from '../lib/applicationPipeline';
 import { calculateProfileCompletion } from '../lib/profileCompletion';
 import type { CandidateProfile, Company, Job, JobApplication, Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
+import CompanyLogo from '../components/CompanyLogo';
 
 function timeAgo(date: string): string {
   const then = new Date(date).getTime();
@@ -629,13 +630,13 @@ export default function CandidateDashboard() {
                   return (
                     <div key={company.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[#E8E4DA] bg-[#FBFAF7] px-4 py-3 shadow-[0_10px_24px_rgba(26,26,26,0.03)]">
                       <div className="flex items-center gap-3">
-                        <div
-                          className={`flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold ${
-                            colorMap[company.avatar_color] || colorMap.teal
-                          }`}
-                        >
-                          {company.logo_initials}
-                        </div>
+                        <CompanyLogo
+                          company={company}
+                          size={36}
+                          radiusClassName="rounded-xl"
+                          textClassName="text-xs"
+                          fallbackClassName={colorMap[company.avatar_color] || colorMap.teal}
+                        />
                         <div>
                           <div className="text-sm font-semibold text-ink">{company.name}</div>
                           <div className="text-xs text-muted">{company.job_count} open roles</div>
