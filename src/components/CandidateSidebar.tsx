@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Bookmark, Briefcase, Info, LayoutDashboard, LogOut, Mail, MessageSquareText, Menu, User, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useUnreadMessagesCount } from '../hooks/useUnreadMessages';
+import NotificationBell from './NotificationBell';
 
 const links = [
   { to: '/candidate/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -101,15 +102,16 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
     <div className="min-h-screen bg-paper lg:flex">
       {/* Desktop fixed sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-[260px] flex-col bg-sidebar px-4 py-6 shadow-sidebar lg:flex">
-        <Link to="/candidate/dashboard" className="mb-8 flex items-center gap-3 px-1">
-          <div className="flex h-[34px] w-[34px] items-center justify-center rounded-xl bg-white/15 text-white">
-            <Briefcase size={16} />
-          </div>
-          <div className="leading-tight">
-            <span className="block text-[16px] font-bold text-white">RoleWave</span>
-            <span className="block text-[11px] uppercase tracking-[0.18em] text-white/70">Workspace</span>
-          </div>
-        </Link>
+        <div className="mb-8 flex items-center justify-between px-1">
+          <Link to="/candidate/dashboard" className="flex items-center gap-3">
+            <img src="/rolewave-icon.png" alt="RoleWave" className="h-[34px] w-[34px] object-contain" />
+            <div className="leading-tight">
+              <span className="block text-[16px] font-bold text-white">RoleWave</span>
+              <span className="block text-[11px] uppercase tracking-[0.18em] text-white/70">Workspace</span>
+            </div>
+          </Link>
+          <NotificationBell role="candidate" variant="dark" />
+        </div>
 
         <NavLinks />
 
@@ -127,21 +129,22 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
       {/* Mobile top bar */}
       <div className="sticky top-0 z-40 flex h-[60px] items-center justify-between border-b border-line bg-sidebar px-4 lg:hidden">
         <Link to="/candidate/dashboard" className="flex items-center gap-2">
-          <div className="flex h-[28px] w-[28px] items-center justify-center rounded-lg bg-white/15 text-white">
-            <Briefcase size={14} />
-          </div>
+          <img src="/rolewave-icon.png" alt="RoleWave" className="h-[28px] w-[28px] object-contain" />
           <span className="text-[15px] font-bold text-white">RoleWave</span>
         </Link>
-        <button
-          onClick={() => setDrawerOpen(true)}
-          aria-label="Open menu"
-          className="relative rounded-full p-2 text-white hover:bg-white/10"
-        >
-          <Menu size={22} />
-          {unreadCount > 0 && (
-            <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-sidebar" />
-          )}
-        </button>
+        <div className="flex items-center gap-1.5">
+          <NotificationBell role="candidate" variant="dark" />
+          <button
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open menu"
+            className="relative rounded-full p-2 text-white hover:bg-white/10"
+          >
+            <Menu size={22} />
+            {unreadCount > 0 && (
+              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-sidebar" />
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Mobile drawer */}
@@ -163,9 +166,7 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
         >
             <div className="mb-8 flex items-center justify-between px-1">
               <div className="flex items-center gap-3">
-                <div className="flex h-[34px] w-[34px] items-center justify-center rounded-xl bg-white/15 text-white">
-                  <Briefcase size={16} />
-                </div>
+                <img src="/rolewave-icon.png" alt="RoleWave" className="h-[34px] w-[34px] object-contain" />
                 <span className="text-[16px] font-bold text-white">RoleWave</span>
               </div>
               <button

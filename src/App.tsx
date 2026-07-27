@@ -29,6 +29,10 @@ import EmployerDashboard from './pages/EmployerDashboard';
 import CandidateMessages from './pages/CandidateMessages';
 import EmployerMessages from './pages/EmployerMessages';
 import CandidateMobileNav from './components/CandidateMobileNav';
+import CookieConsent from './components/CookieConsent';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
+import InstallPrompt from './components/InstallPrompt';
 
 function App() {
   return (
@@ -130,6 +134,8 @@ function AppShell() {
       <Route path="/post" element={<PostJob />} />
       <Route path="/about" element={<About />} />
       <Route path="/contact" element={<Contact />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/terms" element={<TermsOfService />} />
       <Route path="/admin/login" element={<AdminLogin />} />
       <Route element={<AdminGuard />}>
         <Route path="/admin" element={<AdminDashboard />} />
@@ -138,7 +144,13 @@ function AppShell() {
   );
 
   if (showCandidateSidebar) {
-    return <CandidateSidebar>{routes}</CandidateSidebar>;
+    return (
+      <>
+        <CandidateSidebar>{routes}</CandidateSidebar>
+        <CookieConsent />
+        <InstallPrompt />
+      </>
+    );
   }
 
   return (
@@ -148,6 +160,8 @@ function AppShell() {
       <main className="flex-1">{routes}</main>
       <CandidateMobileNav />
       {showPublicChrome && <Footer />}
+      <CookieConsent />
+      <InstallPrompt />
     </div>
   );
 }
