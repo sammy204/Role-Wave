@@ -8,6 +8,7 @@ import AdminGuard from './components/AdminGuard';
 import { supabase } from './lib/supabase';
 import { fetchProfile } from './lib/admin';
 import { useAuth } from './lib/useAuth';
+import { useIsPwa } from './lib/usePwaDisplayMode';
 import type { Profile } from './types';
 import Home from './pages/Home';
 import JobListings from './pages/JobListings';
@@ -47,6 +48,7 @@ function AppShell() {
   const navigate = useNavigate();
   const path = location.pathname;
   const { session, loading: authLoading } = useAuth();
+  const isPwa = useIsPwa();
   const [profile, setProfile] = useState<Profile | null>(null);
 
   const isAdminRoute = path.startsWith('/admin');
@@ -103,16 +105,46 @@ function AppShell() {
   }, [authLoading, session]);
 
   useEffect(() => {
+    if (!isPwa || authLoading) return;
+
+    if (!session) {
+      if (path !== '/start') navigate('/start?mode=login', { replace: true });
+      return;
+    }
+
+    if (path !== '/' && path !== '/start') return;
+
+    let alive = true;
+
+    void (async () => {
+      try {
+        const nextProfile = await fetchProfile(session.user.id);
+        if (!alive) return;
+        navigate(
+          nextProfile?.account_type === 'employer' ? '/employer/dashboard' : '/candidate/dashboard',
+          { replace: true }
+        );
+      } catch {
+        if (alive) navigate('/candidate/dashboard', { replace: true });
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [authLoading, isPwa, navigate, path, session]);
+
+  useEffect(() => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
-        navigate('/', { replace: true });
+        navigate(isPwa ? '/start?mode=login' : '/', { replace: true });
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [isPwa, navigate]);
 
   const routes = (
     <Routes>
