@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { Conversation, Message } from '../types';
+import { sendMessagePush } from './pushTest';
 
 /**
  * Starts (or reopens, since it's idempotent server-side) a conversation
@@ -125,7 +126,18 @@ export async function sendMessage(conversationId: string, senderProfileId: strin
     .single();
 
   if (error) throw error;
-  return data as Message;
+  const message = data as Message;
+
+  // Push delivery is best-effort. The message is already saved successfully,
+  // so a missing subscription or temporary push-service failure must not make
+  // the sender think the message was lost.
+  void sendMessagePush({
+    conversationId,
+    messageId: message.id,
+    message: trimmed,
+  }).catch(() => undefined);
+
+  return message;
 }
 
 /**

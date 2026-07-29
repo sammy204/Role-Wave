@@ -7,8 +7,16 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
       injectRegister: 'auto',
+      // Enable the service worker while running `vite` so push notifications
+      // can be tested from an installed local PWA during development.
+      devOptions: {
+        enabled: true,
+      },
       manifest: false,
       workbox: {
         navigateFallback: '/index.html',

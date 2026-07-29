@@ -33,6 +33,7 @@ import CookieConsent from './components/CookieConsent';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import InstallPrompt from './components/InstallPrompt';
+import PushNotificationPrompt from './components/PushNotificationPrompt';
 
 function App() {
   return (
@@ -149,6 +150,7 @@ function AppShell() {
         <CandidateSidebar>{routes}</CandidateSidebar>
         <CookieConsent />
         <InstallPrompt />
+        <PushNotificationPrompt />
       </>
     );
   }
@@ -162,6 +164,7 @@ function AppShell() {
       {showPublicChrome && <Footer />}
       <CookieConsent />
       <InstallPrompt />
+      <PushNotificationPrompt />
     </div>
   );
 }
