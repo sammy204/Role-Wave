@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { Conversation, Message } from '../types';
-import { sendMessagePush } from './pushTest';
+import { sendMessagePush } from './push';
 
 /**
  * Starts (or reopens, since it's idempotent server-side) a conversation
