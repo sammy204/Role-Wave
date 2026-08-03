@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { Conversation, Message } from '../types';
+import { sendMessagePush } from './push';
 
 /**
  * Starts (or reopens, since it's idempotent server-side) a conversation
@@ -20,6 +21,14 @@ export async function startConversation(candidateProfileId: string, jobId?: stri
 
 export async function markConversationRead(conversationId: string): Promise<void> {
   const { error } = await supabase.rpc('mark_conversation_read', {
+    p_conversation_id: conversationId,
+  });
+
+  if (error) throw error;
+}
+
+export async function markMessagesDelivered(conversationId: string): Promise<void> {
+  const { error } = await supabase.rpc('mark_messages_delivered', {
     p_conversation_id: conversationId,
   });
 
@@ -125,7 +134,18 @@ export async function sendMessage(conversationId: string, senderProfileId: strin
     .single();
 
   if (error) throw error;
-  return data as Message;
+  const message = data as Message;
+
+  // Push delivery is best-effort. The message is already saved successfully,
+  // so a missing subscription or temporary push-service failure must not make
+  // the sender think the message was lost.
+  void sendMessagePush({
+    conversationId,
+    messageId: message.id,
+    message: trimmed,
+  }).catch(() => undefined);
+
+  return message;
 }
 
 /**
@@ -209,6 +229,26 @@ export function subscribeToConversationMessages(
     });
 
   handlers.onStatusChange?.('connecting');
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+/** Subscribe to all messages visible to the signed-in user for inbox updates. */
+export function subscribeToInboxMessages(handlers: {
+  onInsert: (message: Message) => void;
+  onUpdate: (message: Message) => void;
+}): () => void {
+  const channel = supabase
+    .channel('messages:inbox')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+      handlers.onInsert(payload.new as Message);
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, (payload) => {
+      handlers.onUpdate(payload.new as Message);
+    })
+    .subscribe();
 
   return () => {
     supabase.removeChannel(channel);

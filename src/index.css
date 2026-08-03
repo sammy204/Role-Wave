@@ -4,6 +4,15 @@
 @tailwind components;
 @tailwind utilities;
 
+[data-reduce-motion='true'] *,
+[data-reduce-motion='true'] *::before,
+[data-reduce-motion='true'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
@@ -170,4 +179,190 @@
     transform: translateX(12%) translateY(10px) scale(1.05);
     opacity: 0.75;
   }
+}
+
+/* The app uses a mix of shared classes and legacy utility colors. These
+   overrides keep dark mode consistent without changing the meaning of the
+   existing accent and status colors. */
+[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+[data-theme='dark'] body {
+  color: #F5F5F4;
+  background: #111613;
+}
+
+[data-theme='dark'] .page-shell {
+  background: linear-gradient(135deg, #111613 0%, #17201B 52%, #111613 100%);
+}
+
+[data-theme='dark'] .page-shell::before {
+  background:
+    radial-gradient(circle at 15% 15%, rgba(29, 158, 117, 0.16), transparent 28%),
+    radial-gradient(circle at 85% 10%, rgba(91, 64, 136, 0.14), transparent 22%),
+    radial-gradient(circle at 80% 80%, rgba(15, 110, 86, 0.14), transparent 26%);
+}
+
+[data-theme='dark'] .panel,
+[data-theme='dark'] .panel-soft,
+[data-theme='dark'] .auth-card {
+  border-color: rgba(111, 133, 121, 0.36);
+  background: rgba(27, 36, 31, 0.88);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
+}
+
+[data-theme='dark'] .auth-card {
+  background:
+    linear-gradient(180deg, rgba(33, 44, 38, 0.94), rgba(22, 29, 25, 0.9)),
+    radial-gradient(circle at top left, rgba(93, 202, 165, 0.14), transparent 32%);
+}
+
+[data-theme='dark'] .field-shell,
+[data-theme='dark'] input,
+[data-theme='dark'] textarea,
+[data-theme='dark'] select {
+  color: #F5F5F4;
+  background-color: #1B241F;
+  border-color: #3A4740;
+}
+
+[data-theme='dark'] option {
+  color: #F5F5F4;
+  background: #1B241F;
+}
+
+[data-theme='dark'] .hairline {
+  border-color: #3A4740;
+}
+
+[data-theme='dark'] .section-label,
+[data-theme='dark'] .text-\[\#B4B2A9\],
+[data-theme='dark'] .text-\[\#8A867E\] {
+  color: #9BA89F !important;
+}
+
+[data-theme='dark'] .page-subtitle,
+[data-theme='dark'] .text-\[\#5F5E5A\] {
+  color: #C7CEC8 !important;
+}
+
+[data-theme='dark'] .text-\[\#1A1A1A\] {
+  color: #F5F5F4 !important;
+}
+
+[data-theme='dark'] [class*="bg-white"],
+[data-theme='dark'] [class*="bg-[#FBFAF7]"],
+[data-theme='dark'] [class*="bg-[#F7F6F2]"],
+[data-theme='dark'] [class*="bg-[#F1EFE8]"] {
+  background-color: #1B241F !important;
+}
+
+[data-theme='dark'] [class*="border-[#D3D1C7]"],
+[data-theme='dark'] [class*="border-white"] {
+  border-color: #3A4740 !important;
+}
+
+[data-theme='dark'] [class*="bg-[#E1F5EE]"] {
+  background-color: #173B30 !important;
+}
+
+[data-theme='dark'] [class*="text-[#085041]"] {
+  color: #9CE4C7 !important;
+}
+
+[data-theme='dark'] .ghost-chip:hover {
+  color: #F5F5F4;
+}
+
+/* Shared Tailwind design tokens used by the dashboard pages. */
+[data-theme='dark'] .bg-paper,
+[data-theme='dark'] .bg-surface,
+[data-theme='dark'] .bg-accent-light {
+  background-color: #1B241F !important;
+}
+
+[data-theme='dark'] .text-ink {
+  color: #F5F5F4 !important;
+}
+
+[data-theme='dark'] .text-muted {
+  color: #C7CEC8 !important;
+}
+
+[data-theme='dark'] .text-faint {
+  color: #9BA89F !important;
+}
+
+[data-theme='dark'] .border-line {
+  border-color: #3A4740 !important;
+}
+
+[data-theme='dark'] [class*="bg-[#E8E4DA]"],
+[data-theme='dark'] [class*="bg-[#FBFAF7]"],
+[data-theme='dark'] [class*="bg-[#F1EFE8]"],
+[data-theme='dark'] [class*="bg-[#F2EEE7]"],
+[data-theme='dark'] [class*="bg-[#F7F6F2]"],
+[data-theme='dark'] [class*="bg-[#E9E7DE]"] {
+  background-color: #1B241F !important;
+}
+
+[data-theme='dark'] [class*="border-[#E8E4DA]"],
+[data-theme='dark'] [class*="border-[#E5E1D8]"],
+[data-theme='dark'] [class*="border-[#D3D1C7]"] {
+  border-color: #3A4740 !important;
+}
+
+[data-theme='dark'] [class*="bg-[linear-gradient"] {
+  background-image: linear-gradient(135deg, #1B241F 0%, #173B30 100%) !important;
+}
+
+/* Keep informational and status pills legible on their darker surfaces. */
+[data-theme='dark'] [class*="bg-[#FFF8E6]"],
+[data-theme='dark'] [class*="bg-[#FAEEDA]"] {
+  background-color: #3A2F18 !important;
+}
+
+[data-theme='dark'] [class*="text-[#7A5000]"],
+[data-theme='dark'] [class*="text-[#633806]"],
+[data-theme='dark'] [class*="text-[#A15A00]"] {
+  color: #F0C66B !important;
+}
+
+[data-theme='dark'] [class*="bg-[#FFF7F5]"],
+[data-theme='dark'] [class*="bg-[#FAECE7]"] {
+  background-color: #42251E !important;
+}
+
+[data-theme='dark'] [class*="text-[#7A1B14]"],
+[data-theme='dark'] [class*="text-[#8C3A32]"],
+[data-theme='dark'] [class*="text-[#712B13]"],
+[data-theme='dark'] [class*="text-[#B3261E]"] {
+  color: #F0B29A !important;
+}
+
+[data-theme='dark'] [class*="bg-[#E6F1FB]"] {
+  background-color: #1C3042 !important;
+}
+
+[data-theme='dark'] [class*="text-[#0C447C]"] {
+  color: #A5C9F0 !important;
+}
+
+[data-theme='dark'] [class*="bg-[#EEEDFE]"] {
+  background-color: #28264A !important;
+}
+
+[data-theme='dark'] [class*="text-[#3C3489]"] {
+  color: #C7C0FF !important;
+}
+
+[data-theme='dark'] [class*="bg-[#F3F7ED]"] {
+  background-color: #29351F !important;
+}
+
+[data-theme='dark'] [class*="text-[#6B7D3A]"],
+[data-theme='dark'] [class*="text-[#8A8880]"],
+[data-theme='dark'] [class*="text-[#B4B2A9]"] {
+  color: #AAB7AC !important;
 }

@@ -25,13 +25,3 @@ export async function fetchProfile(userId: string): Promise<Profile | null> {
 
   return data as Profile;
 }
-
-export async function bootstrapFirstAdmin(): Promise<boolean> {
-  const { data, error } = await supabase.rpc('bootstrap_first_admin');
-
-  if (error) {
-    return false;
-  }
-
-  return Boolean(data);
-}

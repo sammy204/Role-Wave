@@ -1,9 +1,10 @@
 import { useEffect, useState, type KeyboardEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Camera, FileText, Plus, Save, Upload, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/useAuth';
 import type { CandidateProfile } from '../types';
+import { candidateResumeViewerHref, getCandidateAssetUrl, uploadCandidateAsset } from '../lib/candidateAssets';
 
 type CandidateProfileForm = {
   fullName: string;
@@ -77,6 +78,7 @@ const suggestedSkills = [
 
 export default function CandidateProfileSetup() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -84,6 +86,8 @@ export default function CandidateProfileSetup() {
   const [error, setError] = useState('');
   const [form, setForm] = useState(emptyForm);
   const [skillInput, setSkillInput] = useState('');
+  const [avatarSignedUrl, setAvatarSignedUrl] = useState<string | null>(null);
+  const [resumeSignedUrl, setResumeSignedUrl] = useState<string | null>(null);
 
   const { session, loading: authLoading } = useAuth();
 
@@ -151,6 +155,13 @@ export default function CandidateProfileSetup() {
             openToWork: toBoolean(existing.open_to_work),
             visibilityToEmployers: existing.visibility_to_employers || 'open',
           });
+          const [nextAvatarUrl, nextResumeUrl] = await Promise.all([
+            getCandidateAssetUrl(existing.avatar_url),
+            getCandidateAssetUrl(existing.resume_url),
+          ]);
+          if (!alive) return;
+          setAvatarSignedUrl(nextAvatarUrl);
+          setResumeSignedUrl(nextResumeUrl);
         }
       } catch (err) {
         if (alive) setError(err instanceof Error ? err.message : 'Could not load profile.');
@@ -210,23 +221,6 @@ export default function CandidateProfileSetup() {
     }));
   };
 
-  const uploadProfileFile = async (
-    file: File,
-    folder: 'avatars' | 'resumes',
-    userId: string
-  ) => {
-    const extension = file.name.split('.').pop()?.toLowerCase() || 'file';
-    const fileName = `${userId}/${folder}/${Date.now()}.${extension}`;
-    const { error: uploadError } = await supabase.storage
-      .from('candidate-assets')
-      .upload(fileName, file, { upsert: true });
-
-    if (uploadError) throw uploadError;
-
-    const { data } = supabase.storage.from('candidate-assets').getPublicUrl(fileName);
-    return data.publicUrl;
-  };
-
   const handleAvatarUpload = async (file: File | null) => {
     if (!file) return;
     setUploadingAvatar(true);
@@ -238,8 +232,9 @@ export default function CandidateProfileSetup() {
       if (!currentSession) throw new Error('Please sign in again.');
       if (!file.type.startsWith('image/')) throw new Error('Please upload an image file.');
 
-      const publicUrl = await uploadProfileFile(file, 'avatars', currentSession.user.id);
-      updateField('avatarUrl', publicUrl);
+      const assetPath = await uploadCandidateAsset(file, currentSession.user.id, 'avatars');
+      updateField('avatarUrl', assetPath);
+      setAvatarSignedUrl(await getCandidateAssetUrl(assetPath));
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : 'Could not upload profile picture.');
     } finally {
@@ -266,9 +261,10 @@ export default function CandidateProfileSetup() {
         throw new Error('Please upload a PDF, DOC, or DOCX CV.');
       }
 
-      const publicUrl = await uploadProfileFile(file, 'resumes', currentSession.user.id);
-      updateField('resumeUrl', publicUrl);
+      const assetPath = await uploadCandidateAsset(file, currentSession.user.id, 'resumes');
+      updateField('resumeUrl', assetPath);
       updateField('resumeName', file.name);
+      setResumeSignedUrl(await getCandidateAssetUrl(assetPath));
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : 'Could not upload CV.');
     } finally {
@@ -356,8 +352,8 @@ export default function CandidateProfileSetup() {
             <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
               <div className="flex items-start gap-4">
                 <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-[#1D9E75] text-white shadow-[0_12px_28px_rgba(29,158,117,0.18)]">
-                  {form.avatarUrl ? (
-                    <img src={form.avatarUrl} alt="Profile" className="h-full w-full object-cover" />
+                  {avatarSignedUrl ? (
+                    <img src={avatarSignedUrl} alt="Profile" className="h-full w-full object-cover" />
                   ) : (
                     <Camera size={24} />
                   )}
@@ -439,11 +435,9 @@ export default function CandidateProfileSetup() {
                   </label>
                 </div>
 
-                {form.resumeUrl && (
+                {resumeSignedUrl && (
                   <a
-                    href={form.resumeUrl}
-                    target="_blank"
-                    rel="noreferrer"
+                    href={candidateResumeViewerHref(form.resumeUrl, form.resumeName || 'candidate-resume.pdf', `${location.pathname}${location.search}`) || resumeSignedUrl}
                     className="mt-3 inline-flex text-xs font-semibold text-[#1D9E75] hover:underline"
                   >
                     View uploaded CV

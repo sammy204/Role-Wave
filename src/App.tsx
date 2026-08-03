@@ -34,6 +34,9 @@ import CookieConsent from './components/CookieConsent';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import InstallPrompt from './components/InstallPrompt';
+import PushNotificationPrompt from './components/PushNotificationPrompt';
+import ResumeViewer from './pages/ResumeViewer';
+import CandidateSettings from './pages/CandidateSettings';
 
 function App() {
   return (
@@ -154,9 +157,11 @@ function AppShell() {
       <Route path="/jobs/:slug/apply" element={<JobApplication />} />
       <Route path="/start" element={<AuthLayout />} />
       <Route path="/confirmed" element={<Confirmed />} />
+      <Route path="/resume/view" element={<ResumeViewer />} />
       <Route path="/candidate" element={<CandidateDashboard />} />
       <Route path="/candidate/dashboard" element={<CandidateDashboard />} />
       <Route path="/candidate/profile" element={<CandidateProfile />} />
+      <Route path="/candidate/settings" element={<CandidateSettings />} />
       <Route path="/candidate/home" element={<CandidateHome />} />
       <Route path="/candidate/activity" element={<CandidateActivity />} />
       <Route path="/candidate/messages" element={<CandidateMessages />} />
@@ -181,6 +186,7 @@ function AppShell() {
         <CandidateSidebar>{routes}</CandidateSidebar>
         <CookieConsent />
         <InstallPrompt />
+        <PushNotificationPrompt />
       </>
     );
   }
@@ -194,6 +200,7 @@ function AppShell() {
       {showPublicChrome && <Footer />}
       <CookieConsent />
       <InstallPrompt />
+      <PushNotificationPrompt />
     </div>
   );
 }

@@ -152,6 +152,8 @@ export interface Message {
   created_at: string;
   edited_at: string | null;
   deleted_at: string | null;
+  delivered_at: string | null;
+  read_at: string | null;
 }
 
 export type NotificationType =
