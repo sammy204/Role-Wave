@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Bookmark, Briefcase, Info, LayoutDashboard, LogOut, Mail, MessageSquareText, Menu, User, X } from 'lucide-react';
+import { Bookmark, Briefcase, Info, LayoutDashboard, LogOut, Mail, MessageSquareText, Menu, Settings, User, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useUnreadMessagesCount } from '../hooks/useUnreadMessages';
 import NotificationBell from './NotificationBell';
@@ -11,6 +11,7 @@ const links = [
   { to: '/jobs', label: 'Browse jobs', icon: Briefcase },
   { to: '/candidate/activity', label: 'Saved & Applied', icon: Bookmark },
   { to: '/candidate/messages', label: 'Messages', icon: MessageSquareText },
+  { to: '/candidate/settings', label: 'Settings', icon: Settings },
 ];
 
 const utilityLinks = [
@@ -40,6 +41,9 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
     }
     if (route === '/candidate/profile') {
       return path === '/candidate/profile';
+    }
+    if (route === '/candidate/settings') {
+      return path === '/candidate/settings';
     }
     if (route === '/jobs') {
       return path === '/jobs' || (path.startsWith('/jobs/') && !path.endsWith('/apply'));

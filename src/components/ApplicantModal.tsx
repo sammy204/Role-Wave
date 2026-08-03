@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   X,
   FileText,
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 import type { CandidateProfile, Job, JobApplication } from '../types';
 import { formatStatus, statusTone } from '../lib/applicationPipeline';
+import { candidateResumeViewerHref, getCandidateAssetUrl } from '../lib/candidateAssets';
 
 type ApplicantModalProps = {
   application: JobApplication & { job?: Job; candidate?: CandidateProfile | null };
@@ -42,11 +44,12 @@ function initialsFor(name: string): string {
 }
 
 function LinkButton({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
+  const isInternal = href.startsWith('/resume/view');
   return (
     <a
       href={href}
-      target="_blank"
-      rel="noreferrer"
+      target={isInternal ? undefined : '_blank'}
+      rel={isInternal ? undefined : 'noreferrer'}
       className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-ink transition-colors duration-200 hover:border-[#5DCAA5]"
     >
       {icon} {label}
@@ -73,9 +76,39 @@ function MetaRow({ icon, label }: { icon: React.ReactNode; label: string }) {
 }
 
 export default function ApplicantModal({ application, onClose, onMessage, messaging }: ApplicantModalProps) {
+  const location = useLocation();
   const candidate = application.candidate;
   const hasProfile = Boolean(candidate);
   const [tab, setTab] = useState<'application' | 'profile'>('application');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [candidateResumeUrl, setCandidateResumeUrl] = useState<string | null>(null);
+  const [applicationResumeUrl, setApplicationResumeUrl] = useState<string | null>(null);
+  const returnTo = `${location.pathname}${location.search}`;
+
+  useEffect(() => {
+    let alive = true;
+    void Promise.all([
+      candidate?.avatar_url ? getCandidateAssetUrl(candidate.avatar_url) : null,
+      candidate?.resume_url ? getCandidateAssetUrl(candidate.resume_url) : null,
+      application.resume_url && isStoredCandidateAsset(application.resume_url)
+        ? getCandidateAssetUrl(application.resume_url)
+        : application.resume_url || null,
+    ]).then(([nextAvatarUrl, nextCandidateResumeUrl, nextApplicationResumeUrl]) => {
+      if (!alive) return;
+      setAvatarUrl(nextAvatarUrl);
+      setCandidateResumeUrl(nextCandidateResumeUrl);
+      setApplicationResumeUrl(nextApplicationResumeUrl);
+    }).catch(() => {
+      if (!alive) return;
+      setAvatarUrl(null);
+      setCandidateResumeUrl(null);
+      setApplicationResumeUrl(null);
+    });
+
+    return () => {
+      alive = false;
+    };
+  }, [application.resume_url, candidate?.avatar_url, candidate?.resume_url]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -84,9 +117,9 @@ export default function ApplicantModal({ application, onClose, onMessage, messag
         {/* Header */}
         <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-5">
           <div className="flex min-w-0 items-center gap-4">
-            {candidate?.avatar_url ? (
+            {avatarUrl ? (
               <img
-                src={candidate.avatar_url}
+                src={avatarUrl}
                 alt={application.applicant_name}
                 className="h-14 w-14 shrink-0 rounded-full border border-line object-cover"
               />
@@ -180,8 +213,14 @@ export default function ApplicantModal({ application, onClose, onMessage, messag
               {(application.resume_url || application.portfolio_url) && (
                 <Section title="Attachments">
                   <div className="flex flex-wrap gap-2">
-                    {application.resume_url && (
-                      <LinkButton href={application.resume_url} icon={<FileText size={14} />} label="Resume" />
+                    {applicationResumeUrl && (
+                      <LinkButton
+                        href={applicationResumeUrl && application.resume_url && isStoredCandidateAsset(application.resume_url)
+                          ? candidateResumeViewerHref(application.resume_url, 'resume.pdf', returnTo) || applicationResumeUrl
+                          : applicationResumeUrl || ''}
+                        icon={<FileText size={14} />}
+                        label="Resume"
+                      />
                     )}
                     {application.portfolio_url && (
                       <LinkButton href={application.portfolio_url} icon={<Eye size={14} />} label="Portfolio" />
@@ -250,8 +289,12 @@ export default function ApplicantModal({ application, onClose, onMessage, messag
                 {(candidate.resume_url || candidate.portfolio_url || candidate.github_url || candidate.linkedin_url) && (
                   <Section title="Links">
                     <div className="flex flex-wrap gap-2">
-                      {candidate.resume_url && (
-                        <LinkButton href={candidate.resume_url} icon={<FileText size={14} />} label="Resume" />
+                      {candidateResumeUrl && (
+                        <LinkButton
+                          href={candidate.resume_url ? candidateResumeViewerHref(candidate.resume_url, 'candidate-resume.pdf', returnTo) || candidateResumeUrl || '' : candidateResumeUrl || ''}
+                          icon={<FileText size={14} />}
+                          label="Resume"
+                        />
                       )}
                       {candidate.portfolio_url && (
                         <LinkButton href={candidate.portfolio_url} icon={<Globe size={14} />} label="Portfolio" />
@@ -286,4 +329,8 @@ export default function ApplicantModal({ application, onClose, onMessage, messag
       </div>
     </div>
   );
+}
+
+function isStoredCandidateAsset(value: string) {
+  return !/^https?:\/\//i.test(value) || value.includes('/storage/v1/object/public/candidate-assets/');
 }

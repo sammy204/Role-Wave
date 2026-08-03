@@ -22,6 +22,7 @@ export default function JobApplication() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [requiresAccount, setRequiresAccount] = useState(false);
   const [job, setJob] = useState<(Job & { company?: Company }) | null>(null);
   const [existingApplication, setExistingApplication] = useState<{ id: string; status: string } | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -64,50 +65,58 @@ export default function JobApplication() {
         setJob({ ...(data as Job), company: companyData || undefined });
 
         const session = sessionProfile.data.session;
+        if (data.apply_method !== 'internal') {
+          navigate(`/jobs/${slug}`, { replace: true });
+          return;
+        }
+
+        if (!session) {
+          setRequiresAccount(true);
+          return;
+        }
+
+        const nextProfile = await fetchProfile(session.user.id);
+        if (!alive) return;
+
+        if (nextProfile?.account_type !== 'candidate') {
+          setRequiresAccount(true);
+          return;
+        }
+
         if (session) {
-          const nextProfile = await fetchProfile(session.user.id);
+          const { data: nextCandidateProfile } = await supabase
+            .from('candidate_profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
           if (!alive) return;
 
-          if (nextProfile?.account_type === 'candidate') {
-            const { data: nextCandidateProfile } = await supabase
-              .from('candidate_profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .maybeSingle();
+          const { data: applicationRow } = await supabase
+            .from('job_applications')
+            .select('id,status')
+            .eq('job_id', data.id)
+            .eq('candidate_profile_id', session.user.id)
+            .neq('status', 'withdrawn')
+            .maybeSingle();
 
-            if (!alive) return;
+          if (!alive) return;
+          setExistingApplication((applicationRow || null) as { id: string; status: string } | null);
 
-            const { data: applicationRow } = await supabase
-              .from('job_applications')
-              .select('id,status')
-              .eq('job_id', data.id)
-              .eq('candidate_profile_id', session.user.id)
-              .neq('status', 'withdrawn')
-              .maybeSingle();
-
-            if (!alive) return;
-            setExistingApplication((applicationRow || null) as { id: string; status: string } | null);
-
-            if (nextCandidateProfile) {
-              const typed = nextCandidateProfile as { resume_url?: string | null; portfolio_url?: string | null };
-              setForm({
-                name: nextProfile.full_name || '',
-                email: session.user.email || '',
-                phone: '',
-                coverLetter: '',
-                resumeUrl: typed.resume_url || '',
-                portfolioUrl: typed.portfolio_url || '',
-              });
-            } else {
-              setForm((prev) => ({
-                ...prev,
-                name: nextProfile.full_name || '',
-                email: session.user.email || '',
-              }));
-            }
+          if (nextCandidateProfile) {
+            const typed = nextCandidateProfile as { resume_url?: string | null; portfolio_url?: string | null };
+            setForm({
+              name: nextProfile.full_name || '',
+              email: session.user.email || '',
+              phone: '',
+              coverLetter: '',
+              resumeUrl: typed.resume_url || '',
+              portfolioUrl: typed.portfolio_url || '',
+            });
           } else {
             setForm((prev) => ({
               ...prev,
+              name: nextProfile.full_name || '',
               email: session.user.email || '',
             }));
           }
@@ -138,6 +147,7 @@ export default function JobApplication() {
 
     try {
       if (!job) throw new Error('Job is missing.');
+      if (job.apply_method !== 'internal' || requiresAccount) throw new Error('Please create a candidate account to apply on RoleWave.');
       if (!form.name || !form.email) throw new Error('Please add your name and email.');
       if (existingApplication) throw new Error('You have already applied to this job.');
 
@@ -197,6 +207,28 @@ export default function JobApplication() {
     );
   }
 
+  if (requiresAccount) {
+    return (
+      <div className="page-shell items-center justify-center px-4">
+        <div className="panel w-full max-w-md rounded-[28px] p-8 text-center sm:p-10">
+          <h2 className="mb-2 text-xl font-bold text-[#1A1A1A]">Create an account to apply</h2>
+          <p className="mb-6 text-sm leading-relaxed text-[#5F5E5A]">
+            This is an internal RoleWave application. You need a candidate account before you can submit it.
+          </p>
+          <Link
+            to={`/start?role=candidate&mode=signup&next=${encodeURIComponent(`/jobs/${job.slug}/apply`)}`}
+            className="inline-flex items-center justify-center rounded-xl bg-[#1D9E75] px-6 py-3 text-sm font-semibold text-white"
+          >
+            Create candidate account
+          </Link>
+          <Link to={`/jobs/${job.slug}`} className="mt-3 block text-sm font-semibold text-[#1D9E75] hover:underline">
+            Back to job
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (success) {
     return (
       <div className="page-shell items-center justify-center px-4">
@@ -235,8 +267,7 @@ export default function JobApplication() {
 
           <div className="mb-1.5 text-2xl font-bold text-[#1A1A1A]">Apply for {job.title}</div>
           <div className="mb-6 text-sm text-[#5F5E5A]">
-            This form works for guests and registered candidates. If you already have a profile, we can
-            use it to strengthen your application later.
+            Apply securely through RoleWave using your candidate profile.
           </div>
 
           {error && (
@@ -305,8 +336,7 @@ export default function JobApplication() {
           <div className="rounded-[20px] border border-[#D3D1C7] bg-white p-4">
             <h3 className="mb-1.5 text-[13px] font-semibold text-[#1A1A1A]">Why this flow exists</h3>
             <p className="text-xs leading-relaxed text-[#5F5E5A]">
-              Guest applicants can apply quickly, while registered candidates can reuse their profile data
-              and become discoverable in the talent network later.
+              Internal RoleWave applications require a candidate account so you can track your application securely.
             </p>
           </div>
         </div>

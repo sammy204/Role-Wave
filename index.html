@@ -23,6 +23,15 @@
     <meta property="twitter:description" content="Find your perfect role with verified job listings and trusted companies." />
     <meta property="twitter:image" content="https://rolewave.netlify.app/rolewave-og.svg" />
     <meta name="theme-color" content="#1D9E75" />
+    <script>
+      try {
+        const preference = localStorage.getItem('rolewave-theme');
+        const followsDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme = preference === 'dark' || (preference === 'system' && followsDark) ? 'dark' : 'light';
+      } catch (_) {
+        document.documentElement.dataset.theme = 'light';
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -27,6 +27,14 @@ export async function markConversationRead(conversationId: string): Promise<void
   if (error) throw error;
 }
 
+export async function markMessagesDelivered(conversationId: string): Promise<void> {
+  const { error } = await supabase.rpc('mark_messages_delivered', {
+    p_conversation_id: conversationId,
+  });
+
+  if (error) throw error;
+}
+
 /**
  * Conversations for the signed-in employer, newest activity first, with
  * the candidate and source job joined in for display. candidate_profiles
@@ -221,6 +229,26 @@ export function subscribeToConversationMessages(
     });
 
   handlers.onStatusChange?.('connecting');
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+/** Subscribe to all messages visible to the signed-in user for inbox updates. */
+export function subscribeToInboxMessages(handlers: {
+  onInsert: (message: Message) => void;
+  onUpdate: (message: Message) => void;
+}): () => void {
+  const channel = supabase
+    .channel('messages:inbox')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+      handlers.onInsert(payload.new as Message);
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, (payload) => {
+      handlers.onUpdate(payload.new as Message);
+    })
+    .subscribe();
 
   return () => {
     supabase.removeChannel(channel);

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type UIEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Building2, Check, MessageSquareText, Pencil, Send, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Building2, Check, CheckCheck, MessageSquareText, Pencil, Send, Trash2, X } from 'lucide-react';
 import CompanyLogo from '../components/CompanyLogo';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
@@ -8,10 +8,12 @@ import {
   fetchCandidateConversations,
   fetchMessages,
   markConversationRead,
+  markMessagesDelivered,
   sendMessage,
   editMessage,
   deleteMessage,
   subscribeToConversationMessages,
+  subscribeToInboxMessages,
   isConversationUnread,
   MESSAGES_PAGE_SIZE,
   type ConnectionStatus,
@@ -31,7 +33,31 @@ function formatRelative(date: string) {
 }
 
 function formatTime(date: string) {
-  return new Date(date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const then = new Date(date);
+  const now = new Date();
+  const sameDay = then.toDateString() === now.toDateString();
+  const time = then.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return sameDay ? time : `${then.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })} ${time}`;
+}
+
+function deliveryLabel(message: Message) {
+  if (message.read_at) return 'Read';
+  if (message.delivered_at) return 'Delivered';
+  return 'Sent';
+}
+
+function dayKey(date: string) {
+  return new Date(date).toLocaleDateString();
+}
+
+function formatDayLabel(date: string) {
+  const then = new Date(date);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (then.toDateString() === today.toDateString()) return 'Today';
+  if (then.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return then.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 export default function CandidateMessages() {
@@ -131,6 +157,31 @@ export default function CandidateMessages() {
   }, [navigate]);
 
   useEffect(() => {
+    if (!userId) return;
+
+    const unsubscribe = subscribeToInboxMessages({
+      onInsert: (message) => {
+        if (message.conversation_id === activeId) {
+          pendingScrollRef.current = { type: 'bottom' };
+          setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
+        }
+        setConversations((prev) =>
+          prev.map((conversation) =>
+            conversation.id === message.conversation_id
+              ? { ...conversation, last_message_at: message.created_at }
+              : conversation
+          )
+        );
+      },
+      onUpdate: (message) => {
+        setMessages((prev) => prev.map((m) => (m.id === message.id ? message : m)));
+      },
+    });
+
+    return unsubscribe;
+  }, [activeId, userId]);
+
+  useEffect(() => {
     if (!activeId) {
       setMessages([]);
       return;
@@ -155,6 +206,7 @@ export default function CandidateMessages() {
         pendingScrollRef.current = { type: 'bottom' };
         setMessages(rows);
         setHasMoreMessages(hasMore);
+        await markMessagesDelivered(activeId);
         await markConversationRead(activeId);
         if (!alive) return;
         setConversations((prev) =>
@@ -174,6 +226,10 @@ export default function CandidateMessages() {
         setConversations((prev) =>
           prev.map((c) => (c.id === activeId ? { ...c, last_message_at: message.created_at } : c))
         );
+        if (message.sender_profile_id !== userId) {
+          void markMessagesDelivered(activeId).catch(() => undefined);
+          void markConversationRead(activeId).catch(() => undefined);
+        }
       },
       onUpdate: (message) => {
         setMessages((prev) => prev.map((m) => (m.id === message.id ? message : m)));
@@ -477,24 +533,37 @@ export default function CandidateMessages() {
                     </>
                   )}
                   {!messagesLoading &&
-                    messages.map((message) => {
+                    messages.map((message, index) => {
                       const isMine = message.sender_profile_id === userId;
                       const isDeleted = Boolean(message.deleted_at);
                       const isEditing = editingId === message.id;
+                      const showDate = index === 0 || dayKey(messages[index - 1].created_at) !== dayKey(message.created_at);
+                      const dateDivider = showDate ? (
+                        <div className="flex justify-center py-2">
+                          <span className="rounded-full bg-[#E8E5DC] px-3 py-1 text-[11px] font-semibold text-[#5F5E5A]">
+                            {formatDayLabel(message.created_at)}
+                          </span>
+                        </div>
+                      ) : null;
 
                       if (isDeleted) {
                         return (
-                          <div key={message.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                            <div className="max-w-[75%] rounded-2xl border border-line bg-transparent px-4 py-2.5 text-sm italic text-faint">
-                              Message deleted
+                          <div key={message.id}>
+                            {dateDivider}
+                            <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                              <div className="max-w-[75%] rounded-2xl border border-line bg-transparent px-4 py-2.5 text-sm italic text-faint">
+                                Message deleted
+                              </div>
                             </div>
                           </div>
                         );
                       }
 
                       return (
-                        <div key={message.id} className={`group flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                          {isMine && !isEditing && (
+                        <div key={message.id}>
+                          {dateDivider}
+                          <div className={`group flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                            {isMine && !isEditing && (
                             <div className="mr-1.5 flex items-start gap-1 self-center opacity-0 transition-opacity duration-150 group-hover:opacity-100">
                               <button
                                 onClick={() => startEdit(message)}
@@ -524,11 +593,11 @@ export default function CandidateMessages() {
                             </div>
                           )}
 
-                          <div
-                            className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
-                              isMine ? 'bg-[#1D9E75] text-white' : 'bg-[#F1EFE8] text-ink'
-                            }`}
-                          >
+                            <div
+                              className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
+                                isMine ? 'bg-[#1D9E75] text-white' : 'bg-[#F1EFE8] text-ink'
+                              }`}
+                            >
                             {isEditing ? (
                               <div className="min-w-[220px]">
                                 <textarea
@@ -569,10 +638,16 @@ export default function CandidateMessages() {
                                 <div className="whitespace-pre-wrap break-words">{message.body}</div>
                                 <div className={`mt-1 flex items-center gap-1 text-[11px] ${isMine ? 'text-white/70' : 'text-faint'}`}>
                                   {formatTime(message.created_at)}
+                                  {isMine && (
+                                    <span aria-label={deliveryLabel(message)} title={deliveryLabel(message)}>
+                                      {message.read_at ? <CheckCheck size={13} /> : <Check size={13} />}
+                                    </span>
+                                  )}
                                   {message.edited_at && <span>(edited)</span>}
                                 </div>
                               </>
                             )}
+                            </div>
                           </div>
                         </div>
                       );

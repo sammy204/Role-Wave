@@ -26,6 +26,7 @@ import type { CandidateProfile, Profile } from '../types';
 import { calculateProfileCompletion } from '../lib/profileCompletion';
 import LoadingSpinner from '../components/LoadingSpinner';
 import AvatarCropModal from '../components/AvatarCropModal';
+import { getCandidateAssetUrl, uploadCandidateAsset } from '../lib/candidateAssets';
 
 const suggestedSkills = [
   'React',
@@ -198,6 +199,7 @@ export default function CandidateDashboard() {
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
   const [cropSourceFile, setCropSourceFile] = useState<File | null>(null);
   const [uploadingResume, setUploadingResume] = useState(false);
+  const [avatarSignedUrl, setAvatarSignedUrl] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const resumeInputRef = useRef<HTMLInputElement>(null);
 
@@ -233,7 +235,16 @@ export default function CandidateDashboard() {
 
         if (!alive) return;
 
-        setCandidateProfile((candidateRow || null) as CandidateProfile | null);
+        const nextCandidateProfile = (candidateRow || null) as CandidateProfile | null;
+        setCandidateProfile(nextCandidateProfile);
+        if (nextCandidateProfile) {
+          const [nextAvatarUrl] = await Promise.all([
+            getCandidateAssetUrl(nextCandidateProfile.avatar_url),
+            getCandidateAssetUrl(nextCandidateProfile.resume_url),
+          ]);
+          if (!alive) return;
+          setAvatarSignedUrl(nextAvatarUrl);
+        }
       } catch (loadError) {
         if (alive) {
           setError(loadError instanceof Error ? loadError.message : 'Could not load your account.');
@@ -470,18 +481,6 @@ export default function CandidateDashboard() {
     });
   };
 
-  const uploadCandidateFile = async (file: File, folder: 'avatars' | 'resumes') => {
-    if (!userId) throw new Error('Please sign in again.');
-    const extension = file.name.split('.').pop()?.toLowerCase() || 'file';
-    const fileName = `${userId}/${folder}/${Date.now()}.${extension}`;
-    const { error: uploadError } = await supabase.storage
-      .from('candidate-assets')
-      .upload(fileName, file, { upsert: true });
-    if (uploadError) throw uploadError;
-    const { data } = supabase.storage.from('candidate-assets').getPublicUrl(fileName);
-    return data.publicUrl;
-  };
-
   const handleAvatarFileChange = async (file: File | null) => {
     if (!file || !userId) return;
     setError('');
@@ -511,15 +510,17 @@ export default function CandidateDashboard() {
     setCropSourceFile(null);
 
     try {
-      const publicUrl = await uploadCandidateFile(croppedFile, 'avatars');
+      const assetPath = await uploadCandidateAsset(croppedFile, userId, 'avatars');
+      const signedUrl = await getCandidateAssetUrl(assetPath);
 
       const { error: updateError } = await supabase
         .from('candidate_profiles')
-        .update({ avatar_url: publicUrl })
+        .update({ avatar_url: assetPath })
         .eq('id', userId);
       if (updateError) throw updateError;
 
-      setCandidateProfile((prev) => (prev ? { ...prev, avatar_url: publicUrl } : prev));
+      setCandidateProfile((prev) => (prev ? { ...prev, avatar_url: assetPath } : prev));
+      setAvatarSignedUrl(signedUrl);
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : 'Could not upload profile picture.');
     } finally {
@@ -544,6 +545,7 @@ export default function CandidateDashboard() {
       if (updateError) throw updateError;
 
       setCandidateProfile((prev) => (prev ? { ...prev, avatar_url: null } : prev));
+      setAvatarSignedUrl(null);
     } catch (removeError) {
       setError(removeError instanceof Error ? removeError.message : 'Could not remove profile picture.');
     } finally {
@@ -566,15 +568,15 @@ export default function CandidateDashboard() {
         throw new Error('Please upload a PDF, DOC, or DOCX CV.');
       }
 
-      const publicUrl = await uploadCandidateFile(file, 'resumes');
+      const assetPath = await uploadCandidateAsset(file, userId, 'resumes');
 
       const { error: updateError } = await supabase
         .from('candidate_profiles')
-        .update({ resume_url: publicUrl, resume_name: file.name })
+        .update({ resume_url: assetPath, resume_name: file.name })
         .eq('id', userId);
       if (updateError) throw updateError;
 
-      setCandidateProfile((prev) => (prev ? { ...prev, resume_url: publicUrl, resume_name: file.name } : prev));
+      setCandidateProfile((prev) => (prev ? { ...prev, resume_url: assetPath, resume_name: file.name } : prev));
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : 'Could not upload CV.');
     } finally {
@@ -600,7 +602,9 @@ export default function CandidateDashboard() {
     if (!candidateProfile?.resume_url) return;
 
     try {
-      const response = await fetch(candidateProfile.resume_url);
+      const signedUrl = await getCandidateAssetUrl(candidateProfile.resume_url);
+      if (!signedUrl) throw new Error('CV is unavailable.');
+      const response = await fetch(signedUrl);
       if (!response.ok) throw new Error('Could not download CV.');
 
       const blob = await response.blob();
@@ -614,7 +618,8 @@ export default function CandidateDashboard() {
       window.URL.revokeObjectURL(objectUrl);
     } catch (downloadError) {
       console.error(downloadError);
-      window.open(candidateProfile.resume_url, '_blank', 'noopener,noreferrer');
+      const signedUrl = await getCandidateAssetUrl(candidateProfile.resume_url);
+      if (signedUrl) window.open(signedUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -671,9 +676,9 @@ export default function CandidateDashboard() {
                     className="group relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-[24px] bg-[#1D9E75] text-2xl font-bold text-white shadow-[0_12px_28px_rgba(29,158,117,0.18)] transition active:scale-[0.97]"
                     title="Click to change photo (at least 300×300px)"
                   >
-                    {candidateProfile?.avatar_url ? (
+                    {avatarSignedUrl ? (
                       <img
-                        src={candidateProfile.avatar_url}
+                        src={avatarSignedUrl}
                         alt={profile?.full_name || 'Candidate profile'}
                         className="h-full w-full rounded-[24px] object-cover"
                       />
