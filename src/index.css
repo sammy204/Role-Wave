@@ -286,6 +286,14 @@
   color: #F5F5F4 !important;
 }
 
+[data-theme='dark'] .text-accent-text {
+  color: #9CE4C7 !important;
+}
+
+[data-theme='dark'] .text-accent-deep {
+  color: #8DDBBB !important;
+}
+
 [data-theme='dark'] .text-muted {
   color: #C7CEC8 !important;
 }
@@ -365,4 +373,33 @@
 [data-theme='dark'] [class*="text-[#8A8880]"],
 [data-theme='dark'] [class*="text-[#B4B2A9]"] {
   color: #AAB7AC !important;
+}
+
+/* Dark-mode navigation: keep the green brand accent, but use a calmer shell
+   so the navigation does not compete with the page content. */
+[data-theme='dark'] .bg-sidebar {
+  background: linear-gradient(180deg, #123B30 0%, #0D2821 100%) !important;
+  border-color: rgba(157, 228, 199, 0.18) !important;
+  box-shadow: 12px 0 36px rgba(0, 0, 0, 0.2) !important;
+}
+
+[data-theme='dark'] .bg-sidebar nav a {
+  background-color: transparent !important;
+  color: rgba(245, 245, 244, 0.78);
+}
+
+[data-theme='dark'] .bg-sidebar nav a:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: #FFFFFF;
+}
+
+[data-theme='dark'] .bg-sidebar nav a.bg-sidebar-active {
+  background-color: #237054 !important;
+  color: #FFFFFF;
+  box-shadow: inset 0 0 0 1px rgba(157, 228, 199, 0.16);
+}
+
+[data-theme='dark'] .bg-sidebar > button,
+[data-theme='dark'] .bg-sidebar button:hover {
+  background-color: transparent;
 }

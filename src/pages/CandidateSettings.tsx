@@ -18,7 +18,10 @@ export default function CandidateSettings() {
   const [saving, setSaving] = useState(false);
   const [pushSaving, setPushSaving] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
-  const [theme, setTheme] = useState<Theme>(() => window.localStorage.getItem('rolewave-theme') === 'dark' ? 'dark' : 'light');
+  const [theme, setTheme] = useState<Theme>(() => {
+    const storedTheme = window.localStorage.getItem('rolewave-theme');
+    return storedTheme === 'dark' || storedTheme === 'system' ? storedTheme : 'light';
+  });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
@@ -125,7 +128,7 @@ export default function CandidateSettings() {
 
   const changeTheme = (next: Theme) => {
     setTheme(next);
-    setMessage(`${next === 'dark' ? 'Dark' : next === 'light' ? 'Light' : 'System'} theme enabled.`);
+    setMessage('');
     setError('');
   };
 

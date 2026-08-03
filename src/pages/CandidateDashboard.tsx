@@ -4,12 +4,16 @@ import {
   Bookmark,
   Briefcase,
   ArrowRight,
+  CalendarDays,
+  CheckCircle2,
   MapPin,
   Pencil,
   Send,
   Trash2,
   Sparkles,
   Star,
+  Target,
+  TrendingUp,
   Undo2,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -18,7 +22,7 @@ import { getSavedJobIds } from '../lib/savedJobs';
 import { useCountUp } from '../hooks/useCountUp';
 import { useUnreadMessagesCount } from '../hooks/useUnreadMessages';
 import { formatStatus, statusTone } from '../lib/applicationPipeline';
-import { calculateProfileCompletion } from '../lib/profileCompletion';
+import { calculateProfileCompletion, getProfileCompletionSuggestions } from '../lib/profileCompletion';
 import type { CandidateProfile, Company, Job, JobApplication, Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 import CompanyLogo from '../components/CompanyLogo';
@@ -230,6 +234,7 @@ export default function CandidateDashboard() {
   };
 
   const profileCompletion = calculateProfileCompletion(profile, candidateProfile);
+  const profileSuggestions = getProfileCompletionSuggestions(profile, candidateProfile);
 
   const counts = useMemo(
     () => ({
@@ -243,6 +248,63 @@ export default function CandidateDashboard() {
   const applicationsCount = useCountUp(counts.applications);
   const savedCount = useCountUp(counts.saved);
   const shortlistedCount = useCountUp(counts.shortlisted);
+
+  const weeklyApplications = useMemo(() => {
+    const weekStart = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return applications.filter((application) => new Date(application.created_at).getTime() >= weekStart).length;
+  }, [applications]);
+
+  const todayFocus = useMemo(() => {
+    const focus: { title: string; description: string; href: string }[] = [];
+
+    if (profileCompletion < 100) {
+      const nextSuggestion = profileSuggestions[0];
+      focus.push({
+        title: 'Strengthen your profile',
+        description: nextSuggestion?.label || `You are ${profileCompletion}% complete. Add the missing details employers look for.`,
+        href: '/candidate/profile',
+      });
+    }
+
+    if (unreadMessagesCount > 0) {
+      focus.push({
+        title: 'Check your messages',
+        description: `You have ${unreadMessagesCount} unread ${unreadMessagesCount === 1 ? 'message' : 'messages'} from employers.`,
+        href: '/candidate/messages',
+      });
+    }
+
+    if (matchedJobs.length > 0) {
+      focus.push({
+        title: 'Review your job matches',
+        description: `${matchedJobs.length} ${matchedJobs.length === 1 ? 'role matches' : 'roles match'} your listed skills.`,
+        href: '/jobs',
+      });
+    }
+
+    if (focus.length === 0) {
+      focus.push({
+        title: 'Explore new opportunities',
+        description: 'Browse the latest verified roles and find your next application.',
+        href: '/jobs',
+      });
+    }
+
+    return focus.slice(0, 3);
+  }, [matchedJobs.length, profileCompletion, profileSuggestions, unreadMessagesCount]);
+
+  const marketInsight = useMemo(() => {
+    if (marketplaceStats.new > 0 && matchedJobs.length > 0) {
+      return `There ${marketplaceStats.new === 1 ? 'is' : 'are'} ${marketplaceStats.new} new ${marketplaceStats.new === 1 ? 'role' : 'roles'} today, including ${matchedJobs.length} that match your listed skills.`;
+    }
+    if (marketplaceStats.new > 0) {
+      return `The marketplace added ${marketplaceStats.new} new ${marketplaceStats.new === 1 ? 'role' : 'roles'} today. Keep your profile updated so better matches can find you.`;
+    }
+    if (marketplaceStats.verifiedPct >= 50) {
+      return `${marketplaceStats.verifiedPct}% of companies currently shown are verified. Prioritize verified listings when comparing opportunities.`;
+    }
+    return `${marketplaceStats.live} live roles are currently available across ${marketplaceStats.companies} companies.`;
+  }, [marketplaceStats, matchedJobs.length]);
 
  const withdrawApplication = async (applicationId: string) => {
     setMutatingApplicationId(applicationId);
@@ -323,12 +385,14 @@ export default function CandidateDashboard() {
                 >
                   Browse jobs <ArrowRight size={14} />
                 </button>
-                <Link
-                  to="/candidate/profile"
-                  className="inline-flex items-center gap-2 rounded-full border border-[#D3D1C7] bg-white px-4 py-2.5 text-sm font-semibold text-[#1A1A1A] shadow-[0_10px_24px_rgba(26,26,26,0.04)] transition-colors hover:border-[#5DCAA5]"
-                >
-                  Complete profile
-                </Link>
+                {profileCompletion < 100 && (
+                  <Link
+                    to="/candidate/profile"
+                    className="inline-flex items-center gap-2 rounded-full border border-[#D3D1C7] bg-white px-4 py-2.5 text-sm font-semibold text-[#1A1A1A] shadow-[0_10px_24px_rgba(26,26,26,0.04)] transition-colors hover:border-[#5DCAA5]"
+                  >
+                    Complete profile
+                  </Link>
+                )}
               </div>
             </div>
 
@@ -384,6 +448,56 @@ export default function CandidateDashboard() {
             <div className="mt-2 font-serif text-3xl font-semibold text-accent-deep tabular-nums">{shortlistedCount}</div>
           </div>
         </div>
+
+        <div className="grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
+          <section className="rounded-panel border border-white/70 bg-white/78 p-5 shadow-[0_18px_50px_rgba(26,26,26,0.06)] backdrop-blur-xl">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+                  <Target size={16} className="text-accent-deep" /> Today&apos;s focus
+                </div>
+                <p className="mt-1 text-xs text-muted">Small steps that keep your search moving.</p>
+              </div>
+              <span className="rounded-full bg-accent-light px-2.5 py-1 text-[11px] font-semibold text-accent-text">{todayFocus.length} priorities</span>
+            </div>
+            <div className="space-y-2">
+              {todayFocus.map((item, index) => (
+                <Link key={item.title} to={item.href} className="flex items-center gap-3 rounded-2xl border border-[#E8E4DA] bg-[#FBFAF7] px-3.5 py-3 transition-colors hover:border-[#5DCAA5]">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-light text-xs font-bold text-accent-text">{index + 1}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-ink">{item.title}</span>
+                    <span className="mt-0.5 block text-xs text-muted">{item.description}</span>
+                  </span>
+                  <ArrowRight size={15} className="shrink-0 text-faint" />
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-panel border border-white/70 bg-[#1A1A1A] p-5 text-white shadow-[0_18px_50px_rgba(26,26,26,0.12)]">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 text-sm font-semibold"><CalendarDays size={16} className="text-[#5DCAA5]" /> Weekly progress</div>
+                <p className="mt-1 text-xs text-white/65">Your activity over the last 7 days.</p>
+              </div>
+              <span className="text-xs font-semibold text-[#5DCAA5]">This week</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-2xl bg-white/10 px-3 py-3"><div className="text-xl font-bold">{weeklyApplications}</div><div className="mt-1 text-[11px] text-white/65">Applications</div></div>
+              <div className="rounded-2xl bg-white/10 px-3 py-3"><div className="text-xl font-bold">{matchedJobs.length}</div><div className="mt-1 text-[11px] text-white/65">Matches</div></div>
+              <div className="rounded-2xl bg-white/10 px-3 py-3"><div className="text-xl font-bold">{unreadMessagesCount}</div><div className="mt-1 text-[11px] text-white/65">Unread</div></div>
+            </div>
+            <div className="mt-4 flex items-center gap-2 text-xs text-white/70"><CheckCircle2 size={14} className="text-[#5DCAA5]" /> Keep building consistent momentum.</div>
+          </section>
+        </div>
+
+        <section className="flex items-start gap-3 rounded-panel border border-[#5DCAA5] bg-[#E1F5EE] p-5 shadow-[0_12px_30px_rgba(29,158,117,0.08)]">
+          <TrendingUp size={19} className="mt-0.5 shrink-0 text-accent-deep" />
+          <div>
+            <div className="text-sm font-semibold text-accent-text">Market insight</div>
+            <p className="mt-1 text-sm leading-relaxed text-accent-text">{marketInsight}</p>
+          </div>
+        </section>
 
         <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
           <div className="space-y-4">
@@ -511,13 +625,18 @@ export default function CandidateDashboard() {
                 />
               </div>
               <div className="mt-2 text-xs text-muted">You're {profileCompletion}% ready for employers.</div>
-              {profileCompletion < 100 && (
-                <Link
-                  to="/candidate/profile"
-                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-accent-text hover:underline"
-                >
-                  Complete your profile →
-                </Link>
+              {profileSuggestions.length > 0 && (
+                <div className="mt-3 rounded-2xl border border-line bg-paper p-3">
+                  <div className="text-xs font-semibold text-ink">To reach 100%</div>
+                  <ul className="mt-2 space-y-1.5">
+                    {profileSuggestions.slice(0, 3).map((suggestion) => (
+                      <li key={suggestion.key} className="text-xs text-muted">• {suggestion.label}</li>
+                    ))}
+                  </ul>
+                  <Link to="/candidate/profile" className="mt-2 inline-flex text-xs font-semibold text-accent-text hover:underline">
+                    Update profile →
+                  </Link>
+                </div>
               )}
             </div>
 

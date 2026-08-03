@@ -84,6 +84,7 @@ export default function ApplicantModal({ application, onClose, onMessage, messag
   const [candidateResumeUrl, setCandidateResumeUrl] = useState<string | null>(null);
   const [applicationResumeUrl, setApplicationResumeUrl] = useState<string | null>(null);
   const returnTo = `${location.pathname}${location.search}`;
+  const portfolioUrl = application.portfolio_url || candidate?.portfolio_url || null;
 
   useEffect(() => {
     let alive = true;
@@ -210,7 +211,7 @@ export default function ApplicantModal({ application, onClose, onMessage, messag
                 </Section>
               )}
 
-              {(application.resume_url || application.portfolio_url) && (
+              {(application.resume_url || portfolioUrl) && (
                 <Section title="Attachments">
                   <div className="flex flex-wrap gap-2">
                     {applicationResumeUrl && (
@@ -222,8 +223,8 @@ export default function ApplicantModal({ application, onClose, onMessage, messag
                         label="Resume"
                       />
                     )}
-                    {application.portfolio_url && (
-                      <LinkButton href={application.portfolio_url} icon={<Eye size={14} />} label="Portfolio" />
+                    {portfolioUrl && (
+                      <LinkButton href={portfolioUrl} icon={<Eye size={14} />} label="Portfolio" />
                     )}
                   </div>
                 </Section>
