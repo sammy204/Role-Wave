@@ -36,6 +36,8 @@ import InstallPrompt from './components/InstallPrompt';
 import PushNotificationPrompt from './components/PushNotificationPrompt';
 import ResumeViewer from './pages/ResumeViewer';
 import CandidateSettings from './pages/CandidateSettings';
+import MessageToastHost from './components/MessageToastHost';
+import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat';
 
 function App() {
   return (
@@ -51,6 +53,10 @@ function AppShell() {
   const path = location.pathname;
   const { session, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
+
+  // Reflects "this tab is open and visible" server-side so send-message-push
+  // can skip the push and let MessageToastHost handle it instead.
+  usePresenceHeartbeat(session?.user.id ?? null);
 
   const isAdminRoute = path.startsWith('/admin');
   const isApplyRoute = /^\/jobs\/[^/]+\/apply$/.test(path);
@@ -155,6 +161,7 @@ function AppShell() {
         <CookieConsent />
         <InstallPrompt />
         <PushNotificationPrompt />
+        <MessageToastHost />
       </>
     );
   }
@@ -169,6 +176,7 @@ function AppShell() {
       <CookieConsent />
       <InstallPrompt />
       <PushNotificationPrompt />
+      <MessageToastHost />
     </div>
   );
 }
