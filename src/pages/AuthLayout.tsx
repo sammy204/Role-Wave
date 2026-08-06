@@ -58,6 +58,16 @@ export default function AuthLayout() {
         const nextProfile = await fetchProfile(session.user.id);
         if (!alive) return;
 
+        if (nextProfile?.account_status === 'deletion_scheduled') {
+          const { error: reactivationError } = await supabase.functions.invoke('reactivate-account');
+          if (reactivationError) throw reactivationError;
+          const restoredProfile = await fetchProfile(session.user.id);
+          if (!alive) return;
+          setProfile(restoredProfile);
+          navigate(restoredProfile?.account_type === 'employer' ? '/employer/dashboard' : '/candidate/dashboard', { replace: true });
+          return;
+        }
+
         setProfile(nextProfile);
         const nextRole = nextProfile?.account_type === 'employer' ? 'employer' : 'candidate';
         setRole(nextRole);

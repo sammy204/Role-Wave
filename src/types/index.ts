@@ -65,6 +65,8 @@ export interface Profile {
   is_admin: boolean;
   account_type?: 'candidate' | 'employer';
   onboarding_completed?: boolean;
+  account_status?: 'active' | 'deletion_scheduled';
+  deletion_scheduled_for?: string | null;
   created_at: string;
 }
 

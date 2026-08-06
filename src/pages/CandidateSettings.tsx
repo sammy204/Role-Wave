@@ -134,8 +134,9 @@ export default function CandidateSettings() {
       if (invokeError) throw invokeError;
       if (data?.error) throw new Error(data.error);
 
+      const scheduledFor = data?.deletion_scheduled_for;
       await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
-      navigate('/', { replace: true });
+      navigate(scheduledFor ? `/account-deletion-scheduled?date=${encodeURIComponent(scheduledFor)}` : '/', { replace: true });
     } catch (deleteAccountError) {
       setDeleteError(deleteAccountError instanceof Error ? deleteAccountError.message : 'Could not delete account.');
       setDeleting(false);
@@ -279,7 +280,7 @@ export default function CandidateSettings() {
             <AlertTriangle className="mt-0.5 text-[#B3261E]" size={20} />
             <div>
               <h2 className="font-semibold text-[#7A1B14]">Danger zone</h2>
-              <p className="mt-1 text-sm text-[#8C3A32]">Account deletion will permanently remove your profile, applications, messages, and uploaded files.</p>
+              <p className="mt-1 text-sm text-[#8C3A32]">Your account will be hidden now and permanently deleted after a 10-day grace period.</p>
             </div>
           </div>
           <button
@@ -305,7 +306,7 @@ export default function CandidateSettings() {
                 <div>
                   <h2 className="font-semibold text-[#1A1A1A]">Delete your account</h2>
                   <p className="mt-1 text-sm text-[#5F5E5A]">
-                    This permanently deletes your profile, applications, messages, notifications, and uploaded files. This cannot be undone.
+                    Your account will be hidden immediately and permanently deleted after 10 days. Log in before then if you change your mind.
                   </p>
                 </div>
               </div>
@@ -348,7 +349,7 @@ export default function CandidateSettings() {
                 disabled={deleting || deleteConfirmText !== 'DELETE'}
                 className="rounded-xl bg-[#B3261E] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {deleting ? 'Deleting...' : 'Permanently delete account'}
+                {deleting ? 'Scheduling...' : 'Schedule account deletion'}
               </button>
             </div>
           </div>

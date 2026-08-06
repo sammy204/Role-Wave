@@ -36,6 +36,7 @@ import InstallPrompt from './components/InstallPrompt';
 import PushNotificationPrompt from './components/PushNotificationPrompt';
 import ResumeViewer from './pages/ResumeViewer';
 import CandidateSettings from './pages/CandidateSettings';
+import AccountDeletionScheduled from './pages/AccountDeletionScheduled';
 import MessageToastHost from './components/MessageToastHost';
 import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat';
 
@@ -130,6 +131,7 @@ function AppShell() {
       <Route path="/jobs/:slug" element={<JobDetail />} />
       <Route path="/jobs/:slug/apply" element={<JobApplication />} />
       <Route path="/start" element={<AuthLayout />} />
+      <Route path="/account-deletion-scheduled" element={<AccountDeletionScheduled />} />
       <Route path="/confirmed" element={<Confirmed />} />
       <Route path="/resume/view" element={<ResumeViewer />} />
       <Route path="/candidate" element={<CandidateDashboard />} />
