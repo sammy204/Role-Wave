@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Bell, LockKeyhole, LogOut, Save, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Bell, LockKeyhole, LogOut, Save, ShieldCheck, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/useAuth';
@@ -24,6 +24,10 @@ export default function CandidateSettings() {
   });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -117,6 +121,25 @@ export default function CandidateSettings() {
   const signOut = async () => {
     await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
     navigate('/', { replace: true });
+  };
+
+  const deleteAccount = async () => {
+    if (deleteConfirmText !== 'DELETE') return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke('delete-account', {
+        body: { confirmation: deleteConfirmText },
+      });
+      if (invokeError) throw invokeError;
+      if (data?.error) throw new Error(data.error);
+
+      await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+      navigate('/', { replace: true });
+    } catch (deleteAccountError) {
+      setDeleteError(deleteAccountError instanceof Error ? deleteAccountError.message : 'Could not delete account.');
+      setDeleting(false);
+    }
   };
 
   const toggleReducedMotion = () => {
@@ -259,11 +282,78 @@ export default function CandidateSettings() {
               <p className="mt-1 text-sm text-[#8C3A32]">Account deletion will permanently remove your profile, applications, messages, and uploaded files.</p>
             </div>
           </div>
-          <button type="button" disabled className="mt-5 rounded-xl border border-[#E8B4AD] bg-white px-4 py-2.5 text-sm font-semibold text-[#B3261E] opacity-60">
-            Delete account · Coming soon
+          <button
+            type="button"
+            onClick={() => {
+              setDeleteError('');
+              setDeleteConfirmText('');
+              setShowDeleteModal(true);
+            }}
+            className="mt-5 rounded-xl border border-[#B3261E] bg-[#B3261E] px-4 py-2.5 text-sm font-semibold text-white"
+          >
+            Delete account
           </button>
         </section>
       </div>
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-xl">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 shrink-0 text-[#B3261E]" size={20} />
+                <div>
+                  <h2 className="font-semibold text-[#1A1A1A]">Delete your account</h2>
+                  <p className="mt-1 text-sm text-[#5F5E5A]">
+                    This permanently deletes your profile, applications, messages, notifications, and uploaded files. This cannot be undone.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !deleting && setShowDeleteModal(false)}
+                className="rounded-full p-1 text-[#8A867E] hover:bg-[#F3F2EE]"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <label className="mt-5 block text-xs font-semibold uppercase tracking-[1.2px] text-[#8A867E]">
+              Type DELETE to confirm
+            </label>
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(event) => setDeleteConfirmText(event.target.value)}
+              placeholder="DELETE"
+              disabled={deleting}
+              className="mt-2 w-full rounded-xl border border-[#D3D1C7] bg-white px-3 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#B3261E]"
+            />
+
+            {deleteError && <p className="mt-3 text-sm text-[#B3261E]">{deleteError}</p>}
+
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="rounded-xl border border-[#D3D1C7] bg-white px-4 py-2.5 text-sm font-semibold text-[#1A1A1A] disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={deleteAccount}
+                disabled={deleting || deleteConfirmText !== 'DELETE'}
+                className="rounded-xl bg-[#B3261E] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deleting ? 'Deleting...' : 'Permanently delete account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
