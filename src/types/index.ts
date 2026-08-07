@@ -67,6 +67,8 @@ export interface Profile {
   onboarding_completed?: boolean;
   account_status?: 'active' | 'deletion_scheduled';
   deletion_scheduled_for?: string | null;
+  email_application_updates?: boolean;
+  email_job_recommendations?: boolean;
   created_at: string;
 }
 

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Check, ChevronLeft, Eye, EyeOff, Linkedin } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import { useAuth } from '../lib/useAuth';
+import { useIsPwa } from '../lib/usePwaDisplayMode';
 import { withTimeout } from '../lib/withTimeout';
 import type { Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -41,6 +42,7 @@ export default function AuthLayout() {
   const [resetSent, setResetSent] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const { session, loading: authLoading } = useAuth();
+  const isPwa = useIsPwa();
   const isSignup = mode === 'signup';
 
   useEffect(() => {
@@ -306,6 +308,32 @@ export default function AuthLayout() {
     />
   );
 
+  if (isPwa || !isPwa) {
+    return (
+      <PwaAuthCard
+        isPwa={isPwa}
+        mode={mode}
+        role={role}
+        fullName={fullName}
+        email={email}
+        password={password}
+        loading={loading}
+        resetSent={resetSent}
+        info={info}
+        error={error}
+        setFullName={setFullName}
+        setEmail={setEmail}
+        setPassword={setPassword}
+        setRole={setRole}
+        switchMode={switchMode}
+        onSubmit={handleAuth}
+        onForgotPassword={handleForgotPassword}
+        onGoogle={handleGoogle}
+        onBack={() => navigate('/welcome')}
+      />
+    );
+  }
+
   return (
     <div className="page-shell items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
       <div className="relative z-10 mx-auto w-full max-w-3xl">
@@ -428,6 +456,324 @@ export default function AuthLayout() {
           </div>
         </section>
       </div>
+    </div>
+  );
+}
+
+type PwaAuthCardProps = {
+  isPwa: boolean;
+  mode: AuthMode;
+  role: MarketplaceRole;
+  fullName: string;
+  email: string;
+  password: string;
+  loading: boolean;
+  resetSent: boolean;
+  info: string;
+  error: string;
+  setFullName: (value: string) => void;
+  setEmail: (value: string) => void;
+  setPassword: (value: string) => void;
+  setRole: (value: MarketplaceRole) => void;
+  switchMode: (next: AuthMode) => void;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  onForgotPassword: (event: React.FormEvent<HTMLFormElement>) => void;
+  onGoogle: () => void;
+  onBack: () => void;
+};
+
+function PwaAuthCard({
+  isPwa,
+  mode,
+  role,
+  fullName,
+  email,
+  password,
+  loading,
+  resetSent,
+  info,
+  error,
+  setFullName,
+  setEmail,
+  setPassword,
+  setRole,
+  switchMode,
+  onSubmit,
+  onForgotPassword,
+  onGoogle,
+  onBack,
+}: PwaAuthCardProps) {
+  const [showPassword, setShowPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const isSignup = mode === 'signup';
+  const isForgot = mode === 'forgot';
+
+  useEffect(() => {
+    if (!isSignup) setAcceptedTerms(false);
+  }, [isSignup]);
+
+  return (
+    <main
+      className={`relative flex min-h-screen min-h-[100dvh] bg-[#E9F0EA] ${
+        isPwa
+          ? 'items-stretch justify-stretch overflow-hidden px-0 py-0'
+          : 'items-stretch justify-stretch overflow-y-auto px-0 py-0'
+      }`}
+      style={
+        isPwa
+          ? {
+              paddingTop: 'env(safe-area-inset-top)',
+              paddingBottom: 'env(safe-area-inset-bottom)',
+            }
+          : undefined
+      }
+    >
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -left-24 -top-24 h-80 w-80 rounded-full bg-[#1D9E75]/20 blur-3xl" />
+        <div className="absolute -bottom-32 -right-24 h-96 w-96 rounded-full bg-[#5B4088]/15 blur-3xl" />
+      </div>
+
+      <section
+        className={`relative z-10 flex w-full max-w-none flex-col bg-[#FBFAF7]/80 backdrop-blur-2xl ${
+          isPwa ? 'h-screen min-h-[100dvh] overflow-hidden' : 'min-h-screen overflow-visible'
+        }`}
+      >
+        <header className="mx-auto flex w-full max-w-md shrink-0 items-center justify-between px-5 pb-3 pt-5 sm:px-7">
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Back to welcome"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/80 bg-white/70 text-[#1A1A1A] shadow-sm transition-transform active:scale-95"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <div className="flex items-center gap-2">
+            <img src="/rolewave-icon.png" alt="RoleWave" className="h-8 w-8 rounded-xl object-contain shadow-[0_8px_18px_rgba(29,158,117,.2)]" />
+            <span className="font-display text-lg font-semibold text-[#1A1A1A]">RoleWave</span>
+          </div>
+          <div className="w-9" />
+        </header>
+
+        <div
+          className={`mx-auto w-full max-w-md px-5 sm:px-7 ${
+            isPwa ? 'min-h-0 overflow-hidden pb-4 sm:pb-6' : 'overflow-visible pb-8 sm:pb-10'
+          }`}
+        >
+          <div key={mode} className="auth-fade-up">
+            <div className="pt-2">
+              <p className="text-[10px] font-bold uppercase tracking-[1.8px] text-[#1D9E75]">
+                {isForgot ? 'Account recovery' : isSignup ? 'Start your journey' : 'Welcome back'}
+              </p>
+              <h1 className="font-display mt-2 text-[34px] leading-[1.02] text-[#1A1A1A]">
+                {isForgot ? 'Reset your password' : isSignup ? 'Create your account' : 'Good to see you.'}
+              </h1>
+              <p className="mt-3 text-sm leading-6 text-[#5F5E5A]">
+                {isForgot
+                  ? 'Enter your email and we will send you a secure reset link.'
+                  : isSignup
+                    ? 'Real roles, verified employers, one profile.'
+                    : 'Sign in to pick up right where you left off.'}
+              </p>
+            </div>
+
+            {!isForgot && (
+              <div className="relative mt-6 flex rounded-2xl border border-white/90 bg-[#E9EDE7]/80 p-1 shadow-inner">
+                <div
+                  className="absolute bottom-1 left-1 top-1 w-[calc(50%-4px)] rounded-xl bg-white shadow-[0_8px_20px_rgba(26,26,26,.08)] transition-transform duration-300 ease-out"
+                  style={{ transform: isSignup ? 'translateX(100%)' : 'translateX(0)' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => switchMode('login')}
+                  className={`relative z-10 flex-1 rounded-xl py-2.5 text-sm font-bold ${!isSignup ? 'text-[#0F6E56]' : 'text-[#8A867E]'}`}
+                >
+                  Sign in
+                </button>
+                <button
+                  type="button"
+                  onClick={() => switchMode('signup')}
+                  className={`relative z-10 flex-1 rounded-xl py-2.5 text-sm font-bold ${isSignup ? 'text-[#0F6E56]' : 'text-[#8A867E]'}`}
+                >
+                  Sign up
+                </button>
+              </div>
+            )}
+
+            {isForgot ? (
+              <form className="mt-6" onSubmit={onForgotPassword}>
+                <PwaField label="Email" value={email} onChange={setEmail} type="email" placeholder="you@email.com" />
+                {resetSent && <PwaNotice tone="success">{info || 'Check your email for a password reset link.'}</PwaNotice>}
+                {error && <PwaNotice tone="error">{error}</PwaNotice>}
+                <button type="submit" disabled={loading} className="pwa-primary-button mt-5">
+                  {loading ? 'Sending reset link…' : 'Send reset link'} <ArrowRight size={17} />
+                </button>
+                <button type="button" onClick={() => switchMode('login')} className="mt-4 w-full text-sm font-semibold text-[#0F6E56]">
+                  Back to sign in
+                </button>
+              </form>
+            ) : (
+              <form className="mt-6" onSubmit={onSubmit}>
+                {isSignup && (
+                  <div className="mb-5">
+                    <label className="mb-2 block text-[10px] font-bold uppercase tracking-[1.3px] text-[#5F5E5A]">I’m here to</label>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <PwaRoleButton active={role === 'candidate'} onClick={() => setRole('candidate')} title="Find work" subtitle="I’m a candidate" />
+                      <PwaRoleButton active={role === 'employer'} onClick={() => setRole('employer')} title="Hire talent" subtitle="I’m an employer" employer />
+                    </div>
+                  </div>
+                )}
+
+                {isSignup && <PwaField label="Full name" value={fullName} onChange={setFullName} placeholder="Adaeze Okafor" />}
+                <PwaField label="Email" value={email} onChange={setEmail} type="email" placeholder="you@email.com" />
+                <div className="mt-4">
+                  <label className="mb-2 block text-[10px] font-bold uppercase tracking-[1.3px] text-[#5F5E5A]">Password</label>
+                  <div className="flex items-center rounded-2xl border border-[#D3D1C7] bg-white/85 px-4 transition-colors focus-within:border-[#1D9E75] focus-within:ring-4 focus-within:ring-[#1D9E75]/10">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-transparent py-3.5 text-sm text-[#1A1A1A] outline-none placeholder:text-[#B4B2A9]"
+                      required
+                    />
+                    <button type="button" onClick={() => setShowPassword((visible) => !visible)} className="text-[#5F5E5A]">
+                      {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                    </button>
+                  </div>
+                </div>
+
+                {!isSignup && (
+                  <button type="button" onClick={() => switchMode('forgot')} className="mt-3 block w-full text-right text-xs font-semibold text-[#0F6E56]">
+                    Forgot password?
+                  </button>
+                )}
+
+                {info && <PwaNotice tone="success">{info}</PwaNotice>}
+                {error && <PwaNotice tone="error">{error}</PwaNotice>}
+
+                {isSignup && (
+                  <label className="mt-5 flex cursor-pointer items-start gap-2.5 text-xs leading-5 text-[#5F5E5A]">
+                    <input
+                      type="checkbox"
+                      checked={acceptedTerms}
+                      onChange={(event) => setAcceptedTerms(event.target.checked)}
+                      required
+                      className="mt-1 h-4 w-4 shrink-0 accent-[#1D9E75]"
+                    />
+                    <span>
+                      I agree to RoleWave&apos;s{' '}
+                      <Link to="/terms" className="font-semibold text-[#0F6E56] underline underline-offset-2">
+                        Terms &amp; Conditions
+                      </Link>{' '}
+                      and{' '}
+                      <Link to="/privacy" className="font-semibold text-[#0F6E56] underline underline-offset-2">
+                        Privacy Policy
+                      </Link>
+                      .
+                    </span>
+                  </label>
+                )}
+
+                <button type="submit" disabled={loading || (isSignup && !acceptedTerms)} className="pwa-primary-button mt-5">
+                  {loading ? 'Please wait…' : isSignup ? 'Create account' : 'Sign in'} <ArrowRight size={17} />
+                </button>
+
+                <div className="my-5 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-[#D3D1C7]" />
+                  <span className="text-[10px] font-semibold uppercase tracking-[1px] text-[#B4B2A9]">or continue with</span>
+                  <div className="h-px flex-1 bg-[#D3D1C7]" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button type="button" onClick={onGoogle} disabled={loading} className="flex items-center justify-center gap-2 rounded-2xl border border-[#D3D1C7] bg-white/80 py-3.5 text-sm font-semibold text-[#1A1A1A] transition-colors hover:bg-white">
+                    <GoogleIcon /> Google
+                  </button>
+                  <button type="button" disabled className="flex items-center justify-center gap-2 rounded-2xl border border-[#D3D1C7] bg-white/60 py-3.5 text-sm font-semibold text-[#1A1A1A] opacity-75">
+                    <Linkedin size={17} className="text-[#0A66C2]" /> LinkedIn
+                  </button>
+                </div>
+
+                <p className="mt-5 text-center text-sm text-[#5F5E5A]">
+                  {isSignup ? 'Already have an account?' : 'New to RoleWave?'}{' '}
+                  <button type="button" onClick={() => switchMode(isSignup ? 'login' : 'signup')} className="font-bold text-[#0F6E56]">
+                    {isSignup ? 'Sign in' : 'Sign up'}
+                  </button>
+                </p>
+              </form>
+            )}
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function PwaField({
+  label,
+  value,
+  onChange,
+  type = 'text',
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  placeholder: string;
+}) {
+  return (
+    <label className="mb-4 block">
+      <span className="mb-2 block text-[10px] font-bold uppercase tracking-[1.3px] text-[#5F5E5A]">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-2xl border border-[#D3D1C7] bg-white/85 px-4 py-3.5 text-sm text-[#1A1A1A] outline-none transition-colors placeholder:text-[#B4B2A9] focus:border-[#1D9E75] focus:ring-4 focus:ring-[#1D9E75]/10"
+        required
+      />
+    </label>
+  );
+}
+
+function PwaRoleButton({
+  active,
+  onClick,
+  title,
+  subtitle,
+  employer = false,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  subtitle: string;
+  employer?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-2xl border px-3 py-3 text-left transition-all ${
+        active
+          ? employer
+            ? 'border-[#E4BD62] bg-[#FAEEDA]'
+            : 'border-[#5DCAA5] bg-[#E1F5EE]'
+          : 'border-[#D3D1C7] bg-white/70'
+      }`}
+    >
+      <span className={`flex items-center justify-between text-sm font-bold ${active ? (employer ? 'text-[#633806]' : 'text-[#085041]') : 'text-[#1A1A1A]'}`}>
+        {title}
+        {active && <Check size={15} />}
+      </span>
+      <span className="mt-1 block text-[11px] text-[#5F5E5A]">{subtitle}</span>
+    </button>
+  );
+}
+
+function PwaNotice({ tone, children }: { tone: 'success' | 'error'; children: React.ReactNode }) {
+  return (
+    <div className={`mt-4 rounded-2xl border px-4 py-3 text-xs leading-5 ${tone === 'success' ? 'border-[#8ED7BA] bg-[#E1F5EE] text-[#085041]' : 'border-[#F0D080] bg-[#FFF8E6] text-[#7A5000]'}`}>
+      {children}
     </div>
   );
 }

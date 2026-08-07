@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import WorkspaceNav from './components/WorkspaceNav';
@@ -28,7 +28,6 @@ import JobApplication from './pages/JobApplication';
 import EmployerDashboard from './pages/EmployerDashboard';
 import CandidateMessages from './pages/CandidateMessages';
 import EmployerMessages from './pages/EmployerMessages';
-import CandidateMobileNav from './components/CandidateMobileNav';
 import CookieConsent from './components/CookieConsent';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
@@ -37,8 +36,10 @@ import PushNotificationPrompt from './components/PushNotificationPrompt';
 import ResumeViewer from './pages/ResumeViewer';
 import CandidateSettings from './pages/CandidateSettings';
 import AccountDeletionScheduled from './pages/AccountDeletionScheduled';
+import PwaOnboarding from './pages/PwaOnboarding';
 import MessageToastHost from './components/MessageToastHost';
 import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat';
+import { useIsPwa } from './lib/usePwaDisplayMode';
 
 function App() {
   return (
@@ -53,13 +54,16 @@ function AppShell() {
   const navigate = useNavigate();
   const path = location.pathname;
   const { session, loading: authLoading } = useAuth();
+  const isPwa = useIsPwa();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   // Reflects "this tab is open and visible" server-side so send-message-push
   // can skip the push and let MessageToastHost handle it instead.
   usePresenceHeartbeat(session?.user.id ?? null);
 
   const isAdminRoute = path.startsWith('/admin');
+  const isPwaLegalRoute = isPwa && (path === '/privacy' || path === '/terms');
   const isApplyRoute = /^\/jobs\/[^/]+\/apply$/.test(path);
   const isEmployerRoute = path.startsWith('/employer') || path === '/post';
   const isCandidateOnlyRoute = path.startsWith('/candidate');
@@ -85,8 +89,10 @@ function AppShell() {
     !isApplyRoute &&
     !isEmployerRoute &&
     !showCandidateSidebar &&
+    !isPwaLegalRoute &&
     path !== '/start' &&
-    path !== '/confirmed';
+    path !== '/confirmed' &&
+    path !== '/welcome';
 
   useEffect(() => {
     if (authLoading) return;
@@ -95,8 +101,11 @@ function AppShell() {
 
     if (!session) {
       setProfile(null);
+      setProfileLoading(false);
       return;
     }
+
+    setProfileLoading(true);
 
     void (async () => {
       try {
@@ -104,6 +113,8 @@ function AppShell() {
         if (alive) setProfile(nextProfile);
       } catch {
         if (alive) setProfile(null);
+      } finally {
+        if (alive) setProfileLoading(false);
       }
     })();
 
@@ -111,6 +122,62 @@ function AppShell() {
       alive = false;
     };
   }, [authLoading, session]);
+
+  useEffect(() => {
+    if (!isPwa) return;
+
+    const preventContextMenu = (event: MouseEvent) => event.preventDefault();
+    document.documentElement.classList.add('pwa-app');
+    document.addEventListener('contextmenu', preventContextMenu);
+
+    return () => {
+      document.documentElement.classList.remove('pwa-app');
+      document.removeEventListener('contextmenu', preventContextMenu);
+    };
+  }, [isPwa]);
+
+  useEffect(() => {
+    if (!isPwa) return;
+
+    let startX: number | null = null;
+    let startY: number | null = null;
+
+    const handleTouchStart = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      if (startX === null || startY === null || !event.cancelable) return;
+      const touch = event.touches[0];
+      const deltaX = touch.clientX - startX;
+      const deltaY = touch.clientY - startY;
+      const target = event.target as HTMLElement | null;
+      const isTextField = Boolean(target?.closest('input, textarea, [contenteditable="true"]'));
+
+      if (!isTextField && Math.abs(deltaX) > 10 && Math.abs(deltaX) > Math.abs(deltaY)) {
+        event.preventDefault();
+      }
+    };
+
+    const clearTouch = () => {
+      startX = null;
+      startY = null;
+    };
+
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', clearTouch, { passive: true });
+    document.addEventListener('touchcancel', clearTouch, { passive: true });
+
+    return () => {
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', clearTouch);
+      document.removeEventListener('touchcancel', clearTouch);
+    };
+  }, [isPwa]);
 
   useEffect(() => {
     const {
@@ -130,6 +197,18 @@ function AppShell() {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  // Installed apps should enter through their app-specific onboarding screen
+  // immediately, without first mounting the public homepage at "/".
+  if (isPwa && path === '/') {
+    if (authLoading || (session && profileLoading)) {
+      return <div className="min-h-screen bg-[#F1EFE8]" aria-label="Loading" />;
+    }
+
+    if (!session) return <PwaOnboarding />;
+
+    return <Navigate to={profile?.account_type === 'employer' ? '/employer/dashboard' : '/candidate/dashboard'} replace />;
+  }
+
   const routes = (
     <Routes>
       <Route path="/" element={<Home />} />
@@ -137,6 +216,7 @@ function AppShell() {
       <Route path="/jobs/:slug" element={<JobDetail />} />
       <Route path="/jobs/:slug/apply" element={<JobApplication />} />
       <Route path="/start" element={<AuthLayout />} />
+      <Route path="/welcome" element={<PwaOnboarding />} />
       <Route path="/account-deletion-scheduled" element={<AccountDeletionScheduled />} />
       <Route path="/confirmed" element={<Confirmed />} />
       <Route path="/resume/view" element={<ResumeViewer />} />
@@ -162,6 +242,10 @@ function AppShell() {
     </Routes>
   );
 
+  if (isPwaLegalRoute) {
+    return <>{routes}</>;
+  }
+
   if (showCandidateSidebar) {
     return (
       <>
@@ -179,7 +263,6 @@ function AppShell() {
       {showPublicChrome && <Navbar />}
       {isEmployerRoute && <WorkspaceNav role="employer" />}
       <main className="flex-1">{routes}</main>
-      <CandidateMobileNav />
       {showPublicChrome && <Footer />}
       <CookieConsent />
       <InstallPrompt />

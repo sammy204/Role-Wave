@@ -25,8 +25,15 @@ export default function Home() {
   const { session, loading: authLoading } = useAuth();
   const isPwa = useIsPwa();
 
+  // Installed PWA + signed out: show the app-style onboarding carousel
+  // instead of the public marketplace landing page.
+  useEffect(() => {
+    if (!isPwa || authLoading || session) return;
+    navigate('/welcome', { replace: true });
+  }, [isPwa, authLoading, session, navigate]);
+
   // Installed PWA + signed-in candidate: skip the marketplace landing
-  // and go straight to the personalized "Welcome back" feed.
+  // and go straight to the current candidate dashboard.
   useEffect(() => {
     if (!isPwa || authLoading || !session) return;
 
@@ -36,7 +43,7 @@ export default function Home() {
       try {
         const profile = await fetchProfile(session.user.id);
         if (alive && profile?.account_type === 'candidate') {
-          navigate('/candidate/home', { replace: true });
+          navigate('/candidate/dashboard', { replace: true });
         }
       } catch {
         // If the profile lookup fails, just stay on the marketplace.
@@ -118,6 +125,12 @@ export default function Home() {
 
     fetchData();
   }, []);
+
+  // Do not flash the public marketplace while an installed PWA is resolving
+  // its auth state and redirecting to its app-specific entry screen.
+  if (isPwa && (authLoading || !session)) {
+    return <div className="min-h-screen bg-[#F1EFE8]" aria-label="Loading" />;
+  }
 
   const handleSearch = () => {
     const params = new URLSearchParams();
@@ -305,7 +318,7 @@ export default function Home() {
             </div>
           ) : jobs.length === 0 ? (
             <div className="rounded-[24px] border border-[#E8E4DA] bg-[#FBFAF7] py-20 text-center text-[#5F5E5A]">
-              No jobs posted yet â€” check back soon.
+              No jobs posted yet — check back soon.
             </div>
           ) : (
             <div className="space-y-3 sm:space-y-3.5">
