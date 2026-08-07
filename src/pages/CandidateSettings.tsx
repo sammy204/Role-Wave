@@ -3,7 +3,7 @@ import { AlertTriangle, Bell, Database, LockKeyhole, LogOut, Mail, Save, ShieldC
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/useAuth';
-import { getCurrentPushSubscription, enablePushNotifications, disablePushNotifications, pushNotificationsConfigured } from '../lib/pushNotifications';
+import { getCurrentPushSubscription, enablePushNotifications, disablePushNotifications, pushNotificationsConfigured, pushNotificationSupportMessage } from '../lib/pushNotifications';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 type Visibility = 'open' | 'not_open' | 'hidden';
@@ -327,7 +327,7 @@ export default function CandidateSettings() {
               {pushSaving ? 'Updating...' : pushEnabled ? 'Turn off' : 'Turn on'}
             </button>
           </div>
-          {!pushNotificationsConfigured() && <p className="mt-2 text-xs text-[#8A867E]">Push notifications are not available in this browser or environment.</p>}
+          {!pushNotificationsConfigured() && <p className="mt-2 text-xs text-[#8A867E]">{pushNotificationSupportMessage()}</p>}
         </details>
 
         <details className="panel order-5 rounded-[28px] p-5 sm:p-6">

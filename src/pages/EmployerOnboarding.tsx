@@ -346,8 +346,11 @@ export default function EmployerOnboarding() {
 
             <section className="border-t border-line pt-6">
               <div className="mb-3 text-[11px] font-bold uppercase tracking-[1.6px] text-faint">
-                Your details
+                Account manager details
               </div>
+              <p className="mb-4 max-w-xl text-sm leading-relaxed text-muted">
+                These details belong to the person managing this employer account. They are kept separate from your public company profile.
+              </p>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Your role">
                   <input className="admin-input" value={form.roleTitle} onChange={(e) => updateField('roleTitle', e.target.value)} placeholder="Founder / HR lead" />
@@ -382,7 +385,7 @@ export default function EmployerOnboarding() {
           </button>
         </div>
 
-        <div className="space-y-4">
+        <div className="flex flex-col gap-8">
           {/* Live identity preview: reflects exactly what gets saved to `companies` */}
           <div
             className="panel motion-safe:animate-fade-up sticky top-6 rounded-[28px] p-5"

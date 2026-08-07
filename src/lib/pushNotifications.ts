@@ -3,14 +3,18 @@ import { supabase } from './supabase';
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
 const SERVICE_WORKER_TIMEOUT_MS = 10000;
 
+export function pushNotificationSupportMessage(): string | null {
+  if (typeof window === 'undefined') return 'Push notifications are only available in a browser.';
+  if (!window.isSecureContext) return 'Push notifications require the secure HTTPS RoleWave site.';
+  if (!VAPID_PUBLIC_KEY) return 'Push notifications are not configured in this deployment.';
+  if (!('serviceWorker' in navigator)) return 'This iPhone does not support service workers here.';
+  if (!('PushManager' in window)) return 'Push is available only in an installed Home Screen app on iOS.';
+  if (!('Notification' in window)) return 'This environment does not support web notifications.';
+  return null;
+}
+
 export function pushNotificationsConfigured(): boolean {
-  return Boolean(
-    VAPID_PUBLIC_KEY &&
-      typeof window !== 'undefined' &&
-      'serviceWorker' in navigator &&
-      'PushManager' in window &&
-      'Notification' in window
-  );
+  return pushNotificationSupportMessage() === null;
 }
 
 function decodeBase64Url(value: string): Uint8Array {
