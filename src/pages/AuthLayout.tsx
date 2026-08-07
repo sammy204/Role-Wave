@@ -64,7 +64,7 @@ export default function AuthLayout() {
           const restoredProfile = await fetchProfile(session.user.id);
           if (!alive) return;
           setProfile(restoredProfile);
-          navigate(restoredProfile?.account_type === 'employer' ? '/employer/dashboard' : '/candidate/dashboard', { replace: true });
+          navigate(restoredProfile?.account_type === 'employer' ? '/employer/dashboard' : '/candidate/dashboard?reactivated=1', { replace: true });
           return;
         }
 

@@ -117,7 +117,13 @@ function AppShell() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
-        navigate('/', { replace: true });
+        const scheduledFor = sessionStorage.getItem('rolewave-account-deletion-scheduled');
+        if (scheduledFor) {
+          sessionStorage.removeItem('rolewave-account-deletion-scheduled');
+          navigate(`/account-deletion-scheduled?date=${encodeURIComponent(scheduledFor)}`, { replace: true });
+        } else {
+          navigate('/', { replace: true });
+        }
       }
     });
 

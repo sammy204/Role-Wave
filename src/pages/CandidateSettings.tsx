@@ -135,6 +135,7 @@ export default function CandidateSettings() {
       if (data?.error) throw new Error(data.error);
 
       const scheduledFor = data?.deletion_scheduled_for;
+      if (scheduledFor) sessionStorage.setItem('rolewave-account-deletion-scheduled', scheduledFor);
       await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
       navigate(scheduledFor ? `/account-deletion-scheduled?date=${encodeURIComponent(scheduledFor)}` : '/', { replace: true });
     } catch (deleteAccountError) {

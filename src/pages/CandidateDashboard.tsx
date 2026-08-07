@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Bookmark,
   Briefcase,
@@ -15,6 +15,7 @@ import {
   Target,
   TrendingUp,
   Undo2,
+  X,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
@@ -40,6 +41,7 @@ function timeAgo(date: string): string {
 
 export default function CandidateDashboard() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const unreadMessagesCount = useUnreadMessagesCount('candidate');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -54,6 +56,13 @@ export default function CandidateDashboard() {
   const [subscriptionState, setSubscriptionState] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [subscriptionMessage, setSubscriptionMessage] = useState('');
   const [mutatingApplicationId, setMutatingApplicationId] = useState<string | null>(null);
+  const [reactivatedMessage, setReactivatedMessage] = useState('');
+
+  useEffect(() => {
+    if (searchParams.get('reactivated') !== '1') return;
+    setReactivatedMessage('Welcome back. Your account has been reactivated successfully.');
+    navigate('/candidate/dashboard', { replace: true });
+  }, [navigate, searchParams]);
 
   useEffect(() => {
     let alive = true;
@@ -769,6 +778,34 @@ export default function CandidateDashboard() {
           </div>
         </div>
       </div>
+
+      {reactivatedMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="reactivated-title">
+          <div className="relative w-full max-w-md rounded-[28px] border border-white/70 bg-white p-7 text-center shadow-2xl sm:p-8">
+            <button
+              type="button"
+              onClick={() => setReactivatedMessage('')}
+              className="absolute right-4 top-4 rounded-full p-2 text-[#8A867E] hover:bg-[#F3F2EE]"
+              aria-label="Close notification"
+            >
+              <X size={18} />
+            </button>
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#E1F5EE] text-2xl text-[#1D9E75]">✓</div>
+            <h2 id="reactivated-title" className="mt-5 text-2xl font-bold text-[#1A1A1A]">Welcome back</h2>
+            <p className="mt-3 text-sm leading-6 text-[#5F5E5A]">{reactivatedMessage}</p>
+            <button
+              type="button"
+              onClick={() => {
+                setReactivatedMessage('');
+                navigate('/jobs');
+              }}
+              className="mt-6 w-full rounded-xl bg-[#1D9E75] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#168563]"
+            >
+              Continue job hunting
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
