@@ -1,3 +1,7 @@
+import { ChevronLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useIsPwa } from '../lib/usePwaDisplayMode';
+
 const LAST_UPDATED = 'July 27, 2026';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -10,9 +14,21 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function TermsOfService() {
+  const navigate = useNavigate();
+  const isPwa = useIsPwa();
+
   return (
-    <div className="page-shell">
-      <div className="mx-auto w-full max-w-[820px] px-4 pb-16 pt-10 sm:px-6 lg:px-8">
+    <div className={isPwa ? 'min-h-screen bg-[#F1EFE8]' : 'page-shell'}>
+      <div className="mx-auto w-full max-w-[820px] px-4 pb-16 pt-6 sm:px-6 lg:px-8">
+        {isPwa && (
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="mb-5 inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/75 px-3.5 py-2 text-sm font-semibold text-[#1A1A1A] shadow-sm backdrop-blur-xl"
+          >
+            <ChevronLeft size={16} /> Back
+          </button>
+        )}
         <div className="panel rounded-panel p-5 sm:p-10">
           <div className="mb-8">
             <h1 className="font-display text-[26px] font-bold text-ink sm:text-[34px]">Terms of Service</h1>

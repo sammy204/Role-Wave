@@ -14,12 +14,37 @@
 }
 
 @layer base {
+  .pwa-app,
+  .pwa-app a,
+  .pwa-app button,
+  .pwa-app img {
+    -webkit-touch-callout: none;
+  }
+
+  .pwa-app,
+  .pwa-app body,
+  .pwa-app #root {
+    touch-action: pan-y;
+    overscroll-behavior-x: none;
+  }
+
+  .pwa-app a,
+  .pwa-app img {
+    -webkit-user-drag: none;
+  }
+
   html {
     scroll-behavior: smooth;
+    overscroll-behavior: none;
+    touch-action: pan-y;
   }
 
   body {
     min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overscroll-behavior: none;
+    overscroll-behavior-x: none;
     color: #1a1a1a;
     -webkit-font-smoothing: antialiased;
     background:
@@ -28,6 +53,13 @@
       radial-gradient(circle at 50% 100%, rgba(30, 79, 70, 0.08), transparent 30%),
       linear-gradient(180deg, #fcfbf8 0%, #f6f2ea 58%, #fbfaf7 100%);
     font-family: 'Manrope', sans-serif;
+  }
+
+  #root {
+    min-height: 100vh;
+    min-height: 100dvh;
+    touch-action: pan-y;
+    overscroll-behavior-x: none;
   }
 
   h1,
@@ -118,6 +150,18 @@
 
   .primary-chip {
     @apply inline-flex items-center gap-1.5 rounded-full border border-[#5DCAA5] bg-[#E1F5EE] px-3.5 py-2 text-sm font-semibold text-[#085041];
+  }
+
+  .pwa-primary-button {
+    @apply flex w-full items-center justify-center gap-2 rounded-2xl border border-[#5DCAA5] bg-[#1D9E75] px-4 py-3.5 text-sm font-bold text-white shadow-[0_12px_28px_rgba(15,110,86,0.24)] transition-all duration-200;
+  }
+
+  .pwa-primary-button:hover {
+    @apply bg-[#0F6E56];
+  }
+
+  .pwa-primary-button:disabled {
+    @apply cursor-not-allowed opacity-60;
   }
 
   .field-shell {
@@ -286,6 +330,14 @@
   color: #F5F5F4 !important;
 }
 
+[data-theme='dark'] .text-accent-text {
+  color: #9CE4C7 !important;
+}
+
+[data-theme='dark'] .text-accent-deep {
+  color: #8DDBBB !important;
+}
+
 [data-theme='dark'] .text-muted {
   color: #C7CEC8 !important;
 }
@@ -365,4 +417,33 @@
 [data-theme='dark'] [class*="text-[#8A8880]"],
 [data-theme='dark'] [class*="text-[#B4B2A9]"] {
   color: #AAB7AC !important;
+}
+
+/* Dark-mode navigation: keep the green brand accent, but use a calmer shell
+   so the navigation does not compete with the page content. */
+[data-theme='dark'] .bg-sidebar {
+  background: linear-gradient(180deg, #123B30 0%, #0D2821 100%) !important;
+  border-color: rgba(157, 228, 199, 0.18) !important;
+  box-shadow: 12px 0 36px rgba(0, 0, 0, 0.2) !important;
+}
+
+[data-theme='dark'] .bg-sidebar nav a {
+  background-color: transparent !important;
+  color: rgba(245, 245, 244, 0.78);
+}
+
+[data-theme='dark'] .bg-sidebar nav a:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: #FFFFFF;
+}
+
+[data-theme='dark'] .bg-sidebar nav a.bg-sidebar-active {
+  background-color: #237054 !important;
+  color: #FFFFFF;
+  box-shadow: inset 0 0 0 1px rgba(157, 228, 199, 0.16);
+}
+
+[data-theme='dark'] .bg-sidebar > button,
+[data-theme='dark'] .bg-sidebar button:hover {
+  background-color: transparent;
 }

@@ -1,4 +1,5 @@
-import { LogIn } from 'lucide-react';
+import { Eye, EyeOff, LogIn } from 'lucide-react';
+import { useState } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { GoogleIcon } from './AuthLayout';
 
@@ -25,6 +26,8 @@ export function SignIn({
   onForgotClick,
   messageBanners,
 }: SignInProps) {
+  const [showPassword, setShowPassword] = useState(false);
+
   return (
     <div className="w-full max-w-sm">
       <h2 className="font-display text-[28px] font-semibold leading-[1.05] tracking-[-0.02em] text-ink">
@@ -55,14 +58,25 @@ export function SignIn({
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
             Password
           </label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="field-shell"
-            placeholder="Enter password"
-            required
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="field-shell pr-11"
+              placeholder="Enter password"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((visible) => !visible)}
+              className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted transition-colors hover:text-ink"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              title={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+            </button>
+          </div>
           <div className="mt-1.5 text-right">
             <button
               type="button"

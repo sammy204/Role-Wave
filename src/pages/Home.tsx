@@ -276,7 +276,7 @@ export default function Home() {
             </div>
           ) : jobs.length === 0 ? (
             <div className="rounded-[24px] border border-[#E8E4DA] bg-[#FBFAF7] py-20 text-center text-[#5F5E5A]">
-              No jobs posted yet â€” check back soon.
+              No jobs posted yet — check back soon.
             </div>
           ) : (
             <div className="space-y-3 sm:space-y-3.5">

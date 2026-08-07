@@ -65,6 +65,10 @@ export interface Profile {
   is_admin: boolean;
   account_type?: 'candidate' | 'employer';
   onboarding_completed?: boolean;
+  account_status?: 'active' | 'deletion_scheduled';
+  deletion_scheduled_for?: string | null;
+  email_application_updates?: boolean;
+  email_job_recommendations?: boolean;
   created_at: string;
 }
 
@@ -119,7 +123,7 @@ export interface JobApplication {
   cover_letter: string | null;
   resume_url: string | null;
   portfolio_url: string | null;
- source: 'guest' | 'registered';
+  source: 'guest' | 'registered';
   status: 'submitted' | 'reviewed' | 'shortlisted' | 'interview' | 'offer' | 'rejected' | 'hired' | 'withdrawn';
   rejection_reason: string | null;
   created_at: string;

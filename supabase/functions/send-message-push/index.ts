@@ -6,11 +6,22 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// usePresenceHeartbeat pings touch_presence(true) every 15s while a tab is
+// visible. Two missed beats (30s) is our cutoff for trusting "online" —
+// past that, a killed tab (crash, force-quit, lost network) that never got
+// to send touch_presence(false) should lapse back to receiving push.
+const PRESENCE_STALE_MS = 30000;
+
 type PushSubscriptionRow = {
   id: string;
   endpoint: string;
   p256dh: string;
   auth: string;
+};
+
+type PresenceRow = {
+  is_online: boolean;
+  last_seen_at: string;
 };
 
 type ConversationRow = {
@@ -83,6 +94,25 @@ Deno.serve(async (request) => {
       userData.user.id === conversation.candidate_profile_id ? employerId : conversation.candidate_profile_id;
 
     if (!recipientId || recipientId === userData.user.id) return json({ sent: 0, subscriptions: 0 });
+
+    // Presence-aware delivery: if the recipient's app is open and visible
+    // (a recent, still-online heartbeat), MessageToastHost already shows
+    // them an in-app toast via realtime — sending a push too would double
+    // them up. Skip push in that case; a stale or missing presence row
+    // falls through to push as normal.
+    const { data: presence, error: presenceError } = await adminClient
+      .from('user_presence')
+      .select('is_online, last_seen_at')
+      .eq('user_id', recipientId)
+      .maybeSingle<PresenceRow>();
+
+    if (presenceError) throw presenceError;
+
+    if (presence?.is_online) {
+      const lastSeenMs = new Date(presence.last_seen_at).getTime();
+      const isFresh = Number.isFinite(lastSeenMs) && Date.now() - lastSeenMs <= PRESENCE_STALE_MS;
+      if (isFresh) return json({ sent: 0, subscriptions: 0, skipped: 'recipient_online' });
+    }
 
     const { data: subscriptions, error: subscriptionError } = await adminClient
       .from('push_subscriptions')

@@ -9,6 +9,7 @@ import {
   Download,
   FileText,
   Github,
+  Globe,
   GraduationCap,
   Linkedin,
   Mail,
@@ -23,7 +24,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import type { CandidateProfile, Profile } from '../types';
-import { calculateProfileCompletion } from '../lib/profileCompletion';
+import { calculateProfileCompletion, getProfileCompletionSuggestions } from '../lib/profileCompletion';
 import LoadingSpinner from '../components/LoadingSpinner';
 import AvatarCropModal from '../components/AvatarCropModal';
 import { getCandidateAssetUrl, uploadCandidateAsset } from '../lib/candidateAssets';
@@ -586,6 +587,7 @@ export default function CandidateDashboard() {
   };
   const profileSkills = (candidateProfile?.skills || []).slice(0, 6);
   const profileCompletion = calculateProfileCompletion(profile, candidateProfile);
+  const profileSuggestions = getProfileCompletionSuggestions(profile, candidateProfile);
   const contactItems = [
     { icon: Mail, label: email || 'Email not set', href: email ? `mailto:${email}` : undefined },
     {
@@ -595,6 +597,7 @@ export default function CandidateDashboard() {
     },
     { icon: Github, label: candidateProfile?.github_url || 'GitHub not set', href: candidateProfile?.github_url || undefined },
     { icon: Linkedin, label: candidateProfile?.linkedin_url || 'LinkedIn not set', href: candidateProfile?.linkedin_url || undefined },
+    { icon: Globe, label: candidateProfile?.portfolio_url || 'Portfolio not set', href: candidateProfile?.portfolio_url || undefined },
   ];
   const resumeDisplayName = candidateProfile?.resume_name || candidateProfile?.resume_url?.split('/').pop()?.split('?')[0] || 'candidate-cv.pdf';
 
@@ -791,6 +794,16 @@ export default function CandidateDashboard() {
                     <div className="h-2 rounded-full bg-[#1D9E75]" style={{ width: `${Math.max(6, profileCompletion)}%` }} />
                   </div>
                   <div className="mt-2 text-xs text-[#5F5E5A]">You’re {profileCompletion}% ready for employers.</div>
+                  {profileSuggestions.length > 0 && (
+                    <div className="mt-3 border-t border-[#D3D1C7] pt-3">
+                      <div className="text-[11px] font-semibold text-[#1A1A1A]">Next steps</div>
+                      <ul className="mt-1 space-y-1">
+                        {profileSuggestions.slice(0, 2).map((suggestion) => (
+                          <li key={suggestion.key} className="text-[11px] text-[#5F5E5A]">• {suggestion.label}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

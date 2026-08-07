@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Bookmark, Briefcase, Info, LayoutDashboard, LogOut, Mail, MessageSquareText, Menu, Settings, User, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -32,6 +32,8 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
   const location = useLocation();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const edgeSwipeStart = useRef<{ x: number; y: number } | null>(null);
+  const drawerSwipeStart = useRef<{ x: number; y: number } | null>(null);
   const path = location.pathname;
   const unreadCount = useUnreadMessagesCount('candidate');
 
@@ -54,6 +56,38 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
   const handleSignOut = async () => {
     await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
     navigate('/', { replace: true });
+  };
+
+  const handleEdgeSwipeStart = (event: React.TouchEvent) => {
+    const touch = event.touches[0];
+    if (touch.clientX <= 28) edgeSwipeStart.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleEdgeSwipeEnd = (event: React.TouchEvent) => {
+    const start = edgeSwipeStart.current;
+    edgeSwipeStart.current = null;
+    if (!start) return;
+
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - start.x;
+    const deltaY = Math.abs(touch.clientY - start.y);
+    if (deltaX > 48 && deltaX > deltaY * 1.25) setDrawerOpen(true);
+  };
+
+  const handleDrawerSwipeStart = (event: React.TouchEvent) => {
+    const touch = event.touches[0];
+    drawerSwipeStart.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleDrawerSwipeEnd = (event: React.TouchEvent) => {
+    const start = drawerSwipeStart.current;
+    drawerSwipeStart.current = null;
+    if (!start) return;
+
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - start.x;
+    const deltaY = Math.abs(touch.clientY - start.y);
+    if (deltaX < -48 && Math.abs(deltaX) > deltaY * 1.25) setDrawerOpen(false);
   };
 
   const NavLinks = ({ onNavigate }: { onNavigate?: () => void }) => (
@@ -103,7 +137,11 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
   );
 
   return (
-    <div className="min-h-screen bg-paper lg:flex">
+    <div
+      className="min-h-screen bg-paper lg:flex"
+      onTouchStart={handleEdgeSwipeStart}
+      onTouchEnd={handleEdgeSwipeEnd}
+    >
       {/* Desktop fixed sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-[260px] flex-col bg-sidebar px-4 py-6 shadow-sidebar lg:flex">
         <div className="mb-8 flex items-center justify-between px-1">
@@ -164,6 +202,8 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
         />
         <div
           aria-hidden={!drawerOpen}
+          onTouchStart={handleDrawerSwipeStart}
+          onTouchEnd={handleDrawerSwipeEnd}
           className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col bg-sidebar px-4 py-6 shadow-card-hover transition-transform duration-300 ease-out lg:hidden ${
             drawerOpen ? 'translate-x-0' : 'pointer-events-none -translate-x-full'
           }`}
