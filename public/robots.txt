@@ -1,0 +1,12 @@
+User-agent: *
+Disallow: /admin
+Disallow: /candidate
+Disallow: /employer
+Disallow: /post
+Disallow: /start
+Disallow: /welcome
+Disallow: /resume
+Disallow: /account-deletion-scheduled
+Disallow: /confirmed
+
+Sitemap: https://rolewave.cv/sitemap.xml
