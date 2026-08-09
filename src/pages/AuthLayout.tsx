@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Check, ChevronLeft, Eye, EyeOff, Linkedin } from 'lucide-react';
+import type { TurnstileInstance } from '@marsidev/react-turnstile';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import { useAuth } from '../lib/useAuth';
@@ -8,6 +9,7 @@ import { useIsPwa } from '../lib/usePwaDisplayMode';
 import { withTimeout } from '../lib/withTimeout';
 import type { Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { TurnstileWidget } from '../components/TurnstileWidget';
 import { SignIn, ForgotPasswordForm } from './SignIn';
 import { SignUp } from './Signup';
 
@@ -44,6 +46,16 @@ export default function AuthLayout() {
   const { session, loading: authLoading } = useAuth();
   const isPwa = useIsPwa();
   const isSignup = mode === 'signup';
+
+  // Cloudflare Turnstile — single token shared across the sign-in/sign-up/forgot
+  // form (only one is ever visible at a time), cleared after every submit
+  // attempt and on mode switch since tokens are single-use.
+  const [captchaToken, setCaptchaToken] = useState('');
+  const turnstileRef = useRef<TurnstileInstance>(null);
+  const resetCaptcha = () => {
+    setCaptchaToken('');
+    turnstileRef.current?.reset();
+  };
 
   useEffect(() => {
     if (authLoading) return;
@@ -101,6 +113,7 @@ export default function AuthLayout() {
     setError('');
     setInfo('');
     setResetSent(false);
+    resetCaptcha();
   };
 
   const handleGoogle = async () => {
@@ -140,6 +153,7 @@ export default function AuthLayout() {
               account_type: role,
             },
             emailRedirectTo: `${window.location.origin}/confirmed`,
+            captchaToken,
           },
         });
 
@@ -173,6 +187,7 @@ export default function AuthLayout() {
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
+        options: { captchaToken },
       });
 
       if (signInError) throw signInError;
@@ -199,6 +214,7 @@ export default function AuthLayout() {
       setError(authError instanceof Error ? authError.message : 'Authentication failed.');
     } finally {
       setLoading(false);
+      resetCaptcha();
     }
   };
 
@@ -211,6 +227,7 @@ export default function AuthLayout() {
     try {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
+        captchaToken,
       });
 
       if (resetError) throw resetError;
@@ -221,6 +238,7 @@ export default function AuthLayout() {
       setError(authError instanceof Error ? authError.message : 'Could not send reset email.');
     } finally {
       setLoading(false);
+      resetCaptcha();
     }
   };
 
@@ -330,6 +348,8 @@ export default function AuthLayout() {
         onForgotPassword={handleForgotPassword}
         onGoogle={handleGoogle}
         onBack={() => navigate('/welcome')}
+        turnstileRef={turnstileRef}
+        onCaptchaVerify={setCaptchaToken}
       />
     );
   }
@@ -480,6 +500,8 @@ type PwaAuthCardProps = {
   onForgotPassword: (event: React.FormEvent<HTMLFormElement>) => void;
   onGoogle: () => void;
   onBack: () => void;
+  turnstileRef: React.RefObject<TurnstileInstance>;
+  onCaptchaVerify: (token: string) => void;
 };
 
 function PwaAuthCard({
@@ -502,6 +524,8 @@ function PwaAuthCard({
   onForgotPassword,
   onGoogle,
   onBack,
+  turnstileRef,
+  onCaptchaVerify,
 }: PwaAuthCardProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -604,6 +628,7 @@ function PwaAuthCard({
                 <PwaField label="Email" value={email} onChange={setEmail} type="email" placeholder="you@email.com" />
                 {resetSent && <PwaNotice tone="success">{info || 'Check your email for a password reset link.'}</PwaNotice>}
                 {error && <PwaNotice tone="error">{error}</PwaNotice>}
+                {!resetSent && <TurnstileWidget ref={turnstileRef} onVerify={onCaptchaVerify} />}
                 <button type="submit" disabled={loading} className="pwa-primary-button mt-5">
                   {loading ? 'Sending reset link…' : 'Send reset link'} <ArrowRight size={17} />
                 </button>
@@ -673,6 +698,8 @@ function PwaAuthCard({
                     </span>
                   </label>
                 )}
+
+                <TurnstileWidget ref={turnstileRef} onVerify={onCaptchaVerify} />
 
                 <button type="submit" disabled={loading || (isSignup && !acceptedTerms)} className="pwa-primary-button mt-5">
                   {loading ? 'Please wait…' : isSignup ? 'Create account' : 'Sign in'} <ArrowRight size={17} />
