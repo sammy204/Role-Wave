@@ -126,6 +126,9 @@ export default function Footer() {
               <Link to="/contact" className="text-xs text-[#6B6960] hover:text-[#1D9E75]">
                 Contact
               </Link>
+              <Link to="/faq" className="text-xs text-[#6B6960] hover:text-[#1D9E75]">
+                FAQ
+              </Link>
             </nav>
           </div>
 

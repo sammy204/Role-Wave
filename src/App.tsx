@@ -37,6 +37,8 @@ import ResumeViewer from './pages/ResumeViewer';
 import CandidateSettings from './pages/CandidateSettings';
 import AccountDeletionScheduled from './pages/AccountDeletionScheduled';
 import PwaOnboarding from './pages/PwaOnboarding';
+import NotFound from './pages/NotFound';
+import Faq from './pages/Faq';
 import MessageToastHost from './components/MessageToastHost';
 import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat';
 import { useIsPwa } from './lib/usePwaDisplayMode';
@@ -58,6 +60,65 @@ function AppShell() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
 
+  useEffect(() => {
+    // Job detail pages set a more specific title once the job has loaded.
+    if (/^\/jobs\/[^/]+$/.test(path)) return;
+
+    const title = path === '/'
+      ? 'Verified Jobs in Nigeria | RoleWave'
+      : path === '/jobs'
+        ? 'Browse Verified Jobs in Nigeria | RoleWave'
+        : /^\/jobs\/[^/]+\/apply$/.test(path)
+          ? 'Apply for a Job | RoleWave'
+          : path === '/start'
+            ? 'Sign In or Create an Account | RoleWave'
+            : path === '/welcome'
+              ? 'Welcome to RoleWave'
+              : path === '/confirmed'
+                ? 'Email Confirmed | RoleWave'
+                : path === '/account-deletion-scheduled'
+                  ? 'Account Deletion Scheduled | RoleWave'
+                  : path === '/candidate' || path === '/candidate/dashboard'
+                    ? 'Candidate Dashboard | RoleWave'
+                    : path === '/candidate/home'
+                      ? 'Candidate Home | RoleWave'
+                      : path === '/candidate/profile'
+                        ? 'My Candidate Profile | RoleWave'
+                        : path === '/candidate/settings'
+                          ? 'Account Settings | RoleWave'
+                          : path === '/candidate/activity'
+                            ? 'Application Activity | RoleWave'
+                            : path === '/candidate/messages'
+                              ? 'Candidate Messages | RoleWave'
+                              : path === '/employer/onboarding'
+                                ? 'Employer Onboarding | RoleWave'
+                                : path === '/employer/dashboard'
+                                  ? 'Employer Dashboard | RoleWave'
+                                  : path === '/employer/messages'
+                                    ? 'Employer Messages | RoleWave'
+                                    : path === '/post'
+                                      ? 'Post a Job | RoleWave'
+                                      : path === '/about'
+                                        ? 'About RoleWave'
+                                        : path === '/contact'
+                                        ? 'Contact RoleWave'
+                                        : path === '/faq'
+                                          ? 'Frequently Asked Questions | RoleWave'
+                                        : path === '/privacy'
+                                            ? 'Privacy Policy | RoleWave'
+                                            : path === '/terms'
+                                              ? 'Terms of Service | RoleWave'
+                                              : path === '/admin/login'
+                                                ? 'Admin Login | RoleWave'
+                                                : path === '/admin'
+                                                  ? 'Admin Dashboard | RoleWave'
+                                                  : path === '/resume/view'
+                                                    ? 'Resume Viewer | RoleWave'
+                                                    : 'Page Not Found | RoleWave';
+
+    document.title = title;
+  }, [path]);
+
   // Reflects "this tab is open and visible" server-side so send-message-push
   // can skip the push and let MessageToastHost handle it instead.
   usePresenceHeartbeat(session?.user.id ?? null);
@@ -68,7 +129,7 @@ function AppShell() {
   const isEmployerRoute = path.startsWith('/employer') || path === '/post';
   const isCandidateOnlyRoute = path.startsWith('/candidate');
   const isSharedBrowseRoute = path === '/jobs' || (/^\/jobs\/[^/]+$/.test(path) && !isApplyRoute);
-  const isSidebarUtilityRoute = path === '/about' || path === '/contact';
+  const isSidebarUtilityRoute = path === '/about' || path === '/contact' || path === '/faq';
 
   const isSignedIn = !!session;
   const isCandidate = profile?.account_type === 'candidate';
@@ -233,12 +294,14 @@ function AppShell() {
       <Route path="/post" element={<PostJob />} />
       <Route path="/about" element={<About />} />
       <Route path="/contact" element={<Contact />} />
+      <Route path="/faq" element={<Faq />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<TermsOfService />} />
       <Route path="/admin/login" element={<AdminLogin />} />
       <Route element={<AdminGuard />}>
         <Route path="/admin" element={<AdminDashboard />} />
       </Route>
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 

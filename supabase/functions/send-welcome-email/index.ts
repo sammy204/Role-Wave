@@ -7,6 +7,9 @@ const corsHeaders = {
 };
 
 const FROM_ADDRESS = 'RoleWave <welcome@rolewave.cv>';
+const ENDPOINT_NAME = 'send-welcome-email';
+const RATE_LIMIT_WINDOW_SECONDS = 60;
+const RATE_LIMIT_MAX_CALLS = 20; // generous for real signup traffic, tight enough to blunt abuse
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -17,7 +20,7 @@ Deno.serve(async (request) => {
     // caller with a shared secret rather than a user JWT.
     const webhookSecret = Deno.env.get('WEBHOOK_SECRET');
     const providedSecret = request.headers.get('x-webhook-secret');
-    if (!webhookSecret || !providedSecret || providedSecret !== webhookSecret) {
+    if (!webhookSecret || !providedSecret || !timingSafeEqual(providedSecret, webhookSecret)) {
       return json({ error: 'Unauthorized.' }, 401);
     }
 
@@ -28,12 +31,42 @@ Deno.serve(async (request) => {
       return json({ error: 'Welcome email is not configured.' }, 500);
     }
 
+    const adminClient = createClient(supabaseUrl, serviceRoleKey);
+
+    // Rate limit: log this call, then check how many calls have landed for
+    // this endpoint in the last window. Caps damage if the webhook secret
+    // ever leaks — a burst of calls gets throttled instead of hammering
+    // Resend / burning domain reputation.
+    await adminClient.from('webhook_call_log').insert({ endpoint: ENDPOINT_NAME });
+    const { count: recentCallCount } = await adminClient
+      .from('webhook_call_log')
+      .select('id', { count: 'exact', head: true })
+      .eq('endpoint', ENDPOINT_NAME)
+      .gte('called_at', new Date(Date.now() - RATE_LIMIT_WINDOW_SECONDS * 1000).toISOString());
+
+    if ((recentCallCount ?? 0) > RATE_LIMIT_MAX_CALLS) {
+      return json({ error: 'Rate limit exceeded.' }, 429);
+    }
+    // Opportunistic cleanup, fire-and-forget — doesn't block the response.
+    adminClient.rpc('prune_webhook_call_log').then(() => {}).catch(() => {});
+
     const body = await request.json().catch(() => ({}));
     const userId = typeof body.user_id === 'string' ? body.user_id : '';
-    const email = typeof body.email === 'string' ? body.email : '';
-    if (!userId || !email) return json({ error: 'Missing user_id or email.' }, 400);
+    if (!userId) return json({ error: 'Missing user_id.' }, 400);
 
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
+    // Look up the email server-side from auth.users rather than trusting
+    // whatever the caller sends. Previously the request body's `email`
+    // field was used as-is with no check that it belonged to `user_id` —
+    // anyone holding the webhook secret could route the welcome template
+    // to an arbitrary address, using RoleWave's sending domain as an open
+    // relay. Deriving it here closes that off.
+    const { data: authUserResult, error: authUserError } = await adminClient.auth.admin.getUserById(userId);
+    if (authUserError || !authUserResult?.user?.email) {
+      // Generic response — doesn't confirm or deny whether user_id exists,
+      // so this can't be used to enumerate accounts.
+      return json({ processed: true });
+    }
+    const email = authUserResult.user.email;
 
     const { data: profile, error: profileError } = await adminClient
       .from('profiles')
@@ -42,28 +75,20 @@ Deno.serve(async (request) => {
       .maybeSingle();
 
     if (profileError) throw profileError;
-    if (!profile) return json({ skipped: true, reason: 'No profile found.' });
 
     // Idempotency guard — the trigger only fires once per confirmation, but
     // pg_net retries on transient failure, so this protects against
-    // double-sends on retry.
-    if (profile.welcome_email_sent_at) {
-      return json({ skipped: true, reason: 'Welcome email already sent.' });
+    // double-sends on retry. Also collapses "no profile", "already sent",
+    // and "employer template not built" into the same generic response as
+    // success, so a secret-holder can't fingerprint account state from the
+    // response shape.
+    if (!profile || profile.welcome_email_sent_at || profile.account_type !== 'candidate') {
+      return json({ processed: true });
     }
 
     const name = profile.full_name?.trim() || 'there';
-
-    let subject: string;
-    let html: string;
-
-    if (profile.account_type === 'candidate') {
-      subject = `Welcome to RoleWave, ${name}`;
-      html = buildCandidateWelcomeHtml(name);
-    } else {
-      // Employer welcome email content hasn't been scoped yet. Skip
-      // cleanly for now rather than sending an unstyled placeholder.
-      return json({ skipped: true, reason: 'Employer welcome email not yet built.' });
-    }
+    const subject = `Welcome to RoleWave, ${name}`;
+    const html = buildCandidateWelcomeHtml(name);
 
     const resendResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -80,8 +105,11 @@ Deno.serve(async (request) => {
     });
 
     if (!resendResponse.ok) {
+      // Don't echo Resend's raw response body back to the caller — log it
+      // server-side only, return a generic error to whoever's calling us.
       const errorText = await resendResponse.text().catch(() => '');
-      throw new Error(`Resend API error (${resendResponse.status}): ${errorText}`);
+      console.error(`Resend API error (${resendResponse.status}): ${errorText}`);
+      return json({ error: 'Could not send welcome email.' }, 502);
     }
 
     const { error: updateError } = await adminClient
@@ -91,12 +119,27 @@ Deno.serve(async (request) => {
 
     if (updateError) throw updateError;
 
-    return json({ sent: true });
+    return json({ processed: true });
   } catch (error) {
     console.error('send-welcome-email error:', error);
-    return json({ error: error instanceof Error ? error.message : 'Could not send welcome email.' }, 500);
+    return json({ error: 'Could not process request.' }, 500);
   }
 });
+
+// Manual constant-time string comparison (no Deno-native timingSafeEqual
+// for strings). Avoids leaking the webhook secret's correct prefix length
+// via response-time side channel.
+function timingSafeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const aBytes = enc.encode(a);
+  const bBytes = enc.encode(b);
+  const maxLen = Math.max(aBytes.length, bBytes.length);
+  let diff = aBytes.length === bBytes.length ? 0 : 1;
+  for (let i = 0; i < maxLen; i++) {
+    diff |= (aBytes[i] ?? 0) ^ (bBytes[i] ?? 0);
+  }
+  return diff === 0;
+}
 
 function json(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

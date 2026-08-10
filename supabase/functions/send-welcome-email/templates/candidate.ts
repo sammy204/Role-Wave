@@ -35,7 +35,7 @@ export function buildCandidateWelcomeHtml(name: string): string {
 <body style="margin:0; padding:0; background-color:#EDEBE2;">
   <!-- Preheader (hidden, shows in inbox preview) -->
   <div style="display:none; max-height:0px; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#EDEBE2;">
-    Your profile is 20% complete. Three steps stand between you and your first match.
+    Three steps stand between you and your first employer match.
     &#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;
   </div>
 

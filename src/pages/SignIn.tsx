@@ -2,6 +2,7 @@ import { Eye, EyeOff, LogIn } from 'lucide-react';
 import { useState } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { GoogleIcon } from './AuthLayout';
+import CodeEntry from '../components/CodeEntry';
 
 interface SignInProps {
   email: string;
@@ -27,15 +28,26 @@ export function SignIn({
   messageBanners,
 }: SignInProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [useCode, setUseCode] = useState(false);
+  const [code, setCode] = useState('');
 
   return (
     <div className="w-full max-w-sm">
       <h2 className="font-display text-[28px] font-semibold leading-[1.05] tracking-[-0.02em] text-ink">
         Sign in
       </h2>
-      <p className="mt-2 text-sm leading-relaxed text-muted">
-        Your details are saved and the dashboard is waiting.
-      </p>
+      <div className="mt-2 text-sm leading-relaxed text-muted">
+        <div>Your details are saved and the dashboard is waiting.</div>
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={() => setUseCode((s) => !s)}
+            className="text-xs font-semibold text-accent hover:underline"
+          >
+            {useCode ? 'Use password instead' : 'Sign in with code'}
+          </button>
+        </div>
+      </div>
 
       {messageBanners}
 
@@ -54,39 +66,51 @@ export function SignIn({
           />
         </div>
 
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
-            Password
-          </label>
-          <div className="relative">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="field-shell pr-11"
-              placeholder="Enter password"
-              required
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((visible) => !visible)}
-              className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted transition-colors hover:text-ink"
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
-              title={showPassword ? 'Hide password' : 'Show password'}
-            >
-              {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-            </button>
+        {useCode ? (
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">Code</label>
+            <CodeEntry value={code} onChange={setCode} />
+            <p className="mt-2 text-xs text-muted">We sent a 6-digit code to your email. Expires in 10 minutes.</p>
+            <div className="mt-2 flex items-center justify-between">
+              <button type="button" className="text-xs font-semibold text-accent hover:underline">Resend code</button>
+              <button type="button" onClick={() => setUseCode(false)} className="text-xs text-muted hover:underline">Use password instead</button>
+            </div>
           </div>
-          <div className="mt-1.5 text-right">
-            <button
-              type="button"
-              onClick={onForgotClick}
-              className="text-xs font-semibold text-accent hover:underline"
-            >
-              Forgot password?
-            </button>
+        ) : (
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
+              Password
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="field-shell pr-11"
+                placeholder="Enter password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((visible) => !visible)}
+                className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted transition-colors hover:text-ink"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            </div>
+            <div className="mt-1.5 text-right">
+              <button
+                type="button"
+                onClick={onForgotClick}
+                className="text-xs font-semibold text-accent hover:underline"
+              >
+                Forgot password?
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         <button
           type="submit"

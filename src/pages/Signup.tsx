@@ -127,6 +127,9 @@ export function SignUp({
               {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>
           </div>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-muted">
+            Password requirements: use at least one lowercase letter, one uppercase letter, and one number.
+          </p>
         </div>
 
         <button

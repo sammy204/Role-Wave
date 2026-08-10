@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Bookmark, Briefcase, Info, LayoutDashboard, LogOut, Mail, MessageSquareText, Menu, Settings, User, X } from 'lucide-react';
+import { Bookmark, Briefcase, HelpCircle, Info, LayoutDashboard, LogOut, Mail, MessageSquareText, Menu, Settings, User, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useUnreadMessagesCount } from '../hooks/useUnreadMessages';
 import NotificationBell from './NotificationBell';
@@ -17,6 +17,7 @@ const links = [
 const utilityLinks = [
   { to: '/about', label: 'About', icon: Info },
   { to: '/contact', label: 'Contact us', icon: Mail },
+  { to: '/faq', label: 'FAQ', icon: HelpCircle },
 ];
 
 function UnreadDot() {

@@ -648,7 +648,7 @@ function PwaAuthCard({
                   </div>
                 )}
 
-                {isSignup && <PwaField label="Full name" value={fullName} onChange={setFullName} placeholder="Adaeze Okafor" />}
+                {isSignup && <PwaField label="Full name" value={fullName} onChange={setFullName} placeholder="First Last" />}
                 <PwaField label="Email" value={email} onChange={setEmail} type="email" placeholder="you@email.com" />
                 <div className="mt-4">
                   <label className="mb-2 block text-[10px] font-bold uppercase tracking-[1.3px] text-[#5F5E5A]">Password</label>
@@ -665,6 +665,9 @@ function PwaAuthCard({
                       {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                     </button>
                   </div>
+                  <p className="mt-2 text-[11px] leading-5 text-[#7A766F]">
+                    Password requirements: use at least one lowercase letter, one uppercase letter, and one number.
+                  </p>
                 </div>
 
                 {!isSignup && (
