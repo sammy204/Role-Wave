@@ -1,8 +1,8 @@
-import { ChevronLeft } from 'lucide-react';
+﻿import { ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useIsPwa } from '../lib/usePwaDisplayMode';
 
-const LAST_UPDATED = 'July 27, 2026';
+const LAST_UPDATED = 'August 10, 2026';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -36,7 +36,7 @@ export default function TermsOfService() {
             <p className="mt-4 text-[13.5px] leading-relaxed text-muted">
               These Terms of Service ("Terms") govern your use of RoleWave, a job marketplace
               connecting tech and digital professionals with employers in Nigeria. By creating an
-              account or using the site, you agree to these Terms. If you don't agree, please don't
+              account or using the site, you agree to these Terms. If you do not agree, please do not
               use RoleWave.
             </p>
           </div>
@@ -51,15 +51,15 @@ export default function TermsOfService() {
 
           <Section title="2. Your account">
             <p>
-              You're responsible for keeping your login credentials confidential and for all activity
-              under your account. RoleWave supports a single account operating under multiple roles
-              (candidate and/or employer) — switching roles doesn't create a separate account or
-              separate obligations under these Terms.
+              You are responsible for keeping your login credentials confidential and for all activity
+              under your account. Each RoleWave account operates under a single role, candidate or
+              employer, chosen when you sign up. If you need the other type of account, you'll need
+              to create it separately.
             </p>
             <p>
               You agree to provide accurate information when creating your profile or company page,
               and to keep it reasonably up to date. You may not impersonate another person or
-              organization, or create an account for anyone other than yourself or the company you're
+              organization, or create an account for anyone other than yourself or the company you are
               authorized to represent.
             </p>
           </Section>
@@ -67,7 +67,7 @@ export default function TermsOfService() {
           <Section title="3. For candidates">
             <p>
               You may browse jobs, build a profile, upload a resume, and apply to listings free of
-              charge. Applying to a job does not guarantee any response, interview, or offer — hiring
+              charge. Applying to a job does not guarantee any response, interview, or offer, hiring
               decisions are made solely by the employer. RoleWave is not a party to and does not
               guarantee the outcome of any employment relationship formed through the platform.
             </p>
@@ -85,7 +85,7 @@ export default function TermsOfService() {
             </p>
             <p>
               <span className="font-semibold text-ink">Verification is not a guarantee.</span> Our
-              review process is intended to reduce fraud and low-quality postings, but it does not
+              review process is intended to reduce fraud and low quality postings, but it does not
               constitute a legal certification of a company's identity, solvency, or legitimacy.
               Candidates should exercise their own judgment, especially before sharing sensitive
               personal information or accepting an offer.
@@ -97,7 +97,7 @@ export default function TermsOfService() {
               hired.
             </p>
             <p>
-              You're responsible for managing applicants through your hiring pipeline in good faith
+              You are responsible for managing applicants through your hiring pipeline in good faith
               and for keeping candidates' application data confidential and used only for your
               hiring purposes.
             </p>
@@ -120,7 +120,7 @@ export default function TermsOfService() {
             <p>
               You retain ownership of the content you upload (resumes, profile details, company
               information, job posts, messages). By submitting it, you grant RoleWave a license to
-              store, display, and process that content as needed to operate the platform — for
+              store, display, and process that content as needed to operate the platform, for
               example, showing your profile to employers you apply to, or your job post to candidates
               browsing listings.
             </p>
@@ -129,7 +129,7 @@ export default function TermsOfService() {
           <Section title="7. Fees">
             <p>
               RoleWave is currently free to use for both candidates and employers. If we introduce
-              paid plans or features in the future, we'll communicate pricing clearly before you're
+              paid plans or features in the future, we will communicate pricing clearly before you are
               charged, and continued free use will not be affected retroactively.
             </p>
           </Section>
@@ -146,9 +146,9 @@ export default function TermsOfService() {
             <p>
               RoleWave is provided "as is" without warranties of any kind, express or implied. We do
               not guarantee that job listings are accurate, that employers are legitimate beyond our
-              stated verification process, or that the platform will be uninterrupted or error-free.
+              stated verification process, or that the platform will be uninterrupted or free of errors.
               You use RoleWave at your own risk, and any hiring or employment decision is between you
-              and the other party — not RoleWave.
+              and the other party, not RoleWave.
             </p>
           </Section>
 
@@ -158,7 +158,7 @@ export default function TermsOfService() {
               indirect, incidental, or consequential damages arising from your use of the platform,
               including but not limited to loss of employment opportunity, lost profits, or data loss.
               Our total liability for any claim relating to RoleWave will not exceed the amount, if
-              any, you've paid us in the twelve months before the claim arose.
+              any, you have paid us in the twelve months before the claim arose.
             </p>
           </Section>
 
@@ -172,8 +172,8 @@ export default function TermsOfService() {
 
           <Section title="12. Changes to these Terms">
             <p>
-              We may update these Terms as RoleWave evolves. We'll update the "Last updated" date
-              above, and for material changes, we'll make reasonable efforts to notify users. Continued
+              We may update these Terms as RoleWave evolves. We will update the "Last updated" date
+              above, and for material changes, we will make reasonable efforts to notify users. Continued
               use of RoleWave after changes take effect means you accept the updated Terms.
             </p>
           </Section>
@@ -181,7 +181,10 @@ export default function TermsOfService() {
           <Section title="13. Contact us">
             <p>
               Questions about these Terms? Reach us at{' '}
-              <span className="font-semibold text-ink">[legal@rolewave.com — update once your domain is live]</span>.
+              <a href="mailto:support@rolewave.cv" className="font-semibold text-ink underline underline-offset-2">
+                support@rolewave.cv
+              </a>
+              .
             </p>
           </Section>
 

@@ -28,7 +28,8 @@ import CompanyLogo from '../components/CompanyLogo';
 
 type SubmissionTab = 'pending' | 'reviewed';
 type JobTab = 'all' | 'active' | 'filled' | 'closed' | 'archived';
-type AdminView = 'overview' | 'submissions' | 'jobs' | 'companies' | 'create';
+type AdminView = 'overview' | 'submissions' | 'jobs' | 'companies' | 'users' | 'analytics' | 'create';
+type UserType = 'candidate' | 'employer' | 'unassigned';
 type JobStatus = 'active' | 'filled' | 'closed' | 'archived';
 type JobSortKey = 'created_at' | 'title' | 'company' | 'status';
 type SortDir = 'asc' | 'desc';
@@ -125,6 +126,18 @@ const emptyCreateForm = {
   featured: false,
 };
 
+type AdminUser = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  is_admin: boolean;
+  account_type: 'candidate' | 'employer' | null;
+  onboarding_completed: boolean;
+  account_status: 'active' | 'deletion_scheduled' | null;
+  created_at: string;
+  company_name: string | null;
+};
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const mountedRef = useRef(true);
@@ -134,8 +147,10 @@ export default function AdminDashboard() {
   const [submissions, setSubmissions] = useState<JobSubmission[]>([]);
   const [jobs, setJobs] = useState<(Job & { company?: Company })[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [profiles, setProfiles] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedView, setSelectedView] = useState<AdminView>('overview');
+  const [selectedUserType, setSelectedUserType] = useState<UserType>('candidate');
   const [selectedSubmissionTab, setSelectedSubmissionTab] = useState<SubmissionTab>('pending');
   const [selectedJobTab, setSelectedJobTab] = useState<JobTab>('all');
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -178,7 +193,7 @@ export default function AdminDashboard() {
           return;
         }
 
-        const [submissionResult, jobResult, companyResult] = await Promise.all([
+        const [submissionResult, jobResult, companyResult, profileResult] = await Promise.all([
           withTimeout(
             supabase.from('job_submissions').select('*').order('created_at', { ascending: false }),
             FETCH_TIMEOUT_MS,
@@ -194,6 +209,11 @@ export default function AdminDashboard() {
             FETCH_TIMEOUT_MS,
             'Companies query'
           ),
+          withTimeout(
+            supabase.rpc('admin_list_users'),
+            FETCH_TIMEOUT_MS,
+            'Users query'
+          ),
         ]);
 
         if (!mountedRef.current) return;
@@ -201,10 +221,12 @@ export default function AdminDashboard() {
         const submissionError = submissionResult.error as { message?: string } | null;
         const jobError = jobResult.error as { message?: string } | null;
         const companyError = companyResult.error as { message?: string } | null;
+        const profileError = profileResult.error as { message?: string } | null;
 
         if (submissionError) throw new Error(submissionError.message || 'Failed to load submissions.');
         if (jobError) throw new Error(jobError.message || 'Failed to load jobs.');
         if (companyError) throw new Error(companyError.message || 'Failed to load companies.');
+        if (profileError) throw new Error(profileError.message || 'Failed to load users.');
 
         const loadedCompanies = (companyResult.data || []) as Company[];
         const companyMap = new Map(loadedCompanies.map((company) => [company.id, company]));
@@ -217,6 +239,7 @@ export default function AdminDashboard() {
         setSubmissions((submissionResult.data || []) as JobSubmission[]);
         setJobs(loadedJobs);
         setCompanies(loadedCompanies);
+        setProfiles((profileResult.data || []) as AdminUser[]);
       } catch (loadError) {
         if (!mountedRef.current) return;
         setError(loadError instanceof Error ? loadError.message : 'Failed to load admin dashboard.');
@@ -245,8 +268,13 @@ export default function AdminDashboard() {
       closedJobs: jobs.filter((item) => item.status === 'closed').length,
       archivedJobs: jobs.filter((item) => item.status === 'archived').length,
       companies: companies.length,
+      totalUsers: profiles.length,
+      candidateUsers: profiles.filter((item) => item.account_type === 'candidate').length,
+      employerUsers: profiles.filter((item) => item.account_type === 'employer').length,
+      unassignedUsers: profiles.filter((item) => !item.account_type).length,
+      scheduledDeletions: profiles.filter((item) => item.account_status === 'deletion_scheduled').length,
     }),
-    [submissions, jobs, companies]
+    [submissions, jobs, companies, profiles]
   );
 
   const filteredSubmissions = useMemo(() => {
@@ -306,11 +334,28 @@ export default function AdminDashboard() {
     return companies.filter((item) => item.name.toLowerCase().includes(q));
   }, [searchQuery, companies]);
 
+  const filteredProfiles = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    return profiles.filter((item) =>
+      (selectedUserType === 'unassigned' ? !item.account_type : item.account_type === selectedUserType) &&
+      (!q || (item.full_name || '').toLowerCase().includes(q) || (item.email || '').toLowerCase().includes(q) || (item.company_name || '').toLowerCase().includes(q))
+    );
+  }, [searchQuery, profiles, selectedUserType]);
+
   const selectedSubmissionSummary = useMemo(
     () => ({
       pending: submissions.filter((item) => item.status === 'pending').length,
       reviewed: submissions.filter((item) => item.status !== 'pending').length,
     }),
+    [submissions]
+  );
+
+  const pendingQueue = useMemo(
+    () =>
+      submissions
+        .filter((item) => item.status === 'pending')
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 4),
     [submissions]
   );
 
@@ -419,6 +464,10 @@ export default function AdminDashboard() {
     setSubmissions((prev) =>
       prev.map((item) => (item.id === submissionId ? { ...item, status } : item))
     );
+  };
+
+  const removeSubmissionFromState = (submissionId: string) => {
+    setSubmissions((prev) => prev.filter((item) => item.id !== submissionId));
   };
 
   const ensureCompany = async (companyName: string, website?: string) => {
@@ -571,6 +620,35 @@ export default function AdminDashboard() {
       setNotice('Submission rejected.');
     } catch (rejectError) {
       setError(rejectError instanceof Error ? rejectError.message : 'Failed to reject submission.');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleRemoveReviewedSubmission = async (submissionId: string) => {
+    const submission = submissions.find((item) => item.id === submissionId);
+    if (!submission || submission.status === 'pending') return;
+
+    const confirmed = window.confirm(
+      `Remove the reviewed record for "${submission.job_title}"? This will not delete any live job.`
+    );
+    if (!confirmed) return;
+
+    setProcessingId(submissionId);
+    setNotice('');
+    setError('');
+
+    try {
+      const { error } = await supabase
+        .from('job_submissions')
+        .delete()
+        .eq('id', submissionId)
+        .neq('status', 'pending');
+      if (error) throw error;
+      removeSubmissionFromState(submissionId);
+      setNotice('Reviewed submission removed.');
+    } catch (removeError) {
+      setError(removeError instanceof Error ? removeError.message : 'Failed to remove reviewed submission.');
     } finally {
       setProcessingId(null);
     }
@@ -755,7 +833,7 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-[#F1EFE8]">
       <div className="max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between mb-6">
+        <div className="mb-6 flex flex-col gap-5 rounded-[28px] border border-white/70 bg-white/80 p-5 shadow-[0_18px_50px_rgba(26,26,26,0.05)] backdrop-blur-xl lg:flex-row lg:items-center lg:justify-between sm:p-6">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E1F5EE] text-[#085041] text-xs font-semibold mb-3">
               <BadgeCheck size={12} /> Admin dashboard
@@ -802,75 +880,63 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-7 mb-6">
-          <div className="rounded-2xl bg-white border border-[#D3D1C7] p-4">
+        <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-2xl border border-[#F0D080] bg-[#FFF8E6] p-4 shadow-[0_10px_24px_rgba(217,164,65,0.08)]">
             <div className="flex items-center gap-2 text-[#5F5E5A] text-xs uppercase tracking-[1px] mb-2">
               <Clock3 size={12} /> Pending
             </div>
-            <div className="text-2xl font-bold text-[#1A1A1A]">{counts.pendingSubmissions}</div>
+            <div className="text-3xl font-bold tracking-[-0.04em] text-[#633806]">{counts.pendingSubmissions}</div>
           </div>
-          <div className="rounded-2xl bg-white border border-[#D3D1C7] p-4">
+          <div className="rounded-2xl border border-[#5DCAA5] bg-[#E1F5EE] p-4">
             <div className="flex items-center gap-2 text-[#5F5E5A] text-xs uppercase tracking-[1px] mb-2">
               <Briefcase size={12} /> Active jobs
             </div>
-            <div className="text-2xl font-bold text-[#1A1A1A]">{counts.activeJobs}</div>
+            <div className="text-3xl font-bold tracking-[-0.04em] text-[#085041]">{counts.activeJobs}</div>
           </div>
-          <div className="rounded-2xl bg-white border border-[#D3D1C7] p-4">
-            <div className="flex items-center gap-2 text-[#5F5E5A] text-xs uppercase tracking-[1px] mb-2">
-              <CheckCircle2 size={12} /> Filled
-            </div>
-            <div className="text-2xl font-bold text-[#1A1A1A]">{counts.filledJobs}</div>
-          </div>
-          <div className="rounded-2xl bg-white border border-[#D3D1C7] p-4">
-            <div className="flex items-center gap-2 text-[#5F5E5A] text-xs uppercase tracking-[1px] mb-2">
-              <XCircle size={12} /> Closed
-            </div>
-            <div className="text-2xl font-bold text-[#1A1A1A]">{counts.closedJobs}</div>
-          </div>
-          <div className="rounded-2xl bg-white border border-[#D3D1C7] p-4">
+          <div className="rounded-2xl border border-[#D3D1C7] bg-white p-4">
             <div className="flex items-center gap-2 text-[#5F5E5A] text-xs uppercase tracking-[1px] mb-2">
               <Building2 size={12} /> Companies
             </div>
-            <div className="text-2xl font-bold text-[#1A1A1A]">{counts.companies}</div>
+            <div className="text-3xl font-bold tracking-[-0.04em] text-[#1A1A1A]">{counts.companies}</div>
           </div>
-          <div className="rounded-2xl bg-white border border-[#D3D1C7] p-4">
+          <div className="rounded-2xl border border-[#D3D1C7] bg-white p-4">
             <div className="flex items-center gap-2 text-[#5F5E5A] text-xs uppercase tracking-[1px] mb-2">
               <BadgeCheck size={12} /> Reviewed
             </div>
-            <div className="text-2xl font-bold text-[#1A1A1A]">{selectedSubmissionSummary.reviewed}</div>
-          </div>
-          <div className="rounded-2xl bg-white border border-[#D3D1C7] p-4">
-            <div className="flex items-center gap-2 text-[#5F5E5A] text-xs uppercase tracking-[1px] mb-2">
-              <ArchiveStatsIcon /> Archived
-            </div>
-            <div className="text-2xl font-bold text-[#1A1A1A]">{counts.archivedJobs}</div>
+            <div className="text-3xl font-bold tracking-[-0.04em] text-[#1A1A1A]">{selectedSubmissionSummary.reviewed}</div>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 mb-5">
-          {(['overview', 'submissions', 'jobs', 'companies', 'create'] as AdminView[]).map((view) => (
+        <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-white/70 bg-white/60 p-2 backdrop-blur-xl sm:flex-row sm:items-center">
+          <div className="flex flex-wrap items-center gap-1">
+          {(['overview', 'submissions', 'jobs', 'companies', 'users', 'analytics', 'create'] as AdminView[]).map((view) => (
             <button
               key={view}
               onClick={() => setSelectedView(view)}
-              className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+              className={`rounded-xl px-3.5 py-2 text-sm font-semibold transition-colors ${
                 selectedView === view
-                  ? 'bg-[#1D9E75] text-white border-[#1D9E75]'
-                  : 'bg-white text-[#5F5E5A] border-[#D3D1C7]'
+                  ? 'bg-[#1D9E75] text-white shadow-[0_6px_16px_rgba(29,158,117,0.2)]'
+                  : 'text-[#6B6960] hover:bg-white hover:text-[#1A1A1A]'
               }`}
             >
               {view === 'overview'
                 ? 'Overview'
                 : view === 'submissions'
-                ? 'Submissions'
+                ? 'Moderation'
                 : view === 'jobs'
                 ? 'Jobs'
                 : view === 'companies'
                 ? 'Companies'
+                : view === 'users'
+                ? 'Users'
+                : view === 'analytics'
+                ? 'Analytics'
                 : 'Create job'}
             </button>
           ))}
+          </div>
           <div className="flex-1 min-w-[120px]" />
-          <div className="relative w-full sm:w-[320px]">
+          <div className="relative w-full sm:w-[280px]">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#B4B2A9]" />
             <input
               value={searchQuery}
@@ -897,6 +963,64 @@ export default function AdminDashboard() {
                 delta={overviewData.companiesDelta}
                 icon={Building2}
               />
+            </div>
+
+            <div className="rounded-2xl border border-[#D9A441] bg-[#FFF8E6] p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[1.5px] text-[#7A5000]">
+                    <Clock3 size={13} /> Review queue
+                  </div>
+                  <h3 className="mt-1 text-lg font-bold text-[#1A1A1A]">
+                    {counts.pendingSubmissions === 0
+                      ? 'Everything is reviewed.'
+                      : `${counts.pendingSubmissions} submission${counts.pendingSubmissions === 1 ? '' : 's'} need review`}
+                  </h3>
+                  <p className="mt-1 text-sm text-[#7A5000]">
+                    Approve genuine roles to publish them or reject submissions that do not meet RoleWave standards.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedSubmissionTab('pending');
+                    setSelectedView('submissions');
+                  }}
+                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-[#D9A441] bg-white px-3 py-2 text-xs font-semibold text-[#633806] hover:bg-[#FAEEDA]"
+                >
+                  Open full queue <ExternalLink size={13} />
+                </button>
+              </div>
+
+              {pendingQueue.length > 0 && (
+                <div className="mt-4 grid gap-2">
+                  {pendingQueue.map((submission) => (
+                    <div key={submission.id} className="flex flex-col gap-3 rounded-xl border border-[#F0D080] bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-[#1A1A1A]">{submission.job_title}</div>
+                        <div className="mt-0.5 truncate text-xs text-[#8A867E]">
+                          {submission.company_name} · {submission.city} · {formatRelative(submission.created_at)}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 gap-2">
+                        <button
+                          onClick={() => handleApproveSubmission(submission.id)}
+                          disabled={processingId === submission.id}
+                          className="inline-flex items-center justify-center gap-1 rounded-lg bg-[#1D9E75] px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
+                        >
+                          <CheckCircle2 size={13} /> Approve
+                        </button>
+                        <button
+                          onClick={() => handleRejectSubmission(submission.id)}
+                          disabled={processingId === submission.id}
+                          className="inline-flex items-center justify-center gap-1 rounded-lg border border-[#D3D1C7] bg-white px-3 py-2 text-xs font-semibold text-[#5F5E5A] disabled:opacity-60"
+                        >
+                          <XCircle size={13} /> Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
@@ -967,6 +1091,126 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {selectedView === 'users' && (
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <TrendCard label="Total accounts" value={counts.totalUsers} delta={0} icon={BadgeCheck} />
+              <TrendCard label="Candidates" value={counts.candidateUsers} delta={0} icon={Briefcase} />
+              <TrendCard label="Employers" value={counts.employerUsers} delta={0} icon={Building2} />
+              <TrendCard label="Unassigned" value={counts.unassignedUsers} delta={0} icon={Clock3} />
+            </div>
+
+            <div className="rounded-2xl border border-[#D3D1C7] bg-white p-5">
+              <div className="mb-4 flex flex-wrap gap-2">
+                {(['candidate', 'employer', 'unassigned'] as UserType[]).map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setSelectedUserType(type)}
+                    className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+                      selectedUserType === type
+                        ? 'bg-[#1D9E75] text-white'
+                        : 'bg-[#F1EFE8] text-[#6B6960] hover:bg-[#E1F5EE] hover:text-[#085041]'
+                    }`}
+                  >
+                    {type === 'candidate' ? 'Candidates' : type === 'employer' ? 'Employers' : 'Unassigned'}
+                  </button>
+                ))}
+              </div>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-[#1A1A1A]">
+                    All {selectedUserType === 'unassigned' ? 'unassigned' : selectedUserType} accounts
+                  </h3>
+                  <p className="mt-1 text-xs text-[#8A867E]">Every Auth account is included; onboarding status is shown separately.</p>
+                </div>
+                <span className="text-xs tabular-nums text-[#8A867E]">{filteredProfiles.length} accounts</span>
+              </div>
+              {filteredProfiles.length === 0 ? (
+                <div className="rounded-xl bg-[#F1EFE8] p-6 text-center text-sm text-[#8A867E]">No users match your search.</div>
+              ) : (
+                <div className="divide-y divide-[#E5E1D8]">
+                  {filteredProfiles.slice(0, 50).map((user) => (
+                    <div key={user.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                      {(() => {
+                        const displayName = user.company_name || user.full_name || (user.account_type === 'employer' ? 'Unnamed employer' : user.account_type === 'candidate' ? 'Unnamed candidate' : 'Unassigned account');
+
+                        return (
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-[#1A1A1A]">{displayName}</div>
+                        <div className="mt-0.5 truncate text-xs text-[#8A867E]">{user.email || 'No email'} · Joined {formatRelative(user.created_at)}</div>
+                      </div>
+                        );
+                      })()}
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-[#F1EFE8] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.8px] text-[#5F5E5A]">
+                          {user.account_type || 'unassigned'}
+                        </span>
+                        <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.8px] ${user.onboarding_completed ? 'bg-[#E1F5EE] text-[#085041]' : 'bg-[#FAEEDA] text-[#633806]'}`}>
+                          {user.onboarding_completed ? 'Complete' : 'Incomplete'}
+                        </span>
+                        {user.account_status === 'deletion_scheduled' && (
+                          <span className="rounded-full bg-[#FAEEDA] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.8px] text-[#633806]">
+                            Deletion scheduled
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {selectedView === 'analytics' && (
+          <div className="space-y-5">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[1.5px] text-[#1D9E75]">Platform usage</p>
+              <h2 className="mt-1 text-2xl font-bold tracking-[-0.03em] text-[#1A1A1A]">Know what is moving on RoleWave.</h2>
+              <p className="mt-2 text-sm text-[#6B6960]">A clean operational view of the marketplace activity currently available.</p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <UsageCard label="Total users" value={counts.totalUsers} detail={`${counts.candidateUsers} candidates`} />
+              <UsageCard label="Employer accounts" value={counts.employerUsers} detail={`${counts.companies} companies`} />
+              <UsageCard label="Active jobs" value={counts.activeJobs} detail={`${counts.filledJobs} filled`} />
+              <UsageCard label="Pending review" value={counts.pendingSubmissions} detail={`${counts.reviewedSubmissions} reviewed`} />
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="rounded-2xl border border-[#D3D1C7] bg-white p-5">
+                <h3 className="text-sm font-semibold text-[#1A1A1A]">User mix</h3>
+                <div className="mt-5 space-y-4">
+                  {[
+                    { label: 'Candidates', value: counts.candidateUsers, tone: 'bg-[#1D9E75]' },
+                    { label: 'Employers', value: counts.employerUsers, tone: 'bg-[#5B4088]' },
+                  ].map((item) => (
+                    <div key={item.label}>
+                      <div className="mb-1 flex items-center justify-between text-xs">
+                        <span className="font-medium text-[#5F5E5A]">{item.label}</span>
+                        <span className="font-semibold text-[#1A1A1A]">{item.value}</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-[#F1EFE8]">
+                        <div className={`h-2 rounded-full ${item.tone}`} style={{ width: `${Math.max(4, counts.totalUsers ? (item.value / counts.totalUsers) * 100 : 4)}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-[#D3D1C7] bg-white p-5">
+                <h3 className="text-sm font-semibold text-[#1A1A1A]">Job board health</h3>
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <MiniMetric label="Active" value={counts.activeJobs} tone="text-[#085041]" />
+                  <MiniMetric label="Filled" value={counts.filledJobs} tone="text-[#0C447C]" />
+                  <MiniMetric label="Closed" value={counts.closedJobs} tone="text-[#5F5E5A]" />
+                  <MiniMetric label="Archived" value={counts.archivedJobs} tone="text-[#633806]" />
                 </div>
               </div>
             </div>
@@ -1052,9 +1296,18 @@ export default function AdminDashboard() {
                             </button>
                           </>
                         ) : (
-                          <div className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-[#D3D1C7] bg-[#F1EFE8] text-sm font-semibold text-[#5F5E5A]">
-                            Reviewed
-                          </div>
+                          <>
+                            <div className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-[#D3D1C7] bg-[#F1EFE8] text-sm font-semibold text-[#5F5E5A]">
+                              Reviewed
+                            </div>
+                            <button
+                              onClick={() => handleRemoveReviewedSubmission(submission.id)}
+                              disabled={processingId === submission.id}
+                              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-[#E2B5A8] bg-white text-sm font-semibold text-[#9B3E2B] disabled:opacity-60"
+                            >
+                              <Trash2 size={14} /> Remove
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -1596,6 +1849,25 @@ function TrendCard({
         )}
       </div>
       <div className="mt-1 text-[11px] text-[#B4B2A9]">vs. previous week</div>
+    </div>
+  );
+}
+
+function UsageCard({ label, value, detail }: { label: string; value: number; detail: string }) {
+  return (
+    <div className="rounded-2xl border border-[#D3D1C7] bg-white p-4">
+      <div className="text-xs font-semibold uppercase tracking-[1px] text-[#8A867E]">{label}</div>
+      <div className="mt-2 text-3xl font-bold tracking-[-0.04em] text-[#1A1A1A]">{value}</div>
+      <div className="mt-1 text-xs text-[#8A867E]">{detail}</div>
+    </div>
+  );
+}
+
+function MiniMetric({ label, value, tone }: { label: string; value: number; tone: string }) {
+  return (
+    <div className="rounded-xl bg-[#F1EFE8] px-3 py-3">
+      <div className="text-[10px] font-bold uppercase tracking-[1px] text-[#8A867E]">{label}</div>
+      <div className={`mt-1 text-xl font-bold ${tone}`}>{value}</div>
     </div>
   );
 }

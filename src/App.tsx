@@ -39,6 +39,8 @@ import AccountDeletionScheduled from './pages/AccountDeletionScheduled';
 import PwaOnboarding from './pages/PwaOnboarding';
 import NotFound from './pages/NotFound';
 import Faq from './pages/Faq';
+import Blog from './pages/Blog';
+import CookiePolicy from './pages/CookiePolicy';
 import MessageToastHost from './components/MessageToastHost';
 import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat';
 import { useIsPwa } from './lib/usePwaDisplayMode';
@@ -59,6 +61,16 @@ function AppShell() {
   const isPwa = useIsPwa();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
+
+  useEffect(() => {
+    const previousScrollRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+
+    return () => {
+      window.history.scrollRestoration = previousScrollRestoration;
+    };
+  }, [location.pathname, location.search]);
 
   useEffect(() => {
     // Job detail pages set a more specific title once the job has loaded.
@@ -103,7 +115,11 @@ function AppShell() {
                                         : path === '/contact'
                                         ? 'Contact RoleWave'
                                         : path === '/faq'
-                                          ? 'Frequently Asked Questions | RoleWave'
+                                        ? 'Frequently Asked Questions | RoleWave'
+                                        : path === '/blog'
+                                          ? 'RoleWave Blog | Career Resources'
+                                        : path === '/cookie-policy'
+                                          ? 'Cookie Policy | RoleWave'
                                         : path === '/privacy'
                                             ? 'Privacy Policy | RoleWave'
                                             : path === '/terms'
@@ -124,7 +140,7 @@ function AppShell() {
   usePresenceHeartbeat(session?.user.id ?? null);
 
   const isAdminRoute = path.startsWith('/admin');
-  const isPwaLegalRoute = isPwa && (path === '/privacy' || path === '/terms');
+  const isPwaLegalRoute = isPwa && (path === '/privacy' || path === '/terms' || path === '/cookie-policy');
   const isApplyRoute = /^\/jobs\/[^/]+\/apply$/.test(path);
   const isEmployerRoute = path.startsWith('/employer') || path === '/post';
   const isCandidateOnlyRoute = path.startsWith('/candidate');
@@ -295,6 +311,8 @@ function AppShell() {
       <Route path="/about" element={<About />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/faq" element={<Faq />} />
+      <Route path="/blog" element={<Blog />} />
+      <Route path="/cookie-policy" element={<CookiePolicy />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<TermsOfService />} />
       <Route path="/admin/login" element={<AdminLogin />} />

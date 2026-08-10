@@ -144,8 +144,8 @@ export default function Footer() {
               <Link to="/privacy" className="text-xs text-[#6B6960] hover:text-[#1D9E75]">
                 Privacy Policy
               </Link>
-              <Link to="/security" className="text-xs text-[#6B6960] hover:text-[#1D9E75]">
-                Security
+              <Link to="/cookie-policy" className="text-xs text-[#6B6960] hover:text-[#1D9E75]">
+                Cookie Policy
               </Link>
             </nav>
           </div>

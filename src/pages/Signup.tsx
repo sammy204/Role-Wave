@@ -128,7 +128,7 @@ export function SignUp({
             </button>
           </div>
           <p className="mt-1.5 text-[11px] leading-relaxed text-muted">
-            Password requirements: use at least one lowercase letter, one uppercase letter, and one number.
+            Must contain at least one lowercase letter, one uppercase letter, and one number.
           </p>
         </div>
 

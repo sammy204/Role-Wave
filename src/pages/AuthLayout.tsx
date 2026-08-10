@@ -10,6 +10,7 @@ import { withTimeout } from '../lib/withTimeout';
 import type { Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { TurnstileWidget } from '../components/TurnstileWidget';
+import { validatePassword } from '../lib/passwordPolicy';
 import { SignIn, ForgotPasswordForm } from './SignIn';
 import { SignUp } from './Signup';
 
@@ -144,6 +145,12 @@ export default function AuthLayout() {
 
     try {
       if (mode === 'signup') {
+        const passwordError = validatePassword(password);
+        if (passwordError) {
+          setError(passwordError);
+          return;
+        }
+
         const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
@@ -666,7 +673,7 @@ function PwaAuthCard({
                     </button>
                   </div>
                   <p className="mt-2 text-[11px] leading-5 text-[#7A766F]">
-                    Password requirements: use at least one lowercase letter, one uppercase letter, and one number.
+                    Must contain at least one lowercase letter, one uppercase letter, and one number.
                   </p>
                 </div>
 

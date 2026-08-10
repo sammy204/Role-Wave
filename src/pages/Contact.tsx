@@ -1,7 +1,7 @@
 import { ArrowUpRight, Instagram, Linkedin, Mail, MessageCircle, Twitter } from 'lucide-react';
 
 const channels = [
-  { icon: Mail, label: 'Email us', value: 'hello@rolewave.ng', href: 'mailto:hello@rolewave.ng' },
+  { icon: Mail, label: 'Email us', value: 'support@rolewave.cv', href: 'mailto:support@rolewave.cv' },
   { icon: Twitter, label: 'Twitter / X', value: '@rolewave', href: 'https://twitter.com/rolewave' },
   { icon: Instagram, label: 'Instagram', value: '@rolewave', href: 'https://instagram.com/rolewave' },
   { icon: Linkedin, label: 'LinkedIn', value: 'RoleWave Nigeria', href: 'https://linkedin.com/company/rolewave' },
@@ -43,10 +43,10 @@ export default function Contact() {
                 Send us the details and the RoleWave team will route your message to the right place.
               </p>
               <a
-                href="mailto:hello@rolewave.ng"
+                href="mailto:support@rolewave.cv"
                 className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-[#1D9E75] px-4 py-3.5 text-sm font-bold text-white shadow-[0_12px_28px_rgba(15,110,86,.22)] transition-transform hover:-translate-y-0.5"
               >
-                hello@rolewave.ng <ArrowUpRight size={16} />
+                support@rolewave.cv <ArrowUpRight size={16} />
               </a>
             </div>
           </section>

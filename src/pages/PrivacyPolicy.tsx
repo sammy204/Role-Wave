@@ -1,8 +1,8 @@
-import { ChevronLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+﻿import { ChevronLeft } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useIsPwa } from '../lib/usePwaDisplayMode';
 
-const LAST_UPDATED = 'July 27, 2026';
+const LAST_UPDATED = 'August 10, 2026';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -54,14 +54,14 @@ export default function PrivacyPolicy() {
           <Section title="2. Information we collect">
             <p>
               <span className="font-semibold text-ink">Account information.</span> When you sign up,
-              we collect your name, email address, password (stored in hashed form, never in plain
-              text), and the account role(s) you operate under (candidate, employer, or both).
+              we collect your name, email address, password, and your account role, candidate or employer. Each account operates under a
+              single, fixed role chosen at signup.
             </p>
             <p>
               <span className="font-semibold text-ink">Candidate profile data.</span> If you use
               RoleWave to look for work, we may collect your phone or WhatsApp number, location and
               preferred work locations, skills, avatar image, and your resume/CV file along with its
-              file name. You choose what to include in your profile — most fields are optional.
+              file name. You choose what to include in your profile, most fields are optional.
             </p>
             <p>
               <span className="font-semibold text-ink">Employer & company data.</span> If you post
@@ -83,45 +83,55 @@ export default function PrivacyPolicy() {
 
           <Section title="3. Cookies and similar technologies">
             <p>
-              RoleWave uses your browser's local storage to keep you signed in between visits — this
-              is <span className="font-semibold text-ink">strictly necessary</span> and can't be
-              turned off without logging you out. We do not currently use third-party advertising or
-              tracking cookies. If we introduce optional analytics in the future, we'll ask for your
+              RoleWave uses your browser's local storage to keep you signed in between visits, this
+              is <span className="font-semibold text-ink">strictly necessary</span> and cannot be
+              turned off without logging you out. We do not currently use third party advertising or
+              tracking cookies. If we introduce optional analytics in the future, we will ask for your
               consent first via the cookie banner, and you can withdraw that consent at any time from
-              the same banner. See our cookie banner for the current choices available to you.
+              the same banner. See our{' '}
+              <Link
+                to="/cookie-policy"
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                className="font-semibold text-ink underline underline-offset-2"
+              >
+                Cookie Policy
+              </Link>{' '}
+              for more details and the current choices available to you.
             </p>
           </Section>
 
           <Section title="4. How we use your information">
             <ul className="list-disc space-y-1.5 pl-5">
-              <li>To create and maintain your account and let you switch between candidate/employer roles</li>
+              <li>To create and maintain your account under your chosen role (candidate or employer)</li>
               <li>To show candidates relevant job listings and let employers evaluate applicants</li>
               <li>To operate messaging between candidates and employers</li>
               <li>To manually review and verify employer accounts and job postings before they go live</li>
-              <li>To send you service-related notices (e.g. application updates, verification status)</li>
+              <li>To send you service related notices (e.g. application updates, verification status)</li>
               <li>To detect fraud, abuse, and violations of our Terms of Service</li>
               <li>To improve the platform based on aggregate, non-identifying usage patterns</li>
             </ul>
             <p>
               We do not sell your personal data, and we do not use your resume, profile, or messages
-              to train third-party advertising systems.
+              to train third party advertising systems.
             </p>
           </Section>
 
           <Section title="5. Who we share it with">
             <p>
               <span className="font-semibold text-ink">Other users, as intended by the product.</span>{' '}
-              Your candidate profile is visible to employers you apply to (and, where you've enabled
+              Your candidate profile is visible to employers you apply to (and, where you have enabled
               it, to employers browsing candidates). Employer/company information is public to anyone
               browsing job listings.
             </p>
             <p>
-              <span className="font-semibold text-ink">Service providers.</span> We use Supabase for
-              database, authentication, file storage, and realtime messaging infrastructure, and a
-              hosting provider to serve the RoleWave website. These providers process data on our
-              behalf under their own security commitments and only as needed to run RoleWave. As we
-              add features such as transactional email, we'll update this section to name that
-              provider.
+              <span className="font-semibold text-ink">Service providers.</span> We use a small number
+              of trusted infrastructure providers to run RoleWave: a database and authentication
+              provider for account data, file storage, and realtime messaging; an email provider to
+              send account-related emails; a
+              bot-verification provider to confirm you're a real visitor on our sign-up and login
+              forms; and a hosting provider to serve the RoleWave website. These providers process
+              data on our behalf under their own security commitments and only as needed to run
+              RoleWave.
             </p>
             <p>
               <span className="font-semibold text-ink">Legal reasons.</span> We may disclose
@@ -133,9 +143,10 @@ export default function PrivacyPolicy() {
           <Section title="6. Data retention">
             <p>
               We keep your account and profile data for as long as your account is active. If you
-              delete your account or withdraw an application, we remove or anonymize the associated
-              personal data within a reasonable period, except where we're required to retain records
-              for legal, security, or dispute-resolution purposes.
+              delete your account, it enters a 10-day grace period during which you can reverse the
+              deletion by signing back in. After the grace period ends, your account and associated
+              personal data are permanently deleted, except where we're required to retain records
+              for legal, security, or resolving disputes purposes.
             </p>
           </Section>
 
@@ -158,8 +169,8 @@ export default function PrivacyPolicy() {
 
           <Section title="8. Security">
             <p>
-              We use industry-standard safeguards — including encrypted connections, access controls,
-              and row-level security on our database — to protect your data. No system is perfectly
+              We use standard safeguards, including encrypted connections, access controls,
+              and database row security on our database, to protect your data. No system is perfectly
               secure, and we encourage you to use a strong, unique password and to report any concerns
               to us right away.
             </p>
@@ -174,16 +185,18 @@ export default function PrivacyPolicy() {
 
           <Section title="10. Changes to this policy">
             <p>
-              We may update this Privacy Policy as RoleWave grows — for example, when we add email
-              notifications, social login, or new features. We'll update the "Last updated" date
-              above, and where changes are material, we'll make reasonable efforts to notify you.
+              We may update this Privacy Policy as RoleWave grows, We will update the "Last updated" date
+              above, and where changes are material, we will make reasonable efforts to notify you.
             </p>
           </Section>
 
           <Section title="11. Contact us">
             <p>
               For any privacy questions, requests, or complaints, reach us at{' '}
-              <span className="font-semibold text-ink">[privacy@rolewave.com — update once your domain is live]</span>.
+              <a href="mailto:support@rolewave.cv" className="font-semibold text-ink underline underline-offset-2">
+                support@rolewave.cv
+              </a>
+              .
             </p>
           </Section>
 

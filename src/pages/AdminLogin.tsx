@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { LogIn, UserPlus } from 'lucide-react';
+import type { TurnstileInstance } from '@marsidev/react-turnstile';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import type { Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { validatePassword } from '../lib/passwordPolicy';
+import { TurnstileWidget } from '../components/TurnstileWidget';
 
 type AuthMode = 'signup' | 'login';
 
@@ -19,6 +22,13 @@ export default function AdminLogin() {
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const turnstileRef = useRef<TurnstileInstance>(null);
+
+  const resetCaptcha = () => {
+    setCaptchaToken('');
+    turnstileRef.current?.reset();
+  };
 
   useEffect(() => {
     let alive = true;
@@ -97,23 +107,42 @@ export default function AdminLogin() {
     setInfo('');
 
     if (mode === 'signup') {
-      const { error: signUpError } = await supabase.auth.signUp({ email, password });
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        setError(passwordError);
+        setLoading(false);
+        resetCaptcha();
+        return;
+      }
+
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { captchaToken },
+      });
       if (signUpError) {
         setError(signUpError.message);
         setLoading(false);
+        resetCaptcha();
         return;
       }
       setInfo('Account created. Sign in to continue.');
     } else {
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+        options: { captchaToken },
+      });
       if (signInError) {
         setError(signInError.message);
         setLoading(false);
+        resetCaptcha();
         return;
       }
     }
 
     setLoading(false);
+    resetCaptcha();
   };
 
   const reason = (location.state as { reason?: string } | null)?.reason;
@@ -181,6 +210,11 @@ export default function AdminLogin() {
               className="w-full rounded-lg border border-[#D3D1C7] px-3.5 py-2.5 text-sm outline-none focus:border-[#1D9E75]"
               placeholder="••••••••" />
           </div>
+          <TurnstileWidget
+            ref={turnstileRef}
+            onVerify={setCaptchaToken}
+            onExpire={() => setCaptchaToken('')}
+          />
           <button type="submit" disabled={loading}
             className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-[#1D9E75] px-4 py-3 text-sm font-semibold text-white hover:bg-[#168a63] transition-colors disabled:opacity-60">
             {loading ? <LoadingSpinner size={16} className="text-white" label="Submitting" /> : mode === 'signup' ? <UserPlus size={16} /> : <LogIn size={16} />}
