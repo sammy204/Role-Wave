@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
+import { supabase } from '../lib/supabase';
 
 const socialLinks = [
   {
@@ -60,13 +61,34 @@ const socialLinks = [
 export default function Footer() {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [subscriptionError, setSubscriptionError] = useState('');
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
-    // TODO: wire up to your actual newsletter provider / Supabase table
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) return;
+
+    setSubmitting(true);
+    setSubscribed(false);
+    setSubscriptionError('');
+
+    const { error } = await supabase.from('email_subscriptions').insert({ email: normalizedEmail });
+
+    if (error) {
+      if (error.code === '23505') {
+        setSubscribed(true);
+        setEmail('');
+      } else {
+        setSubscriptionError('We could not save your subscription. Please try again.');
+      }
+      setSubmitting(false);
+      return;
+    }
+
     setSubscribed(true);
     setEmail('');
+    setSubmitting(false);
   };
 
   return (
@@ -101,14 +123,15 @@ export default function Footer() {
                 type="submit"
                 className="shrink-0 rounded-full bg-[#1D9E75] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#17805e]"
               >
-                {subscribed ? 'Subscribed' : 'Subscribe'}
+                {submitting ? 'Saving...' : subscribed ? 'Subscribed' : 'Subscribe'}
               </button>
             </form>
             {subscribed && (
               <span className="mt-1 block text-xs text-[#1D9E75]">
-                You're on the list.
+                You are on the list.
               </span>
             )}
+            {subscriptionError && <span className="mt-1 block text-xs text-[#A15A00]">{subscriptionError}</span>}
           </div>
 
           {/* Company */}

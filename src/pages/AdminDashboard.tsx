@@ -28,7 +28,7 @@ import CompanyLogo from '../components/CompanyLogo';
 
 type SubmissionTab = 'pending' | 'reviewed';
 type JobTab = 'all' | 'active' | 'filled' | 'closed' | 'archived';
-type AdminView = 'overview' | 'submissions' | 'jobs' | 'companies' | 'users' | 'analytics' | 'create';
+type AdminView = 'overview' | 'submissions' | 'jobs' | 'companies' | 'users' | 'analytics' | 'newsletter' | 'create';
 type UserType = 'candidate' | 'employer' | 'unassigned';
 type JobStatus = 'active' | 'filled' | 'closed' | 'archived';
 type JobSortKey = 'created_at' | 'title' | 'company' | 'status';
@@ -138,6 +138,15 @@ type AdminUser = {
   company_name: string | null;
 };
 
+type NewsletterSend = {
+  id: string;
+  subject: string;
+  sent_count: number | null;
+  failed_count: number | null;
+  created_at: string;
+  status?: string | null;
+};
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const mountedRef = useRef(true);
@@ -162,6 +171,14 @@ export default function AdminDashboard() {
   const [jobSort, setJobSort] = useState<{ key: JobSortKey; dir: SortDir }>({ key: 'created_at', dir: 'desc' });
   const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set());
   const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [subscriberCount, setSubscriberCount] = useState<number | null>(null);
+  const [newsletterSends, setNewsletterSends] = useState<NewsletterSend[]>([]);
+  const [newsletterSubject, setNewsletterSubject] = useState('');
+  const [newsletterBody, setNewsletterBody] = useState('');
+  const [newsletterCtaLabel, setNewsletterCtaLabel] = useState('');
+  const [newsletterCtaUrl, setNewsletterCtaUrl] = useState('');
+  const [newsletterLoading, setNewsletterLoading] = useState(false);
+  const [newsletterSending, setNewsletterSending] = useState(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -256,6 +273,72 @@ export default function AdminDashboard() {
       mountedRef.current = false;
     };
   }, [navigate]);
+
+  useEffect(() => {
+    if (selectedView !== 'newsletter') return;
+
+    let alive = true;
+    setNewsletterLoading(true);
+
+    void Promise.all([
+      supabase.from('email_subscriptions').select('id', { count: 'exact', head: true }).is('unsubscribed_at', null),
+      supabase.from('newsletter_sends').select('*').order('created_at', { ascending: false }).limit(20),
+    ])
+      .then(([subscriberResult, sendsResult]) => {
+        if (!alive) return;
+        if (subscriberResult.error) throw subscriberResult.error;
+        if (sendsResult.error) throw sendsResult.error;
+        setSubscriberCount(subscriberResult.count ?? 0);
+        setNewsletterSends((sendsResult.data || []) as NewsletterSend[]);
+      })
+      .catch((loadError) => {
+        if (alive) setError(loadError instanceof Error ? loadError.message : 'Could not load newsletter data.');
+      })
+      .finally(() => {
+        if (alive) setNewsletterLoading(false);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [selectedView]);
+
+  const sendNewsletter = async () => {
+    if (!newsletterSubject.trim() || !newsletterBody.trim()) {
+      setError('Add a subject and message before sending.');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Send this newsletter to ${subscriberCount ?? 'all'} active subscribers? This action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setNewsletterSending(true);
+    setNotice('');
+    setError('');
+
+    try {
+      const { error: sendError } = await supabase.functions.invoke('send-newsletter', {
+        body: {
+          subject: newsletterSubject.trim(),
+          body: newsletterBody.trim(),
+          cta_label: newsletterCtaLabel.trim() || null,
+          cta_url: newsletterCtaUrl.trim() || null,
+        },
+      });
+      if (sendError) throw sendError;
+      setNotice('Newsletter send started. Refresh the history shortly to see the result.');
+      setNewsletterSubject('');
+      setNewsletterBody('');
+      setNewsletterCtaLabel('');
+      setNewsletterCtaUrl('');
+    } catch (sendError) {
+      setError(sendError instanceof Error ? sendError.message : 'Could not send newsletter.');
+    } finally {
+      setNewsletterSending(false);
+    }
+  };
 
   const companyMap = useMemo(() => new Map(companies.map((company) => [company.id, company])), [companies]);
 
@@ -909,7 +992,7 @@ export default function AdminDashboard() {
 
         <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-white/70 bg-white/60 p-2 backdrop-blur-xl sm:flex-row sm:items-center">
           <div className="flex flex-wrap items-center gap-1">
-          {(['overview', 'submissions', 'jobs', 'companies', 'users', 'analytics', 'create'] as AdminView[]).map((view) => (
+          {(['overview', 'submissions', 'jobs', 'companies', 'users', 'analytics', 'newsletter', 'create'] as AdminView[]).map((view) => (
             <button
               key={view}
               onClick={() => setSelectedView(view)}
@@ -931,6 +1014,8 @@ export default function AdminDashboard() {
                 ? 'Users'
                 : view === 'analytics'
                 ? 'Analytics'
+                : view === 'newsletter'
+                ? 'Newsletter'
                 : 'Create job'}
             </button>
           ))}
@@ -1211,6 +1296,66 @@ export default function AdminDashboard() {
                   <MiniMetric label="Filled" value={counts.filledJobs} tone="text-[#0C447C]" />
                   <MiniMetric label="Closed" value={counts.closedJobs} tone="text-[#5F5E5A]" />
                   <MiniMetric label="Archived" value={counts.archivedJobs} tone="text-[#633806]" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {selectedView === 'newsletter' && (
+          <div className="space-y-5">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[1.5px] text-[#1D9E75]">Audience communication</p>
+              <h2 className="mt-1 text-2xl font-bold tracking-[-0.03em] text-[#1A1A1A]">Send a RoleWave newsletter.</h2>
+              <p className="mt-2 text-sm text-[#6B6960]">Only active subscribers are included. Every send is confirmed and recorded.</p>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
+              <div className="rounded-2xl border border-[#D3D1C7] bg-white p-5 sm:p-6">
+                <div className="space-y-4">
+                  <Field label="Subject" required>
+                    <input value={newsletterSubject} onChange={(e) => setNewsletterSubject(e.target.value)} className="admin-input" placeholder="New roles worth a look" />
+                  </Field>
+                  <Field label="Message" required>
+                    <textarea value={newsletterBody} onChange={(e) => setNewsletterBody(e.target.value)} className="admin-input min-h-[220px] resize-y" placeholder="Write the newsletter message..." />
+                  </Field>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Button label">
+                      <input value={newsletterCtaLabel} onChange={(e) => setNewsletterCtaLabel(e.target.value)} className="admin-input" placeholder="Browse jobs" />
+                    </Field>
+                    <Field label="Button URL">
+                      <input type="url" value={newsletterCtaUrl} onChange={(e) => setNewsletterCtaUrl(e.target.value)} className="admin-input" placeholder="https://rolewave.cv/jobs" />
+                    </Field>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={sendNewsletter}
+                    disabled={newsletterSending || newsletterLoading}
+                    className="inline-flex items-center justify-center rounded-xl bg-[#1D9E75] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#168a63] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {newsletterSending ? 'Sending...' : 'Review and send'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-[#5DCAA5] bg-[#E1F5EE] p-5">
+                  <div className="text-[10px] font-bold uppercase tracking-[1.3px] text-[#085041]">Active subscribers</div>
+                  <div className="mt-2 text-4xl font-bold tracking-[-0.05em] text-[#085041]">{newsletterLoading ? '...' : subscriberCount ?? 0}</div>
+                  <p className="mt-2 text-xs leading-5 text-[#0F6E56]">This is the audience that will receive the next send.</p>
+                </div>
+                <div className="rounded-2xl border border-[#D3D1C7] bg-white p-5">
+                  <h3 className="text-sm font-semibold text-[#1A1A1A]">Recent sends</h3>
+                  <div className="mt-3 space-y-3">
+                    {newsletterSends.length === 0 ? (
+                      <p className="text-xs text-[#8A867E]">No newsletter sends yet.</p>
+                    ) : newsletterSends.map((send) => (
+                      <div key={send.id} className="border-b border-[#E5E1D8] pb-3 last:border-0 last:pb-0">
+                        <div className="truncate text-sm font-semibold text-[#1A1A1A]">{send.subject}</div>
+                        <div className="mt-1 text-xs text-[#8A867E]">{formatRelative(send.created_at)} · {send.sent_count ?? 0} sent · {send.failed_count ?? 0} failed</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

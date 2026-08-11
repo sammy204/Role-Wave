@@ -41,6 +41,7 @@ import NotFound from './pages/NotFound';
 import Faq from './pages/Faq';
 import Blog from './pages/Blog';
 import CookiePolicy from './pages/CookiePolicy';
+import Unsubscribe from './pages/Unsubscribe';
 import MessageToastHost from './components/MessageToastHost';
 import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat';
 import { useIsPwa } from './lib/usePwaDisplayMode';
@@ -120,6 +121,8 @@ function AppShell() {
                                           ? 'RoleWave Blog | Career Resources'
                                         : path === '/cookie-policy'
                                           ? 'Cookie Policy | RoleWave'
+                                        : path === '/unsubscribe'
+                                          ? 'Unsubscribe | RoleWave'
                                         : path === '/privacy'
                                             ? 'Privacy Policy | RoleWave'
                                             : path === '/terms'
@@ -313,6 +316,7 @@ function AppShell() {
       <Route path="/faq" element={<Faq />} />
       <Route path="/blog" element={<Blog />} />
       <Route path="/cookie-policy" element={<CookiePolicy />} />
+      <Route path="/unsubscribe" element={<Unsubscribe />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<TermsOfService />} />
       <Route path="/admin/login" element={<AdminLogin />} />
