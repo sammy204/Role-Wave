@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { fetchProfile } from '../lib/admin';
+import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/useAuth';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -15,8 +16,14 @@ const FALLBACK_DELAY_MS = 6000;
 
 export default function Confirmed() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { session, loading: authLoading } = useAuth();
   const [routing, setRouting] = useState(true);
+
+  // Admin invite signups pass ?invite=<token> through emailRedirectTo (see
+  // AdminLogin.tsx) so it survives the confirmation round-trip. If present,
+  // finish the acceptance here before routing anywhere else.
+  const inviteToken = new URLSearchParams(location.search).get('invite');
 
   useEffect(() => {
     if (authLoading) return;
@@ -30,6 +37,21 @@ export default function Confirmed() {
         // leaving the user stuck.
         if (alive) setRouting(false);
         return;
+      }
+
+      if (inviteToken) {
+        try {
+          const { data: accepted } = await supabase.rpc('accept_admin_invite', { p_token: inviteToken });
+          if (accepted) {
+            if (alive) navigate('/admin', { replace: true });
+            return;
+          }
+          // Invite couldn't be accepted (expired, already used, or a
+          // mismatch) — the account itself is still real and confirmed, so
+          // fall through to normal routing rather than stranding the user.
+        } catch {
+          // Same reasoning — don't block normal routing on this failing.
+        }
       }
 
       try {
@@ -54,7 +76,7 @@ export default function Confirmed() {
     return () => {
       alive = false;
     };
-  }, [authLoading, session, navigate]);
+  }, [authLoading, session, navigate, inviteToken]);
 
   // Safety net: if for any reason we're still here after a few seconds
   // (e.g. profile lookup hung), don't leave the user stranded.

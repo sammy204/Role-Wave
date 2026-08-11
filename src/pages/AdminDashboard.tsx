@@ -28,7 +28,7 @@ import CompanyLogo from '../components/CompanyLogo';
 
 type SubmissionTab = 'pending' | 'reviewed';
 type JobTab = 'all' | 'active' | 'filled' | 'closed' | 'archived';
-type AdminView = 'overview' | 'submissions' | 'jobs' | 'companies' | 'users' | 'analytics' | 'newsletter' | 'create';
+type AdminView = 'overview' | 'submissions' | 'jobs' | 'companies' | 'users' | 'analytics' | 'newsletter' | 'team' | 'create';
 type UserType = 'candidate' | 'employer' | 'unassigned';
 type JobStatus = 'active' | 'filled' | 'closed' | 'archived';
 type JobSortKey = 'created_at' | 'title' | 'company' | 'status';
@@ -147,6 +147,16 @@ type NewsletterSend = {
   status?: string | null;
 };
 
+type AdminInvite = {
+  id: number;
+  email: string;
+  invited_by: string;
+  created_at: string;
+  expires_at: string;
+  accepted_at: string | null;
+  revoked_at: string | null;
+};
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const mountedRef = useRef(true);
@@ -179,6 +189,12 @@ export default function AdminDashboard() {
   const [newsletterCtaUrl, setNewsletterCtaUrl] = useState('');
   const [newsletterLoading, setNewsletterLoading] = useState(false);
   const [newsletterSending, setNewsletterSending] = useState(false);
+  const [invites, setInvites] = useState<AdminInvite[]>([]);
+  const [invitesLoading, setInvitesLoading] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteSending, setInviteSending] = useState(false);
+  const [revokingInviteId, setRevokingInviteId] = useState<number | null>(null);
+  const [deletingInviteId, setDeletingInviteId] = useState<number | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -303,6 +319,97 @@ export default function AdminDashboard() {
     };
   }, [selectedView]);
 
+  const loadInvites = async () => {
+    setInvitesLoading(true);
+    try {
+      const { data, error: invitesError } = await supabase
+        .from('admin_invites')
+        .select('id, email, invited_by, created_at, expires_at, accepted_at, revoked_at')
+        .order('created_at', { ascending: false });
+      if (!mountedRef.current) return;
+      if (invitesError) {
+        setError(invitesError.message || 'Could not load invites.');
+        return;
+      }
+      setInvites((data || []) as AdminInvite[]);
+    } finally {
+      if (mountedRef.current) setInvitesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedView !== 'team' || !profile?.is_founder) return;
+    loadInvites();
+  }, [selectedView, profile?.is_founder]);
+
+  const sendInvite = async () => {
+    const email = inviteEmail.trim();
+    if (!email) {
+      setError('Enter an email address to invite.');
+      return;
+    }
+
+    setInviteSending(true);
+    setNotice('');
+    setError('');
+
+    try {
+      const { data, error: inviteError } = await supabase.functions.invoke('send-admin-invite', {
+        body: { email },
+      });
+      if (inviteError) throw inviteError;
+      if (data?.error) throw new Error(data.error);
+
+      setNotice(`Invite sent to ${email}.`);
+      setInviteEmail('');
+      loadInvites();
+    } catch (sendError) {
+      setError(sendError instanceof Error ? sendError.message : 'Could not send invite.');
+    } finally {
+      setInviteSending(false);
+    }
+  };
+
+  const revokeInvite = async (invite: AdminInvite) => {
+    const confirmed = window.confirm(`Revoke the pending invite for ${invite.email}?`);
+    if (!confirmed) return;
+
+    setRevokingInviteId(invite.id);
+    setNotice('');
+    setError('');
+
+    try {
+      const { error: revokeError } = await supabase.rpc('revoke_admin_invite', { p_invite_id: invite.id });
+      if (revokeError) throw revokeError;
+      setNotice(`Invite for ${invite.email} revoked.`);
+      loadInvites();
+    } catch (revokeErr) {
+      setError(revokeErr instanceof Error ? revokeErr.message : 'Could not revoke invite.');
+    } finally {
+      setRevokingInviteId(null);
+    }
+  };
+
+  const deleteRevokedInvite = async (invite: AdminInvite) => {
+    const confirmed = window.confirm(`Delete the revoked invite for ${invite.email}? This cannot be undone.`);
+    if (!confirmed) return;
+
+    setDeletingInviteId(invite.id);
+    setNotice('');
+    setError('');
+
+    try {
+      const { error: deleteError } = await supabase.rpc('delete_revoked_admin_invite', { p_invite_id: invite.id });
+      if (deleteError) throw deleteError;
+      setInvites((current) => current.filter((item) => item.id !== invite.id));
+      setNotice(`Revoked invite for ${invite.email} deleted.`);
+    } catch (deleteErr) {
+      setError(deleteErr instanceof Error ? deleteErr.message : 'Could not delete invite.');
+    } finally {
+      setDeletingInviteId(null);
+    }
+  };
+
   const sendNewsletter = async () => {
     if (!newsletterSubject.trim() || !newsletterBody.trim()) {
       setError('Add a subject and message before sending.');
@@ -341,6 +448,7 @@ export default function AdminDashboard() {
   };
 
   const companyMap = useMemo(() => new Map(companies.map((company) => [company.id, company])), [companies]);
+  const adminRoster = useMemo(() => profiles.filter((user) => user.is_admin), [profiles]);
 
   const counts = useMemo(
     () => ({
@@ -992,7 +1100,19 @@ export default function AdminDashboard() {
 
         <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-white/70 bg-white/60 p-2 backdrop-blur-xl sm:flex-row sm:items-center">
           <div className="flex flex-wrap items-center gap-1">
-          {(['overview', 'submissions', 'jobs', 'companies', 'users', 'analytics', 'newsletter', 'create'] as AdminView[]).map((view) => (
+          {(
+            [
+              'overview',
+              'submissions',
+              'jobs',
+              'companies',
+              'users',
+              'analytics',
+              'newsletter',
+              ...(profile?.is_founder ? (['team'] as AdminView[]) : []),
+              'create',
+            ] as AdminView[]
+          ).map((view) => (
             <button
               key={view}
               onClick={() => setSelectedView(view)}
@@ -1016,6 +1136,8 @@ export default function AdminDashboard() {
                 ? 'Analytics'
                 : view === 'newsletter'
                 ? 'Newsletter'
+                : view === 'team'
+                ? 'Team'
                 : 'Create job'}
             </button>
           ))}
@@ -1353,6 +1475,142 @@ export default function AdminDashboard() {
                       <div key={send.id} className="border-b border-[#E5E1D8] pb-3 last:border-0 last:pb-0">
                         <div className="truncate text-sm font-semibold text-[#1A1A1A]">{send.subject}</div>
                         <div className="mt-1 text-xs text-[#8A867E]">{formatRelative(send.created_at)} · {send.sent_count ?? 0} sent · {send.failed_count ?? 0} failed</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {selectedView === 'team' && profile?.is_founder && (
+          <div className="space-y-5">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[1.5px] text-[#1D9E75]">Founder-only</p>
+              <h2 className="mt-1 text-2xl font-bold tracking-[-0.03em] text-[#1A1A1A]">Manage the admin team.</h2>
+              <p className="mt-2 text-sm text-[#6B6960]">
+                Invites are the only way into the admin space. Only the exact invited email can accept.
+              </p>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-[#D3D1C7] bg-white p-5 sm:p-6">
+                  <h3 className="text-sm font-semibold text-[#1A1A1A]">Invite a new admin</h3>
+                  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+                    <div className="flex-1">
+                      <label className="block text-xs font-semibold text-[#5F5E5A] uppercase tracking-[0.5px] mb-1.5">
+                        Email address
+                      </label>
+                      <input
+                        type="email"
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                        placeholder="teammate@company.com"
+                        className="admin-input"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={sendInvite}
+                      disabled={inviteSending}
+                      className="inline-flex items-center justify-center rounded-xl bg-[#1D9E75] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#168a63] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {inviteSending ? 'Sending...' : 'Send invite'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-[#D3D1C7] bg-white p-5 sm:p-6">
+                  <h3 className="text-sm font-semibold text-[#1A1A1A]">Pending & recent invites</h3>
+                  <div className="mt-3 space-y-3">
+                    {invitesLoading ? (
+                      <p className="text-xs text-[#8A867E]">Loading invites...</p>
+                    ) : invites.length === 0 ? (
+                      <p className="text-xs text-[#8A867E]">No invites sent yet.</p>
+                    ) : (
+                      invites.map((invite) => {
+                        const isRevoked = Boolean(invite.revoked_at);
+                        const isAccepted = Boolean(invite.accepted_at);
+                        const isExpired = !isAccepted && !isRevoked && new Date(invite.expires_at) <= new Date();
+                        const isPending = !isAccepted && !isRevoked && !isExpired;
+                        const statusLabel = isAccepted
+                          ? 'Accepted'
+                          : isRevoked
+                          ? 'Revoked'
+                          : isExpired
+                          ? 'Expired'
+                          : 'Pending';
+                        const statusClass = isAccepted
+                          ? 'bg-[#E1F5EE] text-[#085041] border-[#5DCAA5]'
+                          : isPending
+                          ? 'bg-[#E6F1FB] text-[#0C447C] border-[#9AC0E8]'
+                          : 'bg-[#F1EFE8] text-[#6B6960] border-[#D3D1C7]';
+
+                        return (
+                          <div
+                            key={invite.id}
+                            className="flex items-center justify-between gap-3 border-b border-[#E5E1D8] pb-3 last:border-0 last:pb-0"
+                          >
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-semibold text-[#1A1A1A]">{invite.email}</div>
+                              <div className="mt-1 text-xs text-[#8A867E]">
+                                Sent {formatRelative(invite.created_at)}
+                                {isPending ? ` · expires ${formatRelative(invite.expires_at)}` : ''}
+                              </div>
+                            </div>
+                            <div className="flex flex-shrink-0 items-center gap-2">
+                              <span className={`whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium ${statusClass}`}>
+                                {statusLabel}
+                              </span>
+                              {isPending && (
+                                <button
+                                  type="button"
+                                  onClick={() => revokeInvite(invite)}
+                                  disabled={revokingInviteId === invite.id}
+                                  className="whitespace-nowrap rounded-lg border border-[#D3D1C7] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#5F5E5A] hover:border-[#E8A98C] hover:text-[#712B13] disabled:opacity-60"
+                                >
+                                  {revokingInviteId === invite.id ? 'Revoking...' : 'Revoke'}
+                                </button>
+                              )}
+                              {isRevoked && (
+                                <button
+                                  type="button"
+                                  onClick={() => deleteRevokedInvite(invite)}
+                                  disabled={deletingInviteId === invite.id}
+                                  className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-[#E8A98C] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#712B13] hover:bg-[#FFF6F1] disabled:opacity-60"
+                                >
+                                  <Trash2 size={13} />
+                                  {deletingInviteId === invite.id ? 'Deleting...' : 'Delete'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-[#5DCAA5] bg-[#E1F5EE] p-5">
+                  <div className="text-[10px] font-bold uppercase tracking-[1.3px] text-[#085041]">Current admins</div>
+                  <div className="mt-2 text-4xl font-bold tracking-[-0.05em] text-[#085041]">{adminRoster.length}</div>
+                  <p className="mt-2 text-xs leading-5 text-[#0F6E56]">Everyone with access to this dashboard.</p>
+                </div>
+                <div className="rounded-2xl border border-[#D3D1C7] bg-white p-5">
+                  <h3 className="text-sm font-semibold text-[#1A1A1A]">Admin roster</h3>
+                  <div className="mt-3 space-y-3">
+                    {adminRoster.map((admin) => (
+                      <div key={admin.id} className="border-b border-[#E5E1D8] pb-3 last:border-0 last:pb-0">
+                        <div className="truncate text-sm font-semibold text-[#1A1A1A]">
+                          {admin.full_name || admin.email || 'Unnamed'}
+                        </div>
+                        <div className="mt-1 text-xs text-[#8A867E]">
+                          {admin.email || 'No email'} · Joined {formatRelative(admin.created_at)}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -2053,6 +2311,3 @@ function ArchiveIcon() {
   return <span className="text-[14px] leading-none">⭳</span>;
 }
 
-function ArchiveStatsIcon() {
-  return <span className="text-[12px] leading-none">⟲</span>;
-}

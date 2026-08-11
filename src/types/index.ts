@@ -63,6 +63,7 @@ export interface Profile {
   id: string;
   full_name: string | null;
   is_admin: boolean;
+  is_founder?: boolean;
   account_type?: 'candidate' | 'employer';
   onboarding_completed?: boolean;
   account_status?: 'active' | 'deletion_scheduled';

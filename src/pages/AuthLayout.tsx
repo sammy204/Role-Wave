@@ -545,7 +545,7 @@ function PwaAuthCard({
 
   return (
     <main
-      className={`relative flex min-h-screen min-h-[100dvh] bg-[#E9F0EA] ${
+      className={`relative flex min-h-[100dvh] bg-[#E9F0EA] ${
         isPwa
           ? 'items-stretch justify-stretch overflow-hidden px-0 py-0'
           : 'items-stretch justify-stretch overflow-y-auto px-0 py-0'
