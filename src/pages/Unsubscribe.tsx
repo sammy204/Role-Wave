@@ -19,8 +19,8 @@ export default function Unsubscribe() {
     }
 
     void (async () => {
-      const { error } = await supabase.rpc('unsubscribe_email', { p_token: token });
-      if (alive) setState(error ? 'error' : 'success');
+      const { data, error } = await supabase.rpc('unsubscribe_email', { p_token: token });
+      if (alive) setState(!error && data === true ? 'success' : 'error');
     })();
 
     return () => {

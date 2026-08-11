@@ -323,8 +323,8 @@ export default function AdminDashboard() {
         body: {
           subject: newsletterSubject.trim(),
           body: newsletterBody.trim(),
-          cta_label: newsletterCtaLabel.trim() || null,
-          cta_url: newsletterCtaUrl.trim() || null,
+          ctaText: newsletterCtaLabel.trim() || null,
+          ctaUrl: newsletterCtaUrl.trim() || null,
         },
       });
       if (sendError) throw sendError;
