@@ -16,6 +16,7 @@ import {
   PlayCircle,
   PlusCircle,
   Search,
+  Send,
   Trash2,
   XCircle,
 } from 'lucide-react';
@@ -28,7 +29,7 @@ import CompanyLogo from '../components/CompanyLogo';
 
 type SubmissionTab = 'pending' | 'reviewed';
 type JobTab = 'all' | 'active' | 'filled' | 'closed' | 'archived';
-type AdminView = 'overview' | 'submissions' | 'jobs' | 'companies' | 'users' | 'analytics' | 'newsletter' | 'team' | 'create';
+type AdminView = 'overview' | 'profile' | 'submissions' | 'jobs' | 'companies' | 'users' | 'analytics' | 'newsletter' | 'team' | 'create';
 type UserType = 'candidate' | 'employer' | 'unassigned';
 type JobStatus = 'active' | 'filled' | 'closed' | 'archived';
 type JobSortKey = 'created_at' | 'title' | 'company' | 'status';
@@ -95,8 +96,8 @@ function formatStatus(status: string) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-function getWelcomeName(profile: Profile | null, email: string) {
-  const rawName = profile?.full_name?.trim();
+function getWelcomeName(adminProfile: AdminProfile | null, profile: Profile | null, email: string) {
+  const rawName = adminProfile?.first_name?.trim() || profile?.full_name?.trim();
   const source = rawName || email.split('@')[0] || '';
   const firstPart = source
     .replace(/[._-]+/g, ' ')
@@ -150,6 +151,8 @@ type NewsletterSend = {
 type AdminInvite = {
   id: number;
   email: string;
+  first_name: string | null;
+  last_name: string | null;
   invited_by: string;
   created_at: string;
   expires_at: string;
@@ -157,16 +160,33 @@ type AdminInvite = {
   revoked_at: string | null;
 };
 
+type AdminProfile = {
+  id: string;
+  first_name: string;
+  last_name: string | null;
+};
+
+type AdminTeamMember = {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string | null;
+  is_founder: boolean;
+  created_at: string;
+};
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const mountedRef = useRef(true);
 
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [adminProfile, setAdminProfile] = useState<AdminProfile | null>(null);
   const [authEmail, setAuthEmail] = useState('');
   const [submissions, setSubmissions] = useState<JobSubmission[]>([]);
   const [jobs, setJobs] = useState<(Job & { company?: Company })[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [profiles, setProfiles] = useState<AdminUser[]>([]);
+  const [teamMembers, setTeamMembers] = useState<AdminTeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedView, setSelectedView] = useState<AdminView>('overview');
   const [selectedUserType, setSelectedUserType] = useState<UserType>('candidate');
@@ -192,9 +212,16 @@ export default function AdminDashboard() {
   const [invites, setInvites] = useState<AdminInvite[]>([]);
   const [invitesLoading, setInvitesLoading] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteFirstName, setInviteFirstName] = useState('');
+  const [inviteLastName, setInviteLastName] = useState('');
   const [inviteSending, setInviteSending] = useState(false);
   const [revokingInviteId, setRevokingInviteId] = useState<number | null>(null);
   const [deletingInviteId, setDeletingInviteId] = useState<number | null>(null);
+  const [adminWelcomeSending, setAdminWelcomeSending] = useState(false);
+  const [revokingAdminId, setRevokingAdminId] = useState<string | null>(null);
+  const [adminProfileFirstName, setAdminProfileFirstName] = useState('');
+  const [adminProfileLastName, setAdminProfileLastName] = useState('');
+  const [adminProfileSaving, setAdminProfileSaving] = useState(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -226,7 +253,7 @@ export default function AdminDashboard() {
           return;
         }
 
-        const [submissionResult, jobResult, companyResult, profileResult] = await Promise.all([
+        const [submissionResult, jobResult, companyResult, profileResult, adminProfileResult] = await Promise.all([
           withTimeout(
             supabase.from('job_submissions').select('*').order('created_at', { ascending: false }),
             FETCH_TIMEOUT_MS,
@@ -247,7 +274,16 @@ export default function AdminDashboard() {
             FETCH_TIMEOUT_MS,
             'Users query'
           ),
+          withTimeout(
+            supabase.from('admin_profiles').select('id, first_name, last_name').eq('id', session.user.id).maybeSingle(),
+            FETCH_TIMEOUT_MS,
+            'Admin profile query'
+          ),
         ]);
+
+        const teamResult = nextProfile.is_founder
+          ? await withTimeout(supabase.rpc('admin_list_team_members'), FETCH_TIMEOUT_MS, 'Admin team query')
+          : { data: [], error: null };
 
         if (!mountedRef.current) return;
 
@@ -255,11 +291,15 @@ export default function AdminDashboard() {
         const jobError = jobResult.error as { message?: string } | null;
         const companyError = companyResult.error as { message?: string } | null;
         const profileError = profileResult.error as { message?: string } | null;
+        const adminProfileError = adminProfileResult.error as { message?: string } | null;
+        const teamError = teamResult.error as { message?: string } | null;
 
         if (submissionError) throw new Error(submissionError.message || 'Failed to load submissions.');
         if (jobError) throw new Error(jobError.message || 'Failed to load jobs.');
         if (companyError) throw new Error(companyError.message || 'Failed to load companies.');
         if (profileError) throw new Error(profileError.message || 'Failed to load users.');
+        if (adminProfileError) throw new Error(adminProfileError.message || 'Failed to load admin profile.');
+        if (teamError) throw new Error(teamError.message || 'Failed to load admin team.');
 
         const loadedCompanies = (companyResult.data || []) as Company[];
         const companyMap = new Map(loadedCompanies.map((company) => [company.id, company]));
@@ -269,10 +309,15 @@ export default function AdminDashboard() {
         }));
 
         setProfile(nextProfile);
+        const loadedAdminProfile = adminProfileResult.data as AdminProfile | null;
+        setAdminProfile(loadedAdminProfile);
+        setAdminProfileFirstName(loadedAdminProfile?.first_name || '');
+        setAdminProfileLastName(loadedAdminProfile?.last_name || '');
         setSubmissions((submissionResult.data || []) as JobSubmission[]);
         setJobs(loadedJobs);
         setCompanies(loadedCompanies);
         setProfiles((profileResult.data || []) as AdminUser[]);
+        setTeamMembers((teamResult.data || []) as AdminTeamMember[]);
       } catch (loadError) {
         if (!mountedRef.current) return;
         setError(loadError instanceof Error ? loadError.message : 'Failed to load admin dashboard.');
@@ -324,7 +369,7 @@ export default function AdminDashboard() {
     try {
       const { data, error: invitesError } = await supabase
         .from('admin_invites')
-        .select('id, email, invited_by, created_at, expires_at, accepted_at, revoked_at')
+        .select('id, email, first_name, last_name, invited_by, created_at, expires_at, accepted_at, revoked_at')
         .order('created_at', { ascending: false });
       if (!mountedRef.current) return;
       if (invitesError) {
@@ -344,8 +389,10 @@ export default function AdminDashboard() {
 
   const sendInvite = async () => {
     const email = inviteEmail.trim();
-    if (!email) {
-      setError('Enter an email address to invite.');
+    const firstName = inviteFirstName.trim();
+    const lastName = inviteLastName.trim();
+    if (!email || !firstName) {
+      setError('Enter the admin\'s first name and email address.');
       return;
     }
 
@@ -355,13 +402,15 @@ export default function AdminDashboard() {
 
     try {
       const { data, error: inviteError } = await supabase.functions.invoke('send-admin-invite', {
-        body: { email },
+        body: { email, firstName, lastName },
       });
       if (inviteError) throw inviteError;
       if (data?.error) throw new Error(data.error);
 
-      setNotice(`Invite sent to ${email}.`);
+      setNotice(`Invite sent to ${firstName}.`);
       setInviteEmail('');
+      setInviteFirstName('');
+      setInviteLastName('');
       loadInvites();
     } catch (sendError) {
       setError(sendError instanceof Error ? sendError.message : 'Could not send invite.');
@@ -410,6 +459,82 @@ export default function AdminDashboard() {
     }
   };
 
+  const revokeAdminAccess = async (admin: AdminTeamMember) => {
+    const confirmed = window.confirm(
+      `Remove ${admin.first_name}'s admin access? They will no longer be able to use the admin dashboard. Their candidate or employer account, if any, will not be deleted.`
+    );
+    if (!confirmed) return;
+
+    setRevokingAdminId(admin.id);
+    setNotice('');
+    setError('');
+
+    try {
+      const { error: revokeError } = await supabase.rpc('revoke_admin_access', { p_user_id: admin.id });
+      if (revokeError) throw revokeError;
+
+      setTeamMembers((current) => current.filter((member) => member.id !== admin.id));
+      setProfiles((current) => current.map((user) => user.id === admin.id ? { ...user, is_admin: false } : user));
+      setNotice(`${admin.first_name}'s admin access has been removed.`);
+    } catch (revokeErr) {
+      setError(revokeErr instanceof Error ? revokeErr.message : 'Could not remove admin access.');
+    } finally {
+      setRevokingAdminId(null);
+    }
+  };
+
+  const saveAdminProfile = async () => {
+    const firstName = adminProfileFirstName.trim();
+    const lastName = adminProfileLastName.trim();
+    if (!firstName) {
+      setError('Enter your first name.');
+      return;
+    }
+
+    setAdminProfileSaving(true);
+    setNotice('');
+    setError('');
+    try {
+      const { data, error: saveError } = await supabase
+        .from('admin_profiles')
+        .update({ first_name: firstName, last_name: lastName || null, updated_at: new Date().toISOString() })
+        .eq('id', profile?.id || '')
+        .select('id, first_name, last_name')
+        .single();
+      if (saveError) throw saveError;
+      setAdminProfile(data as AdminProfile);
+      setNotice('Admin profile updated.');
+    } catch (saveErr) {
+      setError(saveErr instanceof Error ? saveErr.message : 'Could not update admin profile.');
+    } finally {
+      setAdminProfileSaving(false);
+    }
+  };
+
+  const sendAdminWelcomeToAll = async () => {
+    const confirmed = window.confirm(`Resend the admin welcome email to all ${adminRoster.length} current admins?`);
+    if (!confirmed) return;
+
+    setAdminWelcomeSending(true);
+    setNotice('');
+    setError('');
+
+    try {
+      const { data, error: sendError } = await supabase.functions.invoke('send-admin-welcome', {
+        body: { mode: 'all', force: true },
+      });
+      if (sendError) throw sendError;
+      if (data?.error) throw new Error(data.error);
+
+      const sent = typeof data?.sent === 'number' ? data.sent : 0;
+      setNotice(`Admin welcome email sent to ${sent} admin${sent === 1 ? '' : 's'}.`);
+    } catch (sendErr) {
+      setError(sendErr instanceof Error ? sendErr.message : 'Could not send admin welcome emails.');
+    } finally {
+      setAdminWelcomeSending(false);
+    }
+  };
+
   const sendNewsletter = async () => {
     if (!newsletterSubject.trim() || !newsletterBody.trim()) {
       setError('Add a subject and message before sending.');
@@ -448,7 +573,7 @@ export default function AdminDashboard() {
   };
 
   const companyMap = useMemo(() => new Map(companies.map((company) => [company.id, company])), [companies]);
-  const adminRoster = useMemo(() => profiles.filter((user) => user.is_admin), [profiles]);
+  const adminRoster = useMemo(() => teamMembers, [teamMembers]);
 
   const counts = useMemo(
     () => ({
@@ -1030,7 +1155,7 @@ export default function AdminDashboard() {
               <BadgeCheck size={12} /> Admin dashboard
             </div>
             <h1 className="text-3xl sm:text-4xl font-bold text-[#1A1A1A] tracking-[-0.02em]">
-              Welcome, {getWelcomeName(profile, authEmail)}.
+              Welcome, {getWelcomeName(adminProfile, profile, authEmail)}.
             </h1>
             <p className="text-sm sm:text-base text-[#5F5E5A] mt-2 max-w-xl leading-relaxed">
               Review submissions, publish jobs, and keep the board running smoothly.
@@ -1103,6 +1228,7 @@ export default function AdminDashboard() {
           {(
             [
               'overview',
+              'profile',
               'submissions',
               'jobs',
               'companies',
@@ -1124,6 +1250,8 @@ export default function AdminDashboard() {
             >
               {view === 'overview'
                 ? 'Overview'
+                : view === 'profile'
+                ? 'My profile'
                 : view === 'submissions'
                 ? 'Moderation'
                 : view === 'jobs'
@@ -1153,6 +1281,34 @@ export default function AdminDashboard() {
             />
           </div>
         </div>
+
+        {selectedView === 'profile' && (
+          <div className="max-w-xl rounded-2xl border border-[#D3D1C7] bg-white p-5 sm:p-6">
+            <p className="text-[10px] font-bold uppercase tracking-[1.5px] text-[#1D9E75]">Admin workspace</p>
+            <h2 className="mt-1 text-2xl font-bold tracking-[-0.03em] text-[#1A1A1A]">Your admin profile</h2>
+            <p className="mt-2 text-sm leading-6 text-[#6B6960]">
+              This name is used only in the admin workspace and admin emails. It does not change a candidate or employer profile.
+            </p>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-[#5F5E5A]">First name</label>
+                <input value={adminProfileFirstName} onChange={(event) => setAdminProfileFirstName(event.target.value)} className="admin-input" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-[#5F5E5A]">Last name</label>
+                <input value={adminProfileLastName} onChange={(event) => setAdminProfileLastName(event.target.value)} className="admin-input" />
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={saveAdminProfile}
+              disabled={adminProfileSaving}
+              className="mt-5 inline-flex items-center justify-center rounded-xl bg-[#1D9E75] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#168a63] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {adminProfileSaving ? 'Saving...' : 'Save admin profile'}
+            </button>
+          </div>
+        )}
 
         {selectedView === 'overview' && (
           <div className="space-y-5">
@@ -1492,14 +1648,31 @@ export default function AdminDashboard() {
               <p className="mt-2 text-sm text-[#6B6960]">
                 Invites are the only way into the admin space. Only the exact invited email can accept.
               </p>
+              <button
+                type="button"
+                onClick={sendAdminWelcomeToAll}
+                disabled={adminWelcomeSending || adminRoster.length === 0}
+                className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl border border-[#D3D1C7] bg-white px-4 py-2.5 text-sm font-semibold text-[#1A1A1A] transition hover:border-[#5DCAA5] hover:text-[#085041] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Send size={15} />
+                {adminWelcomeSending ? 'Sending welcomes...' : 'Resend welcome to all admins'}
+              </button>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
               <div className="space-y-4">
                 <div className="rounded-2xl border border-[#D3D1C7] bg-white p-5 sm:p-6">
                   <h3 className="text-sm font-semibold text-[#1A1A1A]">Invite a new admin</h3>
-                  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
-                    <div className="flex-1">
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-[#5F5E5A] uppercase tracking-[0.5px] mb-1.5">First name</label>
+                      <input value={inviteFirstName} onChange={(e) => setInviteFirstName(e.target.value)} placeholder="Samuel" className="admin-input" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-[#5F5E5A] uppercase tracking-[0.5px] mb-1.5">Last name</label>
+                      <input value={inviteLastName} onChange={(e) => setInviteLastName(e.target.value)} placeholder="Ogabi" className="admin-input" />
+                    </div>
+                    <div>
                       <label className="block text-xs font-semibold text-[#5F5E5A] uppercase tracking-[0.5px] mb-1.5">
                         Email address
                       </label>
@@ -1511,6 +1684,8 @@ export default function AdminDashboard() {
                         className="admin-input"
                       />
                     </div>
+                  </div>
+                  <div className="mt-3 flex justify-end">
                     <button
                       type="button"
                       onClick={sendInvite}
@@ -1556,7 +1731,7 @@ export default function AdminDashboard() {
                             <div className="min-w-0">
                               <div className="truncate text-sm font-semibold text-[#1A1A1A]">{invite.email}</div>
                               <div className="mt-1 text-xs text-[#8A867E]">
-                                Sent {formatRelative(invite.created_at)}
+                                {invite.first_name ? `${invite.first_name}${invite.last_name ? ` ${invite.last_name}` : ''} Â· ` : ''}Sent {formatRelative(invite.created_at)}
                                 {isPending ? ` · expires ${formatRelative(invite.expires_at)}` : ''}
                               </div>
                             </div>
@@ -1605,8 +1780,22 @@ export default function AdminDashboard() {
                   <div className="mt-3 space-y-3">
                     {adminRoster.map((admin) => (
                       <div key={admin.id} className="border-b border-[#E5E1D8] pb-3 last:border-0 last:pb-0">
-                        <div className="truncate text-sm font-semibold text-[#1A1A1A]">
-                          {admin.full_name || admin.email || 'Unnamed'}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="truncate text-sm font-semibold text-[#1A1A1A]">
+                            {admin.first_name || 'Admin'}
+                          </div>
+                          {admin.is_founder ? (
+                            <span className="rounded-full border border-[#5DCAA5] bg-[#E1F5EE] px-2 py-0.5 text-[10px] font-semibold text-[#085041]">Founder</span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => revokeAdminAccess(admin)}
+                              disabled={revokingAdminId === admin.id}
+                              className="rounded-lg border border-[#E8A98C] bg-white px-2 py-1 text-[10px] font-semibold text-[#712B13] hover:bg-[#FFF6F1] disabled:opacity-60"
+                            >
+                              {revokingAdminId === admin.id ? 'Removing...' : 'Remove access'}
+                            </button>
+                          )}
                         </div>
                         <div className="mt-1 text-xs text-[#8A867E]">
                           {admin.email || 'No email'} · Joined {formatRelative(admin.created_at)}

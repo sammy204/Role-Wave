@@ -1,6 +1,10 @@
 // Admin invite email template.
-// {{inviterName}} and {{acceptUrl}} are substituted at send time.
-export function buildAdminInviteHtml(inviterName: string, acceptUrl: string): string {
+// Recipient and inviter names are reduced to first names before this template
+// is called; all values are escaped before interpolation.
+export function buildAdminInviteHtml(recipientName: string, inviterName: string, acceptUrl: string): string {
+  const safeRecipientName = escapeHtml(recipientName);
+  const safeInviterName = escapeHtml(inviterName);
+  const safeAcceptUrl = escapeHtml(acceptUrl);
   const html = `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
@@ -33,7 +37,7 @@ export function buildAdminInviteHtml(inviterName: string, acceptUrl: string): st
 </head>
 <body style="margin:0; padding:0; background-color:#EDEBE2;">
   <div style="display:none; max-height:0px; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#EDEBE2;">
-    ${inviterName} invited you to join the RoleWave admin team. This link expires in 7 days.
+    Hi ${safeRecipientName}, ${safeInviterName} invited you to join the RoleWave admin team. This link expires in 7 days.
     &#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;
   </div>
 
@@ -61,10 +65,10 @@ export function buildAdminInviteHtml(inviterName: string, acceptUrl: string): st
                 Admin invitation
               </p>
               <h1 class="stack-heading" style="margin:0; font-family: Georgia, 'Times New Roman', serif; font-size:32px; line-height:1.25; font-weight:700; color:#ffffff;">
-                ${inviterName} added you to the admin team.
+                Hi ${safeRecipientName},
               </h1>
               <p style="margin:14px 0 0 0; font-family: Arial, Helvetica, sans-serif; font-size:14px; line-height:1.6; color:#D7F0E6; max-width:440px;">
-                This gives you access to review submissions, manage jobs, and moderate the RoleWave platform. The link below is unique to your email and expires in 7 days.
+                ${safeInviterName} added you to the admin team. This gives you access to review submissions, manage jobs, and moderate the RoleWave platform. The link below is unique to your email and expires in 7 days.
               </p>
             </td>
           </tr>
@@ -75,7 +79,7 @@ export function buildAdminInviteHtml(inviterName: string, acceptUrl: string): st
               <table role="presentation" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center" style="border-radius:14px; background-color:#1D9E75;">
-                    <a href="${acceptUrl}" target="_blank" style="display:block; padding:15px 32px; font-family: Arial, Helvetica, sans-serif; font-size:15px; font-weight:700; color:#ffffff; text-decoration:none; border-radius:14px; text-align:center;">
+                    <a href="${safeAcceptUrl}" target="_blank" style="display:block; padding:15px 32px; font-family: Arial, Helvetica, sans-serif; font-size:15px; font-weight:700; color:#ffffff; text-decoration:none; border-radius:14px; text-align:center;">
                       Accept invitation
                     </a>
                   </td>
@@ -107,4 +111,13 @@ export function buildAdminInviteHtml(inviterName: string, acceptUrl: string): st
 </body>
 </html>`;
   return html;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }

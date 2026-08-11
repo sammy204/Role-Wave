@@ -14,6 +14,8 @@ type AdminInvite = {
   token: string;
   id: number;
   email: string;
+  first_name: string;
+  last_name: string | null;
   expires_at: string;
 };
 
@@ -40,13 +42,15 @@ Deno.serve(async (request) => {
 
     const body = await request.json().catch(() => ({}));
     const email = typeof body.email === 'string' ? body.email.trim() : '';
-    if (!email) return json({ error: 'Missing email.' }, 400);
+    const firstName = typeof body.firstName === 'string' ? body.firstName.trim() : '';
+    const lastName = typeof body.lastName === 'string' ? body.lastName.trim() : '';
+    if (!email || !firstName) return json({ error: 'First name and email are required.' }, 400);
 
     // create_admin_invite() itself re-checks is_founder_user() server-side
     // and re-validates the email — this call can't be used to grant an
     // invite even if the client-side founder-only UI check were bypassed.
     const { data: rawInvite, error: inviteError } = await userClient
-      .rpc('create_admin_invite', { p_email: email })
+      .rpc('create_admin_invite', { p_email: email, p_first_name: firstName, p_last_name: lastName || null })
       .single();
     const invite = rawInvite as AdminInvite | null;
 
@@ -64,9 +68,9 @@ Deno.serve(async (request) => {
       .eq('id', userData.user.id)
       .maybeSingle();
 
-    const inviterName = inviterProfile?.full_name?.trim() || 'A RoleWave founder';
+    const inviterName = firstNameOnly(inviterProfile?.full_name) || 'A RoleWave founder';
     const acceptUrl = `${ACCEPT_BASE_URL}?invite=${invite.token}`;
-    const html = buildAdminInviteHtml(inviterName, acceptUrl);
+    const html = buildAdminInviteHtml(invite.first_name, inviterName, acceptUrl);
 
     const resendResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -99,4 +103,9 @@ Deno.serve(async (request) => {
 
 function json(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+}
+
+function firstNameOnly(value: string | null | undefined) {
+  const name = value?.trim().split(/\s+/)[0];
+  return name || '';
 }

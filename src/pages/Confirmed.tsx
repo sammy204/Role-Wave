@@ -43,6 +43,7 @@ export default function Confirmed() {
         try {
           const { data: accepted } = await supabase.rpc('accept_admin_invite', { p_token: inviteToken });
           if (accepted) {
+            await supabase.functions.invoke('send-admin-welcome', { body: { mode: 'self' } }).catch(() => {});
             if (alive) navigate('/admin', { replace: true });
             return;
           }

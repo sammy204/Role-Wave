@@ -97,6 +97,10 @@ export default function AdminLogin() {
       if (acceptError) throw acceptError;
 
       if (accepted) {
+        // This also covers invitees who already had a RoleWave login. New
+        // account confirmations use Confirmed.tsx; the email function
+        // deduplicates so either route is safe.
+        await supabase.functions.invoke('send-admin-welcome', { body: { mode: 'self' } }).catch(() => {});
         navigate('/admin', { replace: true });
         return true;
       }
