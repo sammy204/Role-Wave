@@ -9,6 +9,7 @@ import {
   Building2,
   CheckCircle2,
   CircleSlash2,
+  ClipboardList,
   Clock3,
   ExternalLink,
   Inbox,
@@ -29,7 +30,7 @@ import CompanyLogo from '../components/CompanyLogo';
 
 type SubmissionTab = 'pending' | 'reviewed';
 type JobTab = 'all' | 'active' | 'filled' | 'closed' | 'archived';
-type AdminView = 'overview' | 'profile' | 'submissions' | 'jobs' | 'companies' | 'users' | 'analytics' | 'newsletter' | 'team' | 'create';
+type AdminView = 'overview' | 'profile' | 'tasks' | 'activity' | 'submissions' | 'jobs' | 'companies' | 'users' | 'analytics' | 'newsletter' | 'team' | 'create';
 type UserType = 'candidate' | 'employer' | 'unassigned';
 type JobStatus = 'active' | 'filled' | 'closed' | 'archived';
 type JobSortKey = 'created_at' | 'title' | 'company' | 'status';
@@ -175,9 +176,41 @@ type AdminTeamMember = {
   created_at: string;
 };
 
+type AdminActivity = {
+  id: number;
+  actor_id: string | null;
+  actor_email: string | null;
+  actor_first_name: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  summary: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+};
+
+type TaskStatus = 'todo' | 'in_progress' | 'done';
+type TaskPriority = 'low' | 'medium' | 'high';
+
+type AdminTask = {
+  id: number;
+  title: string;
+  description: string | null;
+  assigned_to: string | null;
+  assignee_first_name: string | null;
+  assignee_email: string | null;
+  created_by: string;
+  priority: TaskPriority;
+  status: TaskStatus;
+  due_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const mountedRef = useRef(true);
+  const refreshTimerRef = useRef<number | null>(null);
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [adminProfile, setAdminProfile] = useState<AdminProfile | null>(null);
@@ -187,6 +220,7 @@ export default function AdminDashboard() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [profiles, setProfiles] = useState<AdminUser[]>([]);
   const [teamMembers, setTeamMembers] = useState<AdminTeamMember[]>([]);
+  const [activityLog, setActivityLog] = useState<AdminActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedView, setSelectedView] = useState<AdminView>('overview');
   const [selectedUserType, setSelectedUserType] = useState<UserType>('candidate');
@@ -222,6 +256,28 @@ export default function AdminDashboard() {
   const [adminProfileFirstName, setAdminProfileFirstName] = useState('');
   const [adminProfileLastName, setAdminProfileLastName] = useState('');
   const [adminProfileSaving, setAdminProfileSaving] = useState(false);
+  const [tasks, setTasks] = useState<AdminTask[]>([]);
+  const [taskForm, setTaskForm] = useState({
+    title: '',
+    description: '',
+    assignedTo: '',
+    priority: 'medium' as TaskPriority,
+    dueAt: '',
+  });
+  const [taskSaving, setTaskSaving] = useState(false);
+  const [taskDeletingId, setTaskDeletingId] = useState<number | null>(null);
+  const [dashboardRefreshTick, setDashboardRefreshTick] = useState(0);
+
+  useEffect(() => {
+    if (!notice && !error) return;
+
+    const timeout = window.setTimeout(() => {
+      setNotice('');
+      setError('');
+    }, 7000);
+
+    return () => window.clearTimeout(timeout);
+  }, [notice, error]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -284,6 +340,10 @@ export default function AdminDashboard() {
         const teamResult = nextProfile.is_founder
           ? await withTimeout(supabase.rpc('admin_list_team_members'), FETCH_TIMEOUT_MS, 'Admin team query')
           : { data: [], error: null };
+        const activityResult = nextProfile.is_founder
+          ? await withTimeout(supabase.rpc('admin_list_activity', { p_limit: 100 }), FETCH_TIMEOUT_MS, 'Admin activity query')
+          : { data: [], error: null };
+        const taskResult = await withTimeout(supabase.rpc('admin_list_tasks'), FETCH_TIMEOUT_MS, 'Admin task query');
 
         if (!mountedRef.current) return;
 
@@ -293,6 +353,8 @@ export default function AdminDashboard() {
         const profileError = profileResult.error as { message?: string } | null;
         const adminProfileError = adminProfileResult.error as { message?: string } | null;
         const teamError = teamResult.error as { message?: string } | null;
+        const activityError = activityResult.error as { message?: string } | null;
+        const taskError = taskResult.error as { message?: string } | null;
 
         if (submissionError) throw new Error(submissionError.message || 'Failed to load submissions.');
         if (jobError) throw new Error(jobError.message || 'Failed to load jobs.');
@@ -300,6 +362,8 @@ export default function AdminDashboard() {
         if (profileError) throw new Error(profileError.message || 'Failed to load users.');
         if (adminProfileError) throw new Error(adminProfileError.message || 'Failed to load admin profile.');
         if (teamError) throw new Error(teamError.message || 'Failed to load admin team.');
+        if (activityError) throw new Error(activityError.message || 'Failed to load admin activity.');
+        if (taskError) throw new Error(taskError.message || 'Failed to load admin tasks.');
 
         const loadedCompanies = (companyResult.data || []) as Company[];
         const companyMap = new Map(loadedCompanies.map((company) => [company.id, company]));
@@ -318,6 +382,8 @@ export default function AdminDashboard() {
         setCompanies(loadedCompanies);
         setProfiles((profileResult.data || []) as AdminUser[]);
         setTeamMembers((teamResult.data || []) as AdminTeamMember[]);
+        setActivityLog((activityResult.data || []) as AdminActivity[]);
+        setTasks((taskResult.data || []) as AdminTask[]);
       } catch (loadError) {
         if (!mountedRef.current) return;
         setError(loadError instanceof Error ? loadError.message : 'Failed to load admin dashboard.');
@@ -333,7 +399,7 @@ export default function AdminDashboard() {
     return () => {
       mountedRef.current = false;
     };
-  }, [navigate]);
+  }, [navigate, dashboardRefreshTick]);
 
   useEffect(() => {
     if (selectedView !== 'newsletter') return;
@@ -386,6 +452,54 @@ export default function AdminDashboard() {
     if (selectedView !== 'team' || !profile?.is_founder) return;
     loadInvites();
   }, [selectedView, profile?.is_founder]);
+
+  useEffect(() => {
+    if (!profile?.is_admin) return;
+
+    const channel = supabase.channel(`admin-dashboard-${profile.id}`);
+    const tables = [
+      'jobs',
+      'companies',
+      'job_submissions',
+      'admin_invites',
+      'admin_profiles',
+      'admin_tasks',
+      'admin_activity_log',
+      'profiles',
+    ] as const;
+
+    const scheduleRefresh = (table: string) => {
+      if (table === 'admin_invites' && profile.is_founder) {
+        void loadInvites();
+      }
+
+      if (refreshTimerRef.current !== null) return;
+      refreshTimerRef.current = window.setTimeout(() => {
+        refreshTimerRef.current = null;
+        setDashboardRefreshTick((current) => current + 1);
+      }, 250);
+    };
+
+    tables.forEach((table) => {
+      channel.on(
+        'postgres_changes',
+        table === 'profiles'
+          ? { event: '*', schema: 'public', table, filter: 'is_admin=eq.true' }
+          : { event: '*', schema: 'public', table },
+        () => scheduleRefresh(table)
+      );
+    });
+
+    channel.subscribe();
+
+    return () => {
+      if (refreshTimerRef.current !== null) {
+        window.clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+      void supabase.removeChannel(channel);
+    };
+  }, [profile?.id, profile?.is_admin, profile?.is_founder]);
 
   const sendInvite = async () => {
     const email = inviteEmail.trim();
@@ -508,6 +622,87 @@ export default function AdminDashboard() {
       setError(saveErr instanceof Error ? saveErr.message : 'Could not update admin profile.');
     } finally {
       setAdminProfileSaving(false);
+    }
+  };
+
+  const createAdminTask = async () => {
+    const title = taskForm.title.trim();
+    if (!title) {
+      setError('Enter a task title.');
+      return;
+    }
+
+    setTaskSaving(true);
+    setNotice('');
+    setError('');
+    try {
+      const { data, error: taskError } = await supabase.rpc('admin_create_task', {
+        p_title: title,
+        p_description: taskForm.description.trim() || null,
+        p_assigned_to: taskForm.assignedTo || null,
+        p_priority: taskForm.priority,
+        p_due_at: taskForm.dueAt || null,
+      });
+      if (taskError) throw taskError;
+
+      setTasks((current) => [...current, data as AdminTask]);
+      setTaskForm({ title: '', description: '', assignedTo: '', priority: 'medium', dueAt: '' });
+      setNotice('Task assigned.');
+    } catch (taskErr) {
+      setError(taskErr instanceof Error ? taskErr.message : 'Could not create task.');
+    } finally {
+      setTaskSaving(false);
+    }
+  };
+
+  const updateTaskStatus = async (task: AdminTask, status: TaskStatus) => {
+    try {
+      const { data, error: taskError } = await supabase.rpc('admin_update_task_status', {
+        p_task_id: task.id,
+        p_status: status,
+      });
+      if (taskError) throw taskError;
+      setTasks((current) => current.map((item) => item.id === task.id ? { ...item, ...(data as AdminTask) } : item));
+      setNotice('Task status updated.');
+    } catch (taskErr) {
+      setError(taskErr instanceof Error ? taskErr.message : 'Could not update task status.');
+    }
+  };
+
+  const reassignTask = async (task: AdminTask, assignedTo: string) => {
+    if (!profile?.is_founder) return;
+    try {
+      const { data, error: taskError } = await supabase.rpc('admin_update_task', {
+        p_task_id: task.id,
+        p_title: task.title,
+        p_description: task.description,
+        p_assigned_to: assignedTo || null,
+        p_priority: task.priority,
+        p_due_at: task.due_at,
+        p_status: task.status,
+      });
+      if (taskError) throw taskError;
+      setTasks((current) => current.map((item) => item.id === task.id ? { ...item, ...(data as AdminTask) } : item));
+      setNotice('Task assignment updated.');
+    } catch (taskErr) {
+      setError(taskErr instanceof Error ? taskErr.message : 'Could not reassign task.');
+    }
+  };
+
+  const deleteAdminTask = async (task: AdminTask) => {
+    if (!window.confirm(`Delete the task "${task.title}"?`)) return;
+    setTaskDeletingId(task.id);
+    setNotice('');
+    setError('');
+    try {
+      const { error: taskError } = await supabase.rpc('admin_delete_task', { p_task_id: task.id });
+      if (taskError) throw taskError;
+      setTasks((current) => current.filter((item) => item.id !== task.id));
+      setNotice('Task deleted.');
+    } catch (taskErr) {
+      setError(taskErr instanceof Error ? taskErr.message : 'Could not delete task.');
+    } finally {
+      setTaskDeletingId(null);
     }
   };
 
@@ -1229,6 +1424,8 @@ export default function AdminDashboard() {
             [
               'overview',
               'profile',
+              'tasks',
+              ...(profile?.is_founder ? (['activity'] as AdminView[]) : []),
               'submissions',
               'jobs',
               'companies',
@@ -1252,6 +1449,10 @@ export default function AdminDashboard() {
                 ? 'Overview'
                 : view === 'profile'
                 ? 'My profile'
+                : view === 'activity'
+                ? 'Activity'
+                : view === 'tasks'
+                ? 'Tasks'
                 : view === 'submissions'
                 ? 'Moderation'
                 : view === 'jobs'
@@ -1286,9 +1487,6 @@ export default function AdminDashboard() {
           <div className="max-w-xl rounded-2xl border border-[#D3D1C7] bg-white p-5 sm:p-6">
             <p className="text-[10px] font-bold uppercase tracking-[1.5px] text-[#1D9E75]">Admin workspace</p>
             <h2 className="mt-1 text-2xl font-bold tracking-[-0.03em] text-[#1A1A1A]">Your admin profile</h2>
-            <p className="mt-2 text-sm leading-6 text-[#6B6960]">
-              This name is used only in the admin workspace and admin emails. It does not change a candidate or employer profile.
-            </p>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-[#5F5E5A]">First name</label>
@@ -1307,6 +1505,129 @@ export default function AdminDashboard() {
             >
               {adminProfileSaving ? 'Saving...' : 'Save admin profile'}
             </button>
+          </div>
+        )}
+
+        {selectedView === 'tasks' && (
+          <div className="space-y-5">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[1.5px] text-[#1D9E75]">Admin workspace</p>
+              <h2 className="mt-1 text-2xl font-bold tracking-[-0.03em] text-[#1A1A1A]">Admin tasks</h2>
+              <p className="mt-2 text-sm text-[#6B6960]">
+                {profile?.is_founder ? 'Assign and follow up on work across the admin team.' : 'Track the admin work assigned to you.'}
+              </p>
+            </div>
+
+            {profile?.is_founder && (
+              <div className="rounded-2xl border border-[#D3D1C7] bg-white p-5 sm:p-6">
+                <div className="flex items-center gap-2">
+                  <ClipboardList size={17} className="text-[#1D9E75]" />
+                  <h3 className="text-sm font-semibold text-[#1A1A1A]">Create a task</h3>
+                </div>
+                <div className="mt-4 grid gap-3 lg:grid-cols-[1.3fr_1.3fr_0.8fr_0.7fr_0.8fr_auto] lg:items-end">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-[#5F5E5A]">Task</label>
+                    <input value={taskForm.title} onChange={(event) => setTaskForm((current) => ({ ...current, title: event.target.value }))} placeholder="Review new employer submissions" className="admin-input" />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-[#5F5E5A]">Details</label>
+                    <input value={taskForm.description} onChange={(event) => setTaskForm((current) => ({ ...current, description: event.target.value }))} placeholder="Optional note" className="admin-input" />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-[#5F5E5A]">Assign to</label>
+                    <select value={taskForm.assignedTo} onChange={(event) => setTaskForm((current) => ({ ...current, assignedTo: event.target.value }))} className="admin-input">
+                      <option value="">Unassigned</option>
+                      {teamMembers.map((member) => <option key={member.id} value={member.id}>{member.first_name}{member.is_founder ? ' (Founder)' : ''}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-[#5F5E5A]">Priority</label>
+                    <select value={taskForm.priority} onChange={(event) => setTaskForm((current) => ({ ...current, priority: event.target.value as TaskPriority }))} className="admin-input">
+                      <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-[#5F5E5A]">Due date</label>
+                    <input type="date" value={taskForm.dueAt} onChange={(event) => setTaskForm((current) => ({ ...current, dueAt: event.target.value }))} className="admin-input" />
+                  </div>
+                  <button type="button" onClick={createAdminTask} disabled={taskSaving} className="inline-flex items-center justify-center rounded-xl bg-[#1D9E75] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#168a63] disabled:cursor-not-allowed disabled:opacity-60">
+                    {taskSaving ? 'Adding...' : 'Add task'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {tasks.length === 0 ? (
+                <div className="rounded-2xl border border-[#D3D1C7] bg-white p-6 text-sm text-[#8A867E]">No tasks yet.</div>
+              ) : tasks.map((task) => (
+                <div key={task.id} className="rounded-2xl border border-[#D3D1C7] bg-white p-5">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-semibold text-[#1A1A1A]">{task.title}</h3>
+                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${task.priority === 'high' ? 'border-[#E8A98C] bg-[#FFF6F1] text-[#712B13]' : task.priority === 'low' ? 'border-[#D3D1C7] bg-[#F1EFE8] text-[#6B6960]' : 'border-[#F0D080] bg-[#FFF8E6] text-[#7A5000]'}`}>{task.priority}</span>
+                      </div>
+                      {task.description && <p className="mt-2 text-sm leading-6 text-[#6B6960]">{task.description}</p>}
+                      <p className="mt-2 text-xs text-[#8A867E]">
+                        {task.assignee_first_name ? `Assigned to ${task.assignee_first_name}` : 'Unassigned'}
+                        {task.due_at ? ` · due ${formatRelative(task.due_at)}` : ''}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select value={task.status} onChange={(event) => updateTaskStatus(task, event.target.value as TaskStatus)} className="rounded-lg border border-[#D3D1C7] bg-white px-3 py-2 text-xs font-semibold text-[#1A1A1A]">
+                        <option value="todo">To do</option><option value="in_progress">In progress</option><option value="done">Done</option>
+                      </select>
+                      {profile?.is_founder && (
+                        <>
+                          <select value={task.assigned_to || ''} onChange={(event) => reassignTask(task, event.target.value)} className="rounded-lg border border-[#D3D1C7] bg-white px-3 py-2 text-xs text-[#1A1A1A]">
+                            <option value="">Unassigned</option>
+                            {teamMembers.map((member) => <option key={member.id} value={member.id}>{member.first_name}</option>)}
+                          </select>
+                          <button type="button" onClick={() => deleteAdminTask(task)} disabled={taskDeletingId === task.id} className="rounded-lg border border-[#E8A98C] bg-white px-3 py-2 text-xs font-semibold text-[#712B13] hover:bg-[#FFF6F1] disabled:opacity-60">
+                            {taskDeletingId === task.id ? 'Deleting...' : 'Delete'}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {selectedView === 'activity' && profile?.is_founder && (
+          <div className="space-y-5">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[1.5px] text-[#1D9E75]">Founder-only</p>
+              <h2 className="mt-1 text-2xl font-bold tracking-[-0.03em] text-[#1A1A1A]">Admin activity</h2>
+              <p className="mt-2 text-sm text-[#6B6960]">A record of administrative actions across the platform.</p>
+            </div>
+
+            <div className="overflow-hidden rounded-2xl border border-[#D3D1C7] bg-white">
+              {activityLog.length === 0 ? (
+                <p className="p-6 text-sm text-[#8A867E]">No admin activity recorded yet.</p>
+              ) : (
+                <div className="divide-y divide-[#E5E1D8]">
+                  {activityLog.map((activity) => (
+                    <div key={activity.id} className="flex flex-col gap-2 p-5 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-[#1A1A1A]">{activity.summary}</p>
+                        <p className="mt-1 text-xs text-[#8A867E]">
+                          {activity.actor_first_name || activity.actor_email || 'Admin'}
+                          {' · '}
+                          {activity.action.replace(/[._]/g, ' ')}
+                        </p>
+                      </div>
+                      <time className="flex-shrink-0 text-xs text-[#8A867E]" dateTime={activity.created_at}>
+                        {formatRelative(activity.created_at)}
+                      </time>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

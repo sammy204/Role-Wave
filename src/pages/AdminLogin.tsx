@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { LogIn, ShieldCheck, UserPlus } from 'lucide-react';
+import { Eye, EyeOff, LogIn, ShieldCheck, UserPlus } from 'lucide-react';
 import type { TurnstileInstance } from '@marsidev/react-turnstile';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
@@ -26,6 +26,7 @@ export default function AdminLogin() {
   const [mode, setMode] = useState<AuthMode>('signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState('');
@@ -364,9 +365,19 @@ export default function AdminLogin() {
           </div>
           <div>
             <label className="block text-xs font-semibold text-[#5F5E5A] uppercase tracking-[0.5px] mb-1.5">Password</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-[#D3D1C7] px-3.5 py-2.5 text-sm outline-none focus:border-[#1D9E75]"
+            <div className="relative">
+            <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-lg border border-[#D3D1C7] px-3.5 py-2.5 pr-11 text-sm outline-none focus:border-[#1D9E75]"
               placeholder="••••••••" />
+              <button
+                type="button"
+                onClick={() => setShowPassword((current) => !current)}
+                className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-[#6B6960] hover:text-[#1A1A1A]"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            </div>
           </div>
           <TurnstileWidget
             ref={turnstileRef}
