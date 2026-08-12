@@ -34,6 +34,11 @@ function scoreJob(job: Job, candidate: CandidateProfile | null) {
     score += 2;
   }
 
+  const preferredTitles = (candidate.preferred_job_titles || []).map((title) => title.toLowerCase());
+  if (preferredTitles.some((preferredTitle) => title.includes(preferredTitle) || preferredTitle.includes(title))) {
+    score += 4;
+  }
+
   if (job.work_type === 'Remote') {
     score += 1;
   }

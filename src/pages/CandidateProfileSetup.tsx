@@ -438,6 +438,8 @@ export default function CandidateProfileSetup() {
                 {resumeSignedUrl && (
                   <a
                     href={candidateResumeViewerHref(form.resumeUrl, form.resumeName || 'candidate-resume.pdf', `${location.pathname}${location.search}`) || resumeSignedUrl}
+                    target="_blank"
+                    rel="noreferrer"
                     className="mt-3 inline-flex text-xs font-semibold text-[#1D9E75] hover:underline"
                   >
                     View uploaded CV

@@ -82,6 +82,7 @@ export interface CandidateProfile {
   years_experience: number | null;
   skills: string[];
   preferred_locations: string[];
+  preferred_job_titles: string[];
   preferred_salary: string | null;
   work_preference: string | null;
   availability: string | null;

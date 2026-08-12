@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, FileText, Send } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import type { Company, Job } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { candidateResumeViewerHref } from '../lib/candidateAssets';
 
 const emptyForm = {
   name: '',
@@ -12,6 +13,7 @@ const emptyForm = {
   phone: '',
   coverLetter: '',
   resumeUrl: '',
+  resumeName: '',
   portfolioUrl: '',
 };
 
@@ -104,13 +106,14 @@ export default function JobApplication() {
           setExistingApplication((applicationRow || null) as { id: string; status: string } | null);
 
           if (nextCandidateProfile) {
-            const typed = nextCandidateProfile as { resume_url?: string | null; portfolio_url?: string | null };
+            const typed = nextCandidateProfile as { resume_url?: string | null; resume_name?: string | null; portfolio_url?: string | null };
             setForm({
               name: nextProfile.full_name || '',
               email: session.user.email || '',
               phone: '',
               coverLetter: '',
               resumeUrl: typed.resume_url || '',
+              resumeName: typed.resume_name || '',
               portfolioUrl: typed.portfolio_url || '',
             });
           } else {
@@ -298,8 +301,27 @@ export default function JobApplication() {
               <input className={fieldClass} value={form.phone} onChange={(e) => updateField('phone', e.target.value)} placeholder="+234..." />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-[0.5px] text-[#5F5E5A]">Resume URL</label>
-              <input className={fieldClass} value={form.resumeUrl} onChange={(e) => updateField('resumeUrl', e.target.value)} placeholder="https://..." />
+              <label className="text-xs font-semibold uppercase tracking-[0.5px] text-[#5F5E5A]">Resume</label>
+              {form.resumeUrl ? (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-[#D3D1C7] bg-[#FBFAF7] px-3 py-2.5">
+                  <div className="flex min-w-0 items-center gap-2 text-sm text-[#1A1A1A]">
+                    <FileText className="shrink-0 text-[#1D9E75]" size={17} />
+                    <span className="truncate">{form.resumeName || 'Saved resume'}</span>
+                  </div>
+                  <a
+                    href={candidateResumeViewerHref(form.resumeUrl, form.resumeName || 'resume.pdf', `/jobs/${job.slug}/apply`) || '#'}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="shrink-0 text-xs font-semibold text-[#0F6E56] hover:underline"
+                  >
+                    View
+                  </a>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-[#D3D1C7] bg-[#FBFAF7] px-3 py-3 text-xs text-[#8A867E]">
+                  No resume saved. <Link to="/candidate/profile" className="font-semibold text-[#0F6E56] hover:underline">Add one to your profile</Link>.
+                </div>
+              )}
             </div>
             <div className="sm:col-span-2 flex flex-col gap-1.5">
               <label className="text-xs font-semibold uppercase tracking-[0.5px] text-[#5F5E5A]">Cover letter</label>

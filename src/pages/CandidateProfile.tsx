@@ -27,7 +27,7 @@ import type { CandidateProfile, Profile } from '../types';
 import { calculateProfileCompletion, getProfileCompletionSuggestions } from '../lib/profileCompletion';
 import LoadingSpinner from '../components/LoadingSpinner';
 import AvatarCropModal from '../components/AvatarCropModal';
-import { getCandidateAssetUrl, uploadCandidateAsset } from '../lib/candidateAssets';
+import { candidateResumeViewerHref, getCandidateAssetUrl, uploadCandidateAsset } from '../lib/candidateAssets';
 
 const suggestedSkills = [
   'React',
@@ -1530,6 +1530,16 @@ export default function CandidateDashboard() {
                 </div>
 
                 <div className="space-y-2">
+                  {candidateProfile?.resume_url && (
+                    <a
+                      href={candidateResumeViewerHref(candidateProfile.resume_url, resumeDisplayName, '/candidate/profile') || '#'}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#D3D1C7] bg-[#FBFAF7] px-4 py-3 text-sm font-semibold text-[#1A1A1A] transition-all duration-200 hover:bg-[#F2EEE7]"
+                    >
+                      <FileText size={16} /> View CV
+                    </a>
+                  )}
                   <button
                     type="button"
                     onClick={handleDownloadCv}
