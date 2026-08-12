@@ -21,3 +21,5 @@ dist-ssr
 *.sln
 *.sw?
 .env
+PROJECT-ROADMAP.md
+navbar-pwa-avatar-backbutton.patch
