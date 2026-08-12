@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import DOMPurify from 'dompurify';
 import { ArrowLeft, MapPin, Home, Briefcase, Clock, CheckCircle, Share2, Send, Bookmark } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { withTimeout } from '../lib/withTimeout';
@@ -283,11 +284,19 @@ export default function JobDetail() {
 
           <div className="mb-6 rounded-[24px] border border-[#D3D1C7] bg-[#FBFAF7] p-4 sm:p-5">
             <h2 className="mb-3 text-xs font-bold uppercase tracking-[1px] text-[#B4B2A9]">About this role</h2>
-            {job.description.split('\n\n').map((para, i) => (
-              <p key={i} className="mb-2 text-sm leading-[1.8] text-[#5F5E5A] last:mb-0">
-                {para}
-              </p>
-            ))}
+            <div
+              className="max-w-none text-[#5F5E5A]
+                [&_h2]:mb-3 [&_h2]:mt-6 [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-[#2C2C2A]
+                [&_h3]:mb-2 [&_h3]:mt-5 [&_h3]:text-sm [&_h3]:font-bold [&_h3]:text-[#2C2C2A]
+                [&_p]:mb-3 [&_p]:text-sm [&_p]:leading-[1.8]
+                [&_ul]:mb-4 [&_ul]:ml-5 [&_ul]:list-disc
+                [&_ol]:mb-4 [&_ol]:ml-5 [&_ol]:list-decimal
+                [&_li]:mb-1 [&_li]:text-sm [&_li]:leading-[1.7]
+                [&_a]:text-[#1D9E75] [&_a]:underline"
+              dangerouslySetInnerHTML={{
+                __html: DOMPurify.sanitize(job.description || ''),
+              }}
+            />
           </div>
 
           {whatYoullDo.length > 0 && (

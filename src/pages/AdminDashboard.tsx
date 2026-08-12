@@ -234,6 +234,7 @@ export default function AdminDashboard() {
   const [savingJob, setSavingJob] = useState(false);
   const [jobSort, setJobSort] = useState<{ key: JobSortKey; dir: SortDir }>({ key: 'created_at', dir: 'desc' });
   const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set());
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState<Set<string>>(new Set());
   const [bulkProcessing, setBulkProcessing] = useState(false);
   const [subscriberCount, setSubscriberCount] = useState<number | null>(null);
   const [newsletterSends, setNewsletterSends] = useState<NewsletterSend[]>([]);
@@ -1224,6 +1225,61 @@ export default function AdminDashboard() {
       setNotice(`${target.name} is now ${nextVerified ? 'verified' : 'unverified'}.`);
     } catch (verifyError) {
       setError(verifyError instanceof Error ? verifyError.message : 'Failed to update verification status.');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleDeleteCompany = async (companyId: string) => {
+    const target = companies.find((company) => company.id === companyId);
+    if (!target) return;
+
+    const confirmed = window.confirm(
+      `Delete ${target.name}? This will also delete its ${target.job_count} linked job${target.job_count === 1 ? '' : 's'}. This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setProcessingId(companyId);
+    setNotice('');
+    setError('');
+    try {
+      const { error: deleteError } = await supabase.from('companies').delete().eq('id', companyId);
+      if (deleteError) throw deleteError;
+
+      setCompanies((current) => current.filter((company) => company.id !== companyId));
+      setJobs((current) => current.filter((job) => job.company_id !== companyId));
+      setNotice(`${target.name} and its linked jobs were deleted.`);
+    } catch (deleteErr) {
+      setError(deleteErr instanceof Error ? deleteErr.message : 'Could not delete company.');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleDeleteSelectedCompanies = async () => {
+    const ids = Array.from(selectedCompanyIds).filter((id) => companies.some((company) => company.id === id));
+    if (ids.length === 0) return;
+
+    const selectedCompanies = companies.filter((company) => ids.includes(company.id));
+    const jobCount = selectedCompanies.reduce((total, company) => total + company.job_count, 0);
+    const confirmed = window.confirm(
+      `Delete ${ids.length} compan${ids.length === 1 ? 'y' : 'ies'} and ${jobCount} linked job${jobCount === 1 ? '' : 's'}? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setProcessingId('bulk-companies');
+    setNotice('');
+    setError('');
+    try {
+      const { error: deleteError } = await supabase.from('companies').delete().in('id', ids);
+      if (deleteError) throw deleteError;
+
+      setCompanies((current) => current.filter((company) => !ids.includes(company.id)));
+      setJobs((current) => current.filter((job) => !ids.includes(job.company_id)));
+      setSelectedCompanyIds(new Set());
+      setNotice(`${ids.length} compan${ids.length === 1 ? 'y' : 'ies'} deleted.`);
+    } catch (deleteErr) {
+      setError(deleteErr instanceof Error ? deleteErr.message : 'Could not delete selected companies.');
     } finally {
       setProcessingId(null);
     }
@@ -2429,9 +2485,22 @@ export default function AdminDashboard() {
 
         {selectedView === 'companies' && (
           <div className="space-y-4">
-            <span className="block text-xs text-[#8A867E] tabular-nums">
-              {filteredCompanies.length} compan{filteredCompanies.length === 1 ? 'y' : 'ies'}
-            </span>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="block text-xs text-[#8A867E] tabular-nums">
+                {filteredCompanies.length} compan{filteredCompanies.length === 1 ? 'y' : 'ies'}
+              </span>
+              {selectedCompanyIds.size > 0 && (
+                <button
+                  type="button"
+                  onClick={handleDeleteSelectedCompanies}
+                  disabled={processingId === 'bulk-companies'}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#E8A98C] bg-white px-3 py-1.5 text-xs font-semibold text-[#712B13] hover:bg-[#FFF6F1] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Trash2 size={12} />
+                  {processingId === 'bulk-companies' ? 'Deleting...' : `Delete ${selectedCompanyIds.size} selected`}
+                </button>
+              )}
+            </div>
 
             {filteredCompanies.length === 0 ? (
               <div className="rounded-2xl border border-[#D3D1C7] bg-white p-8 text-center text-[#5F5E5A]">
@@ -2442,6 +2511,23 @@ export default function AdminDashboard() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-[#D3D1C7] bg-[#FBFAF7]">
+                      <th className="w-10 px-3 py-2.5 text-left">
+                        <input
+                          type="checkbox"
+                          aria-label="Select all visible companies"
+                          checked={filteredCompanies.length > 0 && filteredCompanies.every((company) => selectedCompanyIds.has(company.id))}
+                          onChange={(event) => {
+                            setSelectedCompanyIds((current) => {
+                              const next = new Set(current);
+                              filteredCompanies.forEach((company) => {
+                                if (event.target.checked) next.add(company.id);
+                                else next.delete(company.id);
+                              });
+                              return next;
+                            });
+                          }}
+                        />
+                      </th>
                       <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.5px] text-[#8A867E]">
                         Company
                       </th>
@@ -2462,6 +2548,21 @@ export default function AdminDashboard() {
                   <tbody>
                     {filteredCompanies.map((item) => (
                       <tr key={item.id} className="border-b border-[#EFEDE5] last:border-0 hover:bg-[#FBFAF7]">
+                        <td className="px-3 py-2.5">
+                          <input
+                            type="checkbox"
+                            aria-label={`Select ${item.name}`}
+                            checked={selectedCompanyIds.has(item.id)}
+                            onChange={(event) => {
+                              setSelectedCompanyIds((current) => {
+                                const next = new Set(current);
+                                if (event.target.checked) next.add(item.id);
+                                else next.delete(item.id);
+                                return next;
+                              });
+                            }}
+                          />
+                        </td>
                         <td className="px-3 py-2.5">
                           <div className="flex items-center gap-2.5">
                             <CompanyLogo
@@ -2510,6 +2611,13 @@ export default function AdminDashboard() {
                             }`}
                           >
                             <BadgeCheck size={12} /> {item.verified ? 'Unverify' : 'Verify'}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCompany(item.id)}
+                            disabled={processingId === item.id}
+                            className="ml-2 inline-flex items-center gap-1.5 rounded-lg border border-[#E8A98C] bg-white px-3 py-1.5 text-xs font-semibold text-[#712B13] hover:bg-[#FFF6F1] disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <Trash2 size={12} /> Delete
                           </button>
                         </td>
                       </tr>

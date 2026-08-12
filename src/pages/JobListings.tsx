@@ -62,14 +62,8 @@ export default function JobListings() {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState(initialQ);
   const [activeChip, setActiveChip] = useState(initialType || 'All');
-  const [selectedWorkTypes, setSelectedWorkTypes] = useState<string[]>([
-    'Remote',
-    'Hybrid',
-    'On-site',
-  ]);
-  const [selectedCities, setSelectedCities] = useState<string[]>(
-    initialCity ? [initialCity] : ['Lagos', 'Abuja', 'Port Harcourt', 'Remote only']
-  );
+  const [selectedWorkTypes, setSelectedWorkTypes] = useState<string[]>([]);
+  const [selectedCities, setSelectedCities] = useState<string[]>(initialCity ? [initialCity] : []);
   const [selectedJobTypes, setSelectedJobTypes] = useState<string[]>([]);
   const [selectedExperienceLevels, setSelectedExperienceLevels] = useState<string[]>([]);
   const [selectedAuthorizations, setSelectedAuthorizations] = useState<string[]>([]);
