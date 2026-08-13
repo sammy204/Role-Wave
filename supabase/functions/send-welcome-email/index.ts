@@ -48,7 +48,10 @@ Deno.serve(async (request) => {
       return json({ error: 'Rate limit exceeded.' }, 429);
     }
     // Opportunistic cleanup, fire-and-forget — doesn't block the response.
-    adminClient.rpc('prune_webhook_call_log').then(() => {}).catch(() => {});
+    adminClient.rpc('prune_webhook_call_log').then(
+      () => {},
+      () => {},
+    );
 
     const body = await request.json().catch(() => ({}));
     const userId = typeof body.user_id === 'string' ? body.user_id : '';

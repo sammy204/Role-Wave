@@ -19,6 +19,16 @@ interface StatusCopy {
   badgeText: string;
 }
 
+export interface OfferDetails {
+  roleTitle: string;
+  compensation: string;
+  startDate: string | null;
+  workArrangement: string | null;
+  location: string | null;
+  expiryDate: string | null;
+  benefitsNotes: string | null;
+}
+
 const STATUS_COPY: Record<ApplicationStatus, (jobTitle: string, companyName: string) => StatusCopy> = {
   reviewed: (job, company) => ({
     eyebrow: 'Application update',
@@ -44,7 +54,7 @@ const STATUS_COPY: Record<ApplicationStatus, (jobTitle: string, companyName: str
   offer: (job, company) => ({
     eyebrow: 'Application update',
     heading: "You've received an offer",
-    body: `${company} has extended an offer for ${job}. Check your application for details and next steps.`,
+    body: `${company} has extended an offer for ${job}. The details are below — head to RoleWave to accept or decline.`,
     ctaLabel: 'View offer',
     badgeText: 'Offer extended',
   }),
@@ -70,9 +80,10 @@ export function buildStatusEmailHtml(params: {
   companyName: string;
   status: ApplicationStatus;
   rejectionReason?: string | null;
+  offerDetails?: OfferDetails | null;
   ctaUrl: string;
 }): string {
-  const { name, jobTitle, companyName, status, rejectionReason, ctaUrl } = params;
+  const { name, jobTitle, companyName, status, rejectionReason, offerDetails, ctaUrl } = params;
   const copy = STATUS_COPY[status](escapeHtml(jobTitle), escapeHtml(companyName));
 
   const reasonBlock =
@@ -89,6 +100,30 @@ export function buildStatusEmailHtml(params: {
                     <p style="margin:0; font-family: Arial, Helvetica, sans-serif; font-size:13px; line-height:1.6; color:#5F5E5A;">
                       ${escapeHtml(rejectionReason.trim())}
                     </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>`
+      : '';
+
+  const offerBlock =
+    status === 'offer' && offerDetails
+      ? `
+          <tr>
+            <td class="fluid-padding" style="padding: 0 44px 8px 44px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #8FD3E8; background-color:#E3F5FB; border-radius:14px;">
+                <tr>
+                  <td style="padding:18px 20px;">
+                    <p style="margin:0 0 10px 0; font-family: Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#0B5C73;">
+                      Offer details
+                    </p>
+                    ${offerDetailRow('Role', escapeHtml(offerDetails.roleTitle))}
+                    ${offerDetailRow('Compensation', escapeHtml(offerDetails.compensation))}
+                    ${offerDetails.workArrangement ? offerDetailRow('Work arrangement', escapeHtml(offerDetails.workArrangement) + (offerDetails.location ? ` &middot; ${escapeHtml(offerDetails.location)}` : '')) : ''}
+                    ${offerDetails.startDate ? offerDetailRow('Start date', escapeHtml(offerDetails.startDate)) : ''}
+                    ${offerDetails.expiryDate ? offerDetailRow('Offer expires', escapeHtml(offerDetails.expiryDate)) : ''}
+                    ${offerDetails.benefitsNotes ? `<p style="margin:10px 0 0 0; font-family: Arial, Helvetica, sans-serif; font-size:13px; line-height:1.6; color:#0B5C73; white-space:pre-wrap;">${escapeHtml(offerDetails.benefitsNotes)}</p>` : ''}
                   </td>
                 </tr>
               </table>
@@ -179,7 +214,7 @@ export function buildStatusEmailHtml(params: {
               </p>
             </td>
           </tr>
-${reasonBlock}
+${reasonBlock}${offerBlock}
           <!-- Primary CTA -->
           <tr>
             <td class="fluid-padding" align="center" style="padding: 20px 44px 32px 44px;">
@@ -227,6 +262,16 @@ ${reasonBlock}
 </html>
 `;
   return html;
+}
+
+function offerDetailRow(label: string, value: string): string {
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:4px;">
+      <tr>
+        <td style="font-family: Arial, Helvetica, sans-serif; font-size:13px; color:#0B5C73; opacity:0.75;">${escapeHtml(label)}</td>
+        <td align="right" style="font-family: Arial, Helvetica, sans-serif; font-size:13px; font-weight:700; color:#0B5C73;">${value}</td>
+      </tr>
+    </table>`;
 }
 
 function escapeHtml(value: string): string {

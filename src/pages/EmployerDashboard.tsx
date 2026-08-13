@@ -9,6 +9,7 @@ import {
   Eye,
   FileText,
   FolderOpen,
+  Gift,
   MapPin,
   MessageSquareText,
   Search,
@@ -27,6 +28,7 @@ import {
 import type { CandidateProfile, Company, EmployerProfile, Job, JobApplication, Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ApplicantModal from '../components/ApplicantModal';
+import MakeOfferModal from '../components/MakeOfferModal';
 
 type JobStatus = 'active' | 'filled' | 'closed' | 'archived';
 type ApplicationStatus = JobApplication['status'];
@@ -80,6 +82,7 @@ export default function EmployerDashboard() {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectionReasonDraft, setRejectionReasonDraft] = useState('');
   const [viewingApplicationId, setViewingApplicationId] = useState<string | null>(null);
+  const [offerApplicationId, setOfferApplicationId] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -267,6 +270,13 @@ const updateApplicationStatus = async (
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleOfferSent = (applicationId: string) => {
+    setApplications((prev) =>
+      prev.map((item) => (item.id === applicationId ? { ...item, status: 'offer' } : item))
+    );
+    setNotice('Offer sent to candidate.');
   };
 
   const rejectApplication = async (applicationId: string) => {
@@ -640,7 +650,33 @@ const updateApplicationStatus = async (
                               {messagingId === application.candidate_profile_id ? 'Opening...' : 'Message'}
                             </button>
                           )}
-                        {application.status !== 'rejected' && application.status !== 'withdrawn' && (
+                        {application.status === 'offer' ? (
+                            <button
+                              onClick={() => setOfferApplicationId(application.id)}
+                              className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#8FD3E8] bg-[#E3F5FB] px-4 py-2 text-sm font-semibold text-[#0B5C73] transition-colors duration-200 hover:border-[#0B5C73]"
+                            >
+                              <Gift size={14} /> View offer
+                            </button>
+                          ) : (
+                            application.status !== 'rejected' &&
+                            application.status !== 'withdrawn' &&
+                            application.status !== 'hired' && (
+                              <button
+                                onClick={() => setOfferApplicationId(application.id)}
+                                disabled={!application.candidate_profile_id}
+                                title={
+                                  application.candidate_profile_id
+                                    ? undefined
+                                    : 'Only available for applicants with a registered profile'
+                                }
+                                className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-ink transition-colors duration-200 hover:border-[#5DCAA5] disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <Gift size={14} /> Make offer
+                              </button>
+                            )
+                          )}
+
+                          {application.status !== 'rejected' && application.status !== 'withdrawn' && application.status !== 'offer' && (
                             <select
                               value={application.status}
                               onChange={(e) => updateApplicationStatus(application.id, e.target.value as ApplicationStatus)}
@@ -719,6 +755,18 @@ const updateApplicationStatus = async (
                 : undefined
             }
             messaging={messagingId === viewingApplication.candidate_profile_id}
+          />
+        );
+      })()}
+      {offerApplicationId && employerProfile && (() => {
+        const offerApplication = applications.find((item) => item.id === offerApplicationId);
+        if (!offerApplication) return null;
+        return (
+          <MakeOfferModal
+            application={offerApplication}
+            employerProfileId={employerProfile.id}
+            onClose={() => setOfferApplicationId(null)}
+            onOfferSent={handleOfferSent}
           />
         );
       })()}

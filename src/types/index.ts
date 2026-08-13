@@ -132,6 +132,29 @@ export interface JobApplication {
   updated_at: string;
 }
 
+export interface Offer {
+  id: string;
+  application_id: string;
+  job_id: string;
+  employer_profile_id: string;
+  candidate_profile_id: string;
+  role_title: string;
+  salary_amount: number | null;
+  salary_currency: string;
+  salary_period: string;
+  start_date: string | null;
+  work_arrangement: string | null;
+  location: string | null;
+  benefits_notes: string | null;
+  expiry_date: string | null;
+  status: 'draft' | 'sent' | 'accepted' | 'declined' | 'withdrawn' | 'expired';
+  response_message: string | null;
+  sent_at: string | null;
+  responded_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type WorkType = 'Remote' | 'Hybrid' | 'On-site';
 export type JobType = 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
 
