@@ -82,6 +82,7 @@ export interface CandidateProfile {
   years_experience: number | null;
   skills: string[];
   preferred_locations: string[];
+  preferred_job_titles: string[];
   preferred_salary: string | null;
   work_preference: string | null;
   availability: string | null;
@@ -127,6 +128,30 @@ export interface JobApplication {
   source: 'guest' | 'registered';
   status: 'submitted' | 'reviewed' | 'shortlisted' | 'interview' | 'offer' | 'rejected' | 'hired' | 'withdrawn';
   rejection_reason: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Offer {
+  id: string;
+  application_id: string;
+  job_id: string;
+  employer_profile_id: string;
+  candidate_profile_id: string;
+  role_title: string;
+  salary_amount: number | null;
+  salary_currency: string;
+  salary_period: string;
+  start_date: string | null;
+  work_arrangement: string | null;
+  location: string | null;
+  benefits_notes: string | null;
+  expiry_date: string | null;
+  status: 'draft' | 'sent' | 'accepted' | 'declined' | 'withdrawn' | 'expired';
+  response_message: string | null;
+  sent_at: string | null;
+  responded_at: string | null;
+  candidate_deleted_at?: string | null;
   created_at: string;
   updated_at: string;
 }

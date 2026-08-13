@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { buildStatusEmailHtml, type ApplicationStatus } from './templates/shell.ts';
+import { buildStatusEmailHtml, type ApplicationStatus, type OfferDetails } from './templates/shell.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -66,7 +66,10 @@ Deno.serve(async (request) => {
     if ((recentCallCount ?? 0) > RATE_LIMIT_MAX_CALLS) {
       return json({ error: 'Rate limit exceeded.' }, 429);
     }
-    adminClient.rpc('prune_webhook_call_log').then(() => {}).catch(() => {});
+    adminClient.rpc('prune_webhook_call_log').then(
+      () => {},
+      () => {},
+    );
 
     const body = await request.json().catch(() => ({}));
     const applicationId = typeof body.application_id === 'string' ? body.application_id : '';
@@ -148,6 +151,32 @@ Deno.serve(async (request) => {
 
     if (companyError) throw companyError;
 
+    let offerDetails: OfferDetails | null = null;
+    if (validStatus === 'offer') {
+      const { data: offer, error: offerError } = await adminClient
+        .from('offers')
+        .select('role_title, salary_amount, salary_currency, salary_period, start_date, work_arrangement, location, benefits_notes, expiry_date')
+        .eq('application_id', applicationId)
+        .eq('status', 'sent')
+        .order('sent_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (offerError) throw offerError;
+
+      if (offer) {
+        offerDetails = {
+          roleTitle: offer.role_title,
+          compensation: formatMoney(offer.salary_amount, offer.salary_currency, offer.salary_period),
+          startDate: offer.start_date ? formatDate(offer.start_date) : null,
+          workArrangement: offer.work_arrangement,
+          location: offer.location,
+          expiryDate: offer.expiry_date ? formatDate(offer.expiry_date) : null,
+          benefitsNotes: offer.benefits_notes,
+        };
+      }
+    }
+
     const name = profile.full_name?.trim() || 'there';
     const jobTitle = job.title || 'the role';
     const companyName = company?.name || 'the employer';
@@ -158,6 +187,7 @@ Deno.serve(async (request) => {
       companyName,
       status: validStatus,
       rejectionReason: validStatus === 'rejected' ? application.rejection_reason : null,
+      offerDetails,
       ctaUrl: 'https://rolewave.cv/candidate/activity',
     });
 
@@ -199,6 +229,16 @@ Deno.serve(async (request) => {
     return json({ error: 'Could not process request.' }, 500);
   }
 });
+
+function formatMoney(amount: number | null, currency: string, period: string): string {
+  if (amount == null) return 'Not specified';
+  const formatted = new Intl.NumberFormat('en-NG', { maximumFractionDigits: 0 }).format(amount);
+  return `${currency} ${formatted} / ${period}`;
+}
+
+function formatDate(date: string): string {
+  return new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
 
 function timingSafeEqual(a: string, b: string): boolean {
   const enc = new TextEncoder();

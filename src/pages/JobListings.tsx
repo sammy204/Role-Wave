@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { withTimeout } from '../lib/withTimeout';
+import { PAGE_SIZE, getPaginatedJobs } from '../lib/pagination';
 import type { Job, Company } from '../types';
 import JobCard from '../components/JobCard';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -62,20 +63,19 @@ export default function JobListings() {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState(initialQ);
   const [activeChip, setActiveChip] = useState(initialType || 'All');
-  const [selectedWorkTypes, setSelectedWorkTypes] = useState<string[]>([
-    'Remote',
-    'Hybrid',
-    'On-site',
-  ]);
-  const [selectedCities, setSelectedCities] = useState<string[]>(
-    initialCity ? [initialCity] : ['Lagos', 'Abuja', 'Port Harcourt', 'Remote only']
-  );
+  const [selectedWorkTypes, setSelectedWorkTypes] = useState<string[]>([]);
+  const [selectedCities, setSelectedCities] = useState<string[]>(initialCity ? [initialCity] : []);
   const [selectedJobTypes, setSelectedJobTypes] = useState<string[]>([]);
   const [selectedExperienceLevels, setSelectedExperienceLevels] = useState<string[]>([]);
   const [selectedAuthorizations, setSelectedAuthorizations] = useState<string[]>([]);
   const [selectedApplicationMethods, setSelectedApplicationMethods] = useState<string[]>([]);
   const [salaryFloor, setSalaryFloor] = useState('');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeChip, selectedWorkTypes, selectedCities, selectedJobTypes, selectedExperienceLevels, selectedAuthorizations, selectedApplicationMethods, salaryFloor]);
 
   useEffect(() => {
     async function fetchJobs() {
@@ -197,6 +197,16 @@ export default function JobListings() {
       return jobs.filter((j) => j.location === label).length;
     });
   };
+
+  const totalPages = Math.max(1, Math.ceil(filteredJobs.length / PAGE_SIZE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedJobs = getPaginatedJobs(filteredJobs, safeCurrentPage, PAGE_SIZE);
+
+  useEffect(() => {
+    if (currentPage !== safeCurrentPage) {
+      setCurrentPage(safeCurrentPage);
+    }
+  }, [currentPage, safeCurrentPage]);
 
   const workTypeCounts = getFilterCount(workTypeFilters, 'work_type');
   const cityCounts = getFilterCount(cityFilters, 'location');
@@ -409,11 +419,39 @@ export default function JobListings() {
           ) : filteredJobs.length === 0 ? (
             <div className="panel rounded-[24px] py-20 text-center text-[#5F5E5A]">No jobs found matching your criteria.</div>
           ) : (
-            <div className="space-y-3 sm:space-y-3.5">
-              {filteredJobs.map((job) => (
-                <JobCard key={job.id} job={job} />
-              ))}
-            </div>
+            <>
+              <div className="space-y-3 sm:space-y-3.5">
+                {paginatedJobs.items.map((job) => (
+                  <JobCard key={job.id} job={job} />
+                ))}
+              </div>
+
+              {totalPages > 1 && (
+                <div className="mt-6 flex items-center justify-between gap-3 rounded-[20px] border border-[#E9E7DE] bg-white px-4 py-3 shadow-[0_6px_18px_rgba(26,26,26,0.03)]">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))}
+                    disabled={safeCurrentPage === 1}
+                    className="rounded-full border border-[#D3D1C7] px-3 py-1.5 text-sm font-medium text-[#5F5E5A] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Previous
+                  </button>
+
+                  <div className="text-sm text-[#5F5E5A]">
+                    Page {safeCurrentPage} of {totalPages}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((page) => Math.min(page + 1, totalPages))}
+                    disabled={safeCurrentPage === totalPages}
+                    className="rounded-full border border-[#D3D1C7] px-3 py-1.5 text-sm font-medium text-[#5F5E5A] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

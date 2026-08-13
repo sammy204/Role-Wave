@@ -6,13 +6,17 @@ export type ApplicationStatus = JobApplication['status'];
  * Forward progression an employer moves an application through.
  * 'rejected' and 'withdrawn' are side-exits, not part of the sequence,
  * so they're deliberately left out of this list.
+ *
+ * 'offer' is deliberately excluded too: it's no longer a status an employer
+ * sets directly. It's reached only by sending a real offer letter (see
+ * the "Make Offer" flow in EmployerDashboard), which the DB enforces via
+ * trg_block_direct_offer_status.
  */
 export const PIPELINE_STAGES: ApplicationStatus[] = [
   'submitted',
   'reviewed',
   'shortlisted',
   'interview',
-  'offer',
   'hired',
 ];
 

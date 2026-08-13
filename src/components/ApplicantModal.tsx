@@ -44,12 +44,11 @@ function initialsFor(name: string): string {
 }
 
 function LinkButton({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
-  const isInternal = href.startsWith('/resume/view');
   return (
     <a
       href={href}
-      target={isInternal ? undefined : '_blank'}
-      rel={isInternal ? undefined : 'noreferrer'}
+      target="_blank"
+      rel="noreferrer"
       className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-ink transition-colors duration-200 hover:border-[#5DCAA5]"
     >
       {icon} {label}
@@ -217,10 +216,10 @@ export default function ApplicantModal({ application, onClose, onMessage, messag
                     {applicationResumeUrl && (
                       <LinkButton
                         href={applicationResumeUrl && application.resume_url && isStoredCandidateAsset(application.resume_url)
-                          ? candidateResumeViewerHref(application.resume_url, 'resume.pdf', returnTo) || applicationResumeUrl
+                          ? candidateResumeViewerHref(application.resume_url, candidate?.resume_name || 'resume.pdf', returnTo) || applicationResumeUrl
                           : applicationResumeUrl || ''}
                         icon={<FileText size={14} />}
-                        label="Resume"
+                        label={candidate?.resume_name || 'Resume'}
                       />
                     )}
                     {portfolioUrl && (
@@ -292,9 +291,9 @@ export default function ApplicantModal({ application, onClose, onMessage, messag
                     <div className="flex flex-wrap gap-2">
                       {candidateResumeUrl && (
                         <LinkButton
-                          href={candidate.resume_url ? candidateResumeViewerHref(candidate.resume_url, 'candidate-resume.pdf', returnTo) || candidateResumeUrl || '' : candidateResumeUrl || ''}
+                          href={candidate.resume_url ? candidateResumeViewerHref(candidate.resume_url, candidate.resume_name || 'candidate-resume.pdf', returnTo) || candidateResumeUrl || '' : candidateResumeUrl || ''}
                           icon={<FileText size={14} />}
-                          label="Resume"
+                          label={candidate.resume_name || 'Resume'}
                         />
                       )}
                       {candidate.portfolio_url && (

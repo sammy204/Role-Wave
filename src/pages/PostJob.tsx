@@ -199,6 +199,18 @@ export default function PostJob() {
         throw new Error('Please complete the required job fields.');
       }
 
+      const minimumSalary = form.salaryMin ? Number(form.salaryMin) : null;
+      const maximumSalary = form.salaryMax ? Number(form.salaryMax) : null;
+      if (minimumSalary !== null && maximumSalary !== null && maximumSalary < minimumSalary) {
+        throw new Error('Maximum salary must be greater than or equal to minimum salary.');
+      }
+      if (form.applyMethod === 'external' && form.applyUrl && !/^https?:\/\//i.test(form.applyUrl.trim())) {
+        throw new Error('Apply URL must start with http:// or https://.');
+      }
+      if (form.applyMethod === 'email' && !form.applicationEmail.trim()) {
+        throw new Error('Please enter an application email address.');
+      }
+
       const jobSlug = buildJobSlug(form.jobTitle, company.name);
       const tags = form.tags;
 
@@ -236,8 +248,8 @@ export default function PostJob() {
         work_type: form.workType,
         job_type: form.jobType,
         salary: formatSalaryRange(form) || null,
-        salary_min: form.salaryMin ? Number(form.salaryMin) : null,
-        salary_max: form.salaryMax ? Number(form.salaryMax) : null,
+        salary_min: minimumSalary,
+        salary_max: maximumSalary,
         salary_currency: form.salaryCurrency,
         salary_period: form.salaryPeriod,
         experience_level: form.experienceLevel,
@@ -266,7 +278,14 @@ export default function PostJob() {
         .eq('id', company.id);
       if (companyError) throw companyError;
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Could not create job.');
+      console.error('Could not create job:', saveError);
+      const errorMessage =
+        typeof saveError === 'object' && saveError !== null && 'message' in saveError && typeof saveError.message === 'string'
+          ? saveError.message
+          : saveError instanceof Error
+            ? saveError.message
+            : 'Could not create job.';
+      setError(errorMessage);
     } finally {
       setSaving(false);
     }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Bell, Database, LockKeyhole, LogOut, Mail, Save, ShieldCheck, X } from 'lucide-react';
+import { AlertTriangle, Bell, Briefcase, Database, LockKeyhole, LogOut, Mail, Save, ShieldCheck, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/useAuth';
@@ -9,13 +9,29 @@ import LoadingSpinner from '../components/LoadingSpinner';
 type Visibility = 'open' | 'not_open' | 'hidden';
 type Theme = 'light' | 'dark' | 'system';
 
+const JOB_TITLE_SUGGESTIONS = [
+  'Frontend Engineer',
+  'Backend Engineer',
+  'Full-stack Developer',
+  'Mobile Developer',
+  'DevOps Engineer',
+  'Data Analyst',
+  'Data Scientist',
+  'Product Designer',
+  'Product Manager',
+  'Digital Marketer',
+];
+
 export default function CandidateSettings() {
   const navigate = useNavigate();
   const { session, loading: authLoading } = useAuth();
   const [visibility, setVisibility] = useState<Visibility>('open');
+  const [preferredJobTitles, setPreferredJobTitles] = useState<string[]>([]);
+  const [customJobTitle, setCustomJobTitle] = useState('');
   const [pushEnabled, setPushEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [jobPreferencesSaving, setJobPreferencesSaving] = useState(false);
   const [pushSaving, setPushSaving] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => {
@@ -29,7 +45,10 @@ export default function CandidateSettings() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [applicationEmails, setApplicationEmails] = useState(true);
+  const [messageEmails, setMessageEmails] = useState(true);
   const [recommendationEmails, setRecommendationEmails] = useState(true);
+  const [marketingEmails, setMarketingEmails] = useState(false);
+  const [pauseOptionalEmails, setPauseOptionalEmails] = useState(false);
 
   useEffect(() => {
     if (!message) return;
@@ -66,16 +85,20 @@ export default function CandidateSettings() {
 
     let alive = true;
     void Promise.all([
-      supabase.from('candidate_profiles').select('visibility_to_employers').eq('id', session.user.id).maybeSingle(),
+      supabase.from('candidate_profiles').select('visibility_to_employers, preferred_job_titles').eq('id', session.user.id).maybeSingle(),
       getCurrentPushSubscription(),
-      supabase.from('profiles').select('email_application_updates, email_job_recommendations').eq('id', session.user.id).maybeSingle(),
+      supabase.from('profiles').select('email_application_updates, email_new_messages, email_job_recommendations, email_marketing_communications, email_pause_optional').eq('id', session.user.id).maybeSingle(),
     ]).then(([profileResult, subscription, settingsResult]) => {
       if (!alive) return;
       const value = profileResult.data?.visibility_to_employers;
       if (value === 'open' || value === 'not_open' || value === 'hidden') setVisibility(value);
+      setPreferredJobTitles(profileResult.data?.preferred_job_titles || []);
       setPushEnabled(Boolean(subscription));
       if (typeof settingsResult.data?.email_application_updates === 'boolean') setApplicationEmails(settingsResult.data.email_application_updates);
+      if (typeof settingsResult.data?.email_new_messages === 'boolean') setMessageEmails(settingsResult.data.email_new_messages);
       if (typeof settingsResult.data?.email_job_recommendations === 'boolean') setRecommendationEmails(settingsResult.data.email_job_recommendations);
+      if (typeof settingsResult.data?.email_marketing_communications === 'boolean') setMarketingEmails(settingsResult.data.email_marketing_communications);
+      if (typeof settingsResult.data?.email_pause_optional === 'boolean') setPauseOptionalEmails(settingsResult.data.email_pause_optional);
     }).catch((loadError) => {
       if (alive) setError(loadError instanceof Error ? loadError.message : 'Could not load settings.');
     }).finally(() => {
@@ -115,6 +138,37 @@ export default function CandidateSettings() {
     } finally {
       setPushSaving(false);
     }
+  };
+
+  const saveJobPreferences = async () => {
+    if (!session) return;
+    setJobPreferencesSaving(true);
+    setError('');
+    setMessage('');
+    const { error: preferencesError } = await supabase
+      .from('candidate_profiles')
+      .update({
+        preferred_job_titles: preferredJobTitles,
+      })
+      .eq('id', session.user.id);
+    if (preferencesError) setError(preferencesError.message);
+    else setMessage('Job preferences saved.');
+    setJobPreferencesSaving(false);
+  };
+
+  const toggleJobTitle = (title: string) => {
+    setPreferredJobTitles((current) =>
+      current.includes(title) ? current.filter((item) => item !== title) : [...current, title],
+    );
+  };
+
+  const addCustomJobTitle = () => {
+    const title = customJobTitle.trim();
+    if (!title) return;
+    setPreferredJobTitles((current) =>
+      current.some((item) => item.toLowerCase() === title.toLowerCase()) ? current : [...current, title],
+    );
+    setCustomJobTitle('');
   };
 
   const sendPasswordReset = async () => {
@@ -168,23 +222,65 @@ export default function CandidateSettings() {
     setError('');
   };
 
-  const toggleEmailPreference = async (key: 'applications' | 'recommendations', enabled: boolean) => {
+  const toggleEmailPreference = async (key: 'applications' | 'messages' | 'recommendations' | 'marketing', enabled: boolean) => {
     if (!session) return;
-    const previous = key === 'applications' ? applicationEmails : recommendationEmails;
-    if (key === 'applications') setApplicationEmails(enabled);
-    else setRecommendationEmails(enabled);
+    const state = { applications: applicationEmails, messages: messageEmails, recommendations: recommendationEmails, marketing: marketingEmails };
+    const previous = state[key];
+    const setters = { applications: setApplicationEmails, messages: setMessageEmails, recommendations: setRecommendationEmails, marketing: setMarketingEmails };
+    setters[key](enabled);
     setError('');
     const { error: preferenceError } = await supabase
       .from('profiles')
-      .update({ [key === 'applications' ? 'email_application_updates' : 'email_job_recommendations']: enabled })
+      .update({
+        [key === 'applications'
+          ? 'email_application_updates'
+          : key === 'messages'
+            ? 'email_new_messages'
+            : key === 'recommendations'
+              ? 'email_job_recommendations'
+              : 'email_marketing_communications']: enabled,
+        email_pause_optional: false,
+      })
       .eq('id', session.user.id);
     if (preferenceError) {
-      if (key === 'applications') setApplicationEmails(previous);
-      else setRecommendationEmails(previous);
+      setters[key](previous);
       setError(preferenceError.message);
       return;
     }
+    setPauseOptionalEmails(false);
     setMessage('Email preference saved.');
+  };
+
+  const togglePauseOptionalEmails = async (paused: boolean) => {
+    if (!session) return;
+    const previous = { applicationEmails, messageEmails, recommendationEmails, marketingEmails, pauseOptionalEmails };
+    setPauseOptionalEmails(paused);
+    if (paused) {
+      setApplicationEmails(false);
+      setMessageEmails(false);
+      setRecommendationEmails(false);
+      setMarketingEmails(false);
+    }
+    setError('');
+    const { error: preferenceError } = await supabase
+      .from('profiles')
+      .update({
+        email_pause_optional: paused,
+        ...(paused
+          ? { email_application_updates: false, email_new_messages: false, email_job_recommendations: false, email_marketing_communications: false }
+          : {}),
+      })
+      .eq('id', session.user.id);
+    if (preferenceError) {
+      setApplicationEmails(previous.applicationEmails);
+      setMessageEmails(previous.messageEmails);
+      setRecommendationEmails(previous.recommendationEmails);
+      setMarketingEmails(previous.marketingEmails);
+      setPauseOptionalEmails(previous.pauseOptionalEmails);
+      setError(preferenceError.message);
+      return;
+    }
+    setMessage(paused ? 'Optional emails paused.' : 'Optional email preferences restored.');
   };
 
   if (authLoading || loading) {
@@ -232,9 +328,15 @@ export default function CandidateSettings() {
           <div className="mt-5 space-y-3">
             <PreferenceToggle
               title="Application updates"
-              description="Status changes, employer messages, and important application activity."
+              description="Status changes and important application activity."
               enabled={applicationEmails}
               onChange={(enabled) => toggleEmailPreference('applications', enabled)}
+            />
+            <PreferenceToggle
+              title="Message notifications"
+              description="When an employer sends you a new message."
+              enabled={messageEmails}
+              onChange={(enabled) => toggleEmailPreference('messages', enabled)}
             />
             <PreferenceToggle
               title="Job recommendations"
@@ -243,6 +345,96 @@ export default function CandidateSettings() {
               onChange={(enabled) => toggleEmailPreference('recommendations', enabled)}
             />
           </div>
+        </details>
+
+        <details className="panel order-3 rounded-[28px] p-5 sm:p-6">
+          <summary className="flex cursor-pointer items-start gap-3">
+            <Mail className="mt-0.5 text-[#1D9E75]" size={20} />
+            <div>
+              <h2 className="font-semibold text-[#1A1A1A]">Marketing communication preferences</h2>
+              <p className="mt-1 text-sm text-[#5F5E5A]">Optional emails about RoleWave products, services, content, and features that may support your job search.</p>
+            </div>
+          </summary>
+          <div className="mt-5 space-y-3">
+            <PreferenceToggle
+              title="News & announcements"
+              description="Newsletters, recent blog posts, product updates, award lists, and more."
+              enabled={marketingEmails}
+              onChange={(enabled) => toggleEmailPreference('marketing', enabled)}
+            />
+            <PreferenceToggle
+              title="Pause all optional emails"
+              description="Turn off application, message, recommendation, and marketing emails. Security and account emails still arrive."
+              enabled={pauseOptionalEmails}
+              onChange={togglePauseOptionalEmails}
+            />
+          </div>
+        </details>
+
+        <details className="panel order-3 rounded-[28px] p-5 sm:p-6">
+          <summary className="flex cursor-pointer items-start gap-3">
+            <Briefcase className="mt-0.5 text-[#1D9E75]" size={20} />
+            <div>
+              <h2 className="font-semibold text-[#1A1A1A]">Job preferences</h2>
+          <p className="mt-1 text-sm text-[#5F5E5A]">Tell RoleWave which kinds of roles you want to discover.</p>
+            </div>
+          </summary>
+          <div className="mt-5">
+            <div className="text-sm font-semibold text-[#1A1A1A]">What kinds of roles interest you?</div>
+            <p className="mt-1 text-xs leading-5 text-[#8A867E]">Tap all that apply. We’ll use these to personalize your recommendations.</p>
+            <div className="mt-3 flex gap-2">
+              <input
+                value={customJobTitle}
+                onChange={(event) => setCustomJobTitle(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    addCustomJobTitle();
+                  }
+                }}
+                placeholder="Add another role, e.g. Customer Service"
+                className="min-w-0 flex-1 rounded-xl border border-[#D3D1C7] bg-white px-3 py-2.5 text-sm text-[#1A1A1A] outline-none focus:border-[#1D9E75]"
+                aria-label="Add another preferred job title"
+              />
+              <button type="button" onClick={addCustomJobTitle} disabled={!customJobTitle.trim()} className="rounded-xl border border-[#1D9E75] px-3.5 py-2.5 text-sm font-semibold text-[#0F6E56] disabled:cursor-not-allowed disabled:opacity-50">
+                Add
+              </button>
+            </div>
+            {preferredJobTitles.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2" aria-label="Selected preferred job titles">
+                {preferredJobTitles.map((title) => (
+                  <button
+                    key={title}
+                    type="button"
+                    onClick={() => toggleJobTitle(title)}
+                    className="rounded-full bg-[#1D9E75] px-3.5 py-2 text-xs font-semibold text-white"
+                    title={`Remove ${title}`}
+                  >
+                    {title} <span aria-hidden="true">×</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="mt-3 flex flex-wrap gap-2">
+              {JOB_TITLE_SUGGESTIONS.filter((title) => !preferredJobTitles.includes(title)).map((title) => {
+                const selected = preferredJobTitles.includes(title);
+                return (
+                  <button
+                    key={title}
+                    type="button"
+                    onClick={() => toggleJobTitle(title)}
+                    aria-pressed={selected}
+                    className={`rounded-full px-3.5 py-2 text-xs font-semibold transition-colors ${selected ? 'bg-[#1D9E75] text-white' : 'border border-[#D3D1C7] bg-white text-[#5F5E5A] hover:border-[#5DCAA5]'}`}
+                  >
+                    {title}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <button type="button" onClick={saveJobPreferences} disabled={jobPreferencesSaving} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#1D9E75] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
+            <Save size={15} /> {jobPreferencesSaving ? 'Saving...' : 'Save job preferences'}
+          </button>
         </details>
 
         <details className="panel order-6 rounded-[28px] p-5 sm:p-6">
@@ -299,13 +491,6 @@ export default function CandidateSettings() {
               <button type="button" onClick={toggleReducedMotion} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${reducedMotion ? 'bg-[#1D9E75] text-white' : 'border border-[#D3D1C7] bg-white text-[#5F5E5A]'}`}>
                 {reducedMotion ? 'On' : 'Off'}
               </button>
-            </div>
-            <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-4 py-3">
-              <div>
-                <div className="text-sm font-semibold text-[#1A1A1A]">Language</div>
-                <div className="mt-1 text-xs text-[#8A867E]">English (Nigeria)</div>
-              </div>
-              <span className="rounded-full border border-[#D3D1C7] bg-white px-3 py-1.5 text-xs font-semibold text-[#8A867E]">Only language available</span>
             </div>
           </div>
         </details>
