@@ -78,6 +78,8 @@ export default function EmployerDashboard() {
   const [selectedJobId, setSelectedJobId] = useState<string>('all');
   const [confirmDeleteJobId, setConfirmDeleteJobId] = useState<string | null>(null);
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
+  const [confirmDeleteApplicationId, setConfirmDeleteApplicationId] = useState<string | null>(null);
+  const [deletingApplicationId, setDeletingApplicationId] = useState<string | null>(null);
   const [messagingId, setMessagingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectionReasonDraft, setRejectionReasonDraft] = useState('');
@@ -283,6 +285,29 @@ const updateApplicationStatus = async (
     await updateApplicationStatus(applicationId, 'rejected', rejectionReasonDraft);
     setRejectingId(null);
     setRejectionReasonDraft('');
+  };
+
+  const deleteApplication = async (applicationId: string) => {
+    setDeletingApplicationId(applicationId);
+    setError('');
+    setNotice('');
+
+    try {
+      const { error: deleteError } = await supabase
+        .from('job_applications')
+        .delete()
+        .eq('id', applicationId)
+        .eq('status', 'rejected');
+      if (deleteError) throw deleteError;
+
+      setApplications((prev) => prev.filter((item) => item.id !== applicationId));
+      setNotice('Rejected application deleted.');
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Could not delete application.');
+    } finally {
+      setDeletingApplicationId(null);
+      setConfirmDeleteApplicationId(null);
+    }
   };
 
   const updateJobStatus = async (jobId: string, nextStatus: JobStatus) => {
@@ -729,6 +754,36 @@ const updateApplicationStatus = async (
                                 className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-[#B3261E] transition-colors duration-200 hover:border-[#B3261E] hover:bg-[#FAECE7] disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 <XCircle size={14} /> Reject
+                              </button>
+                            )
+                          )}
+
+                          {application.status === 'rejected' && (
+                            confirmDeleteApplicationId === application.id ? (
+                              <div className="flex w-full flex-row gap-2 rounded-lg border border-pill-red-border bg-pill-red-bg p-2 lg:flex-col">
+                                <button
+                                  onClick={() => deleteApplication(application.id)}
+                                  disabled={deletingApplicationId === application.id}
+                                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#B3261E] px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 hover:bg-[#8C1D17] disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  <Trash2 size={14} />
+                                  {deletingApplicationId === application.id ? 'Deleting...' : 'Confirm delete'}
+                                </button>
+                                <button
+                                  onClick={() => setConfirmDeleteApplicationId(null)}
+                                  disabled={deletingApplicationId === application.id}
+                                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-muted transition-colors duration-200 hover:border-[#5DCAA5] disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setConfirmDeleteApplicationId(application.id)}
+                                disabled={saving || deletingApplicationId !== null}
+                                className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-[#B3261E] transition-colors duration-200 hover:border-[#B3261E] hover:bg-[#FAECE7] disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <Trash2 size={14} /> Delete applicant
                               </button>
                             )
                           )}
