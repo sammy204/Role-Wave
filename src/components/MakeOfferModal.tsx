@@ -24,7 +24,15 @@ type FormState = {
 
 const CURRENCIES = ['NGN', 'USD', 'GBP', 'EUR'];
 const PERIODS = ['year', 'month'];
-const ARRANGEMENTS = ['Remote', 'Hybrid', 'On-site'];
+const ARRANGEMENTS: { value: 'remote' | 'hybrid' | 'onsite'; label: string }[] = [
+  { value: 'remote', label: 'Remote' },
+  { value: 'hybrid', label: 'Hybrid' },
+  { value: 'onsite', label: 'On-site' },
+];
+
+function arrangementLabel(value: string): string {
+  return ARRANGEMENTS.find((a) => a.value === value)?.label || value;
+}
 
 function emptyForm(job?: Job): FormState {
   return {
@@ -297,7 +305,9 @@ export default function MakeOfferModal({ application, employerProfileId, onClose
                     value={formatMoney(existingOffer!.salary_amount, existingOffer!.salary_currency, existingOffer!.salary_period)}
                   />
                   {existingOffer!.start_date && <ReadRow label="Start date" value={existingOffer!.start_date} />}
-                  {existingOffer!.work_arrangement && <ReadRow label="Work arrangement" value={existingOffer!.work_arrangement} />}
+                  {existingOffer!.work_arrangement && (
+                    <ReadRow label="Work arrangement" value={arrangementLabel(existingOffer!.work_arrangement)} />
+                  )}
                   {existingOffer!.location && <ReadRow label="Location" value={existingOffer!.location} />}
                   {existingOffer!.expiry_date && <ReadRow label="Offer expires" value={existingOffer!.expiry_date} />}
                   {existingOffer!.benefits_notes && (
@@ -372,8 +382,8 @@ export default function MakeOfferModal({ application, employerProfileId, onClose
                       >
                         <option value="">Not specified</option>
                         {ARRANGEMENTS.map((a) => (
-                          <option key={a} value={a}>
-                            {a}
+                          <option key={a.value} value={a.value}>
+                            {a.label}
                           </option>
                         ))}
                       </select>

@@ -12,10 +12,10 @@ export default defineConfig({
       filename: 'sw.ts',
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      // Enable the service worker while running `vite` so push notifications
-      // can be tested from an installed local PWA during development.
+      // The injectManifest dev worker is not evaluated reliably by Vite's
+      // dev server; use the generated worker in production instead.
       devOptions: {
-        enabled: true,
+        enabled: false,
       },
       manifest: false,
       workbox: {

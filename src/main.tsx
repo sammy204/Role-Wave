@@ -2,6 +2,10 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+import { initializeSentry } from './lib/sentry';
+import * as Sentry from '@sentry/react';
+
+initializeSentry();
 
 // Keep the installed PWA at a stable scale. `touch-action` handles modern
 // browsers; these listeners cover iOS Safari's legacy gesture events too.
@@ -20,6 +24,8 @@ document.addEventListener(
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <Sentry.ErrorBoundary fallback={<p>Something went wrong. Please reload RoleWave.</p>}>
+      <App />
+    </Sentry.ErrorBoundary>
   </StrictMode>
 );

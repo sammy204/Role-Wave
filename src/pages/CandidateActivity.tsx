@@ -227,8 +227,8 @@ if (error) throw error;
 
   if (loading) {
     return (
-      <div className="page-shell px-4 py-6 sm:px-6 lg:px-8">
-        <div className="panel rounded-[24px] px-5 py-5">
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <div className="rounded-panel border border-line bg-surface px-5 py-5 shadow-card">
           <LoadingSpinner className="text-[#1D9E75]" />
         </div>
       </div>
