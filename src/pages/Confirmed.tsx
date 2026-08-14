@@ -24,6 +24,8 @@ export default function Confirmed() {
   // AdminLogin.tsx) so it survives the confirmation round-trip. If present,
   // finish the acceptance here before routing anywhere else.
   const inviteToken = new URLSearchParams(location.search).get('invite');
+  const requestedNext = new URLSearchParams(location.search).get('next');
+  const nextPath = requestedNext && requestedNext.startsWith('/') && !requestedNext.startsWith('//') ? requestedNext : null;
 
   useEffect(() => {
     if (authLoading) return;
@@ -68,7 +70,7 @@ export default function Confirmed() {
             ? '/employer/onboarding'
             : '/candidate';
 
-        navigate(destination, { replace: true });
+        navigate(nextPath || destination, { replace: true });
       } catch {
         if (alive) setRouting(false);
       }
@@ -77,7 +79,7 @@ export default function Confirmed() {
     return () => {
       alive = false;
     };
-  }, [authLoading, session, navigate, inviteToken]);
+  }, [authLoading, session, navigate, inviteToken, nextPath]);
 
   // Safety net: if for any reason we're still here after a few seconds
   // (e.g. profile lookup hung), don't leave the user stranded.

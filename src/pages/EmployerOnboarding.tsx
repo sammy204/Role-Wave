@@ -135,11 +135,18 @@ export default function EmployerOnboarding() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  const MAX_LOGO_SOURCE_BYTES = 10 * 1024 * 1024; // 10MB - generous pre-crop limit
+  const ALLOWED_LOGO_SOURCE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
   const handleLogoFileChange = (file: File | null) => {
     if (!file) return;
     setLogoError('');
-    if (!file.type.startsWith('image/')) {
-      setLogoError('Please upload an image file.');
+    if (!ALLOWED_LOGO_SOURCE_TYPES.includes(file.type)) {
+      setLogoError('Please upload a JPEG, PNG, or WEBP image.');
+      return;
+    }
+    if (file.size > MAX_LOGO_SOURCE_BYTES) {
+      setLogoError('That image is too large. Please choose a file under 10MB.');
       return;
     }
     setCropSourceFile(file);

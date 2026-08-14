@@ -13,7 +13,6 @@ const FEATURED_JOBS_LIMIT = 8;
 export default function Home() {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState<(Job & { company?: Company })[]>([]);
-  const [stats, setStats] = useState({ live: 0, companies: 0, new: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,37 +48,6 @@ export default function Home() {
         const companyById = new Map((companiesData || []).map((company) => [company.id, company]));
         setJobs((jobsData || []).map((job) => ({ ...job, company: companyById.get(job.company_id) })));
 
-        const { count: liveCount, error: liveError } = await withTimeout(
-          supabase.from('jobs').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-          FETCH_TIMEOUT_MS,
-          'Live jobs count'
-        );
-        if (liveError) throw liveError;
-
-        const { count: companyCount, error: companyCountError } = await withTimeout(
-          supabase.from('companies').select('*', { count: 'exact', head: true }),
-          FETCH_TIMEOUT_MS,
-          'Company count'
-        );
-        if (companyCountError) throw companyCountError;
-
-        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-        const { count: newCount, error: newCountError } = await withTimeout(
-          supabase
-            .from('jobs')
-            .select('*', { count: 'exact', head: true })
-            .eq('status', 'active')
-            .gte('created_at', oneDayAgo),
-          FETCH_TIMEOUT_MS,
-          'New jobs count'
-        );
-        if (newCountError) throw newCountError;
-
-        setStats({
-          live: liveCount || 0,
-          companies: companyCount || 0,
-          new: newCount || 0,
-        });
       } catch (fetchError) {
         setError(fetchError instanceof Error ? fetchError.message : 'Failed to load jobs.');
       } finally {
@@ -106,11 +74,7 @@ export default function Home() {
             <div className="pointer-events-none absolute -left-16 -top-20 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
             <div className="pointer-events-none absolute -right-10 bottom-0 h-48 w-48 rounded-full bg-[#0F6E56]/30 blur-3xl" />
 
-            <div className="relative max-w-3xl">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70 backdrop-blur-xl">
-                Nigeria&apos;s Tech Job Board
-              </div>
-
+            <div className="relative max-w-3xl pt-7 sm:pt-9">
               <h1 className="font-display mb-3 max-w-2xl text-[30px] font-bold leading-[1.02] tracking-[-1.6px] text-white sm:text-[48px]">
                 Find your next role.
                 <br className="hidden sm:block" />
@@ -181,10 +145,10 @@ export default function Home() {
 
               <div className="mt-6 flex flex-wrap gap-2">
                 {[
-                  { value: `${stats.live} live jobs`, tone: 'bg-white/15 text-white' },
-                  { value: `${stats.companies} companies`, tone: 'bg-white/15 text-white' },
-                  { value: `${stats.new} new today`, tone: 'bg-white/15 text-white' },
-                  { value: '100% verified', tone: 'bg-[#E1F5EE] text-[#085041]' },
+                  { value: 'Curated opportunities', tone: 'bg-white/15 text-white' },
+                  { value: 'Direct applications', tone: 'bg-white/15 text-white' },
+                  { value: 'Built for Nigeria', tone: 'bg-white/15 text-white' },
+                  { value: 'For candidates & employers', tone: 'bg-[#E1F5EE] text-[#085041]' },
                 ].map((item) => (
                   <span
                     key={item.value}
@@ -210,9 +174,6 @@ export default function Home() {
                   <div className="mt-1 font-display text-[24px] font-bold leading-[1.06] text-[#1A1A1A]">
                     A calmer way to browse and hire.
                   </div>
-                </div>
-                <div className="rounded-full bg-[#E1F5EE] px-3 py-1 text-xs font-semibold text-[#085041]">
-                  Updated live
                 </div>
               </div>
 

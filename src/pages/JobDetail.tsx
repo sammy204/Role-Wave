@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type MouseEvent } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import { ArrowLeft, MapPin, Home, Briefcase, Clock, CheckCircle, Share2, Send, Bookmark } from 'lucide-react';
@@ -39,6 +39,7 @@ export default function JobDetail() {
   const [shareOpen, setShareOpen] = useState(false);
   const [candidateId, setCandidateId] = useState('');
   const [saved, setSaved] = useState(false);
+  const [showApplyPrompt, setShowApplyPrompt] = useState(false);
   const FETCH_TIMEOUT_MS = 10000;
   const { session, loading: authLoading } = useAuth();
 
@@ -222,6 +223,13 @@ export default function JobDetail() {
         ? job.apply_url
         : job.company?.website || '#';
   const internalApply = job.apply_method === 'internal';
+  const applyAccountHref = internalApply ? `/jobs/${job.slug}/apply` : `/jobs/${job.slug}`;
+
+  const handleApplyClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (session) return;
+    event.preventDefault();
+    setShowApplyPrompt(true);
+  };
 
   const handleSave = () => {
     if (!candidateId || !job) return;
@@ -335,6 +343,7 @@ export default function JobDetail() {
             {internalApply ? (
               <Link
                 to={`/jobs/${job.slug}/apply`}
+                onClick={handleApplyClick}
                 className="block w-full rounded-xl bg-white py-3 text-center text-sm font-bold text-[#1D9E75] transition-colors hover:bg-gray-50"
               >
                 <span className="inline-flex items-center gap-2">
@@ -344,6 +353,7 @@ export default function JobDetail() {
             ) : (
               <a
                 href={applyHref}
+                onClick={handleApplyClick}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block w-full rounded-xl bg-white py-3 text-center text-sm font-bold text-[#1D9E75] transition-colors hover:bg-gray-50"
@@ -460,6 +470,53 @@ export default function JobDetail() {
           </div>
         </div>
       </div>
+      {showApplyPrompt && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="apply-account-title"
+          onClick={() => setShowApplyPrompt(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-[28px] border border-white/70 bg-[#FBFAF7] p-6 text-center shadow-[0_24px_80px_rgba(26,26,26,0.2)] sm:p-8"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#E1F5EE] text-[#1D9E75]">
+              <Send size={22} />
+            </div>
+            <h2 id="apply-account-title" className="mt-5 text-xl font-bold text-[#1A1A1A]">
+              Create a free account to apply
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-[#5F5E5A]">
+              Browse RoleWave freely. Create an account to apply, save this job, and track your applications.
+            </p>
+            <div className="mt-6 grid gap-2.5">
+              <Link
+                to={`/start?role=candidate&mode=signup&next=${encodeURIComponent(applyAccountHref)}`}
+                className="rounded-xl bg-[#1D9E75] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#168a63]"
+                onClick={() => setShowApplyPrompt(false)}
+              >
+                Create account
+              </Link>
+              <Link
+                to={`/start?role=candidate&mode=login&next=${encodeURIComponent(applyAccountHref)}`}
+                className="rounded-xl border border-[#D3D1C7] bg-white px-5 py-3 text-sm font-semibold text-[#1A1A1A] transition-colors hover:bg-[#F1EFE8]"
+                onClick={() => setShowApplyPrompt(false)}
+              >
+                Sign in
+              </Link>
+              <button
+                type="button"
+                onClick={() => setShowApplyPrompt(false)}
+                className="mt-1 px-5 py-2 text-sm font-semibold text-[#5F5E5A] hover:text-[#1A1A1A]"
+              >
+                Not now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

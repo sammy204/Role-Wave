@@ -151,6 +151,7 @@ export interface Offer {
   response_message: string | null;
   sent_at: string | null;
   responded_at: string | null;
+  letter_pdf_path?: string | null;
   candidate_deleted_at?: string | null;
   created_at: string;
   updated_at: string;

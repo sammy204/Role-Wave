@@ -17,6 +17,14 @@ import { SignUp } from './Signup';
 export type AuthMode = 'signup' | 'login' | 'forgot';
 export type MarketplaceRole = 'candidate' | 'employer';
 
+function getPostAuthDestination(profile: Profile | null, fallbackRole: MarketplaceRole, nextPath: string | null) {
+  if (nextPath) return nextPath;
+  const nextRole = profile?.account_type === 'employer' ? 'employer' : fallbackRole;
+  return profile?.onboarding_completed
+    ? nextRole === 'employer' ? '/employer/dashboard' : '/candidate/dashboard'
+    : nextRole === 'employer' ? '/employer/onboarding' : '/candidate';
+}
+
 export function GoogleIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
@@ -31,6 +39,8 @@ export function GoogleIcon() {
 export default function AuthLayout() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const requestedNext = searchParams.get('next');
+  const nextPath = requestedNext && requestedNext.startsWith('/') && !requestedNext.startsWith('//') ? requestedNext : null;
   const [mode, setMode] = useState<AuthMode>(searchParams.get('mode') === 'login' ? 'login' : 'signup');
   const [role, setRole] = useState<MarketplaceRole>(
     searchParams.get('role') === 'employer' ? 'employer' : 'candidate'
@@ -79,7 +89,7 @@ export default function AuthLayout() {
           const restoredProfile = await fetchProfile(session.user.id);
           if (!alive) return;
           setProfile(restoredProfile);
-          navigate(restoredProfile?.account_type === 'employer' ? '/employer/dashboard' : '/candidate/dashboard?reactivated=1', { replace: true });
+          navigate(nextPath || (restoredProfile?.account_type === 'employer' ? '/employer/dashboard' : '/candidate/dashboard?reactivated=1'), { replace: true });
           return;
         }
 
@@ -88,9 +98,7 @@ export default function AuthLayout() {
         setRole(nextRole);
 
         if (nextProfile?.onboarding_completed) {
-          navigate(nextRole === 'employer' ? '/employer/dashboard' : '/candidate/dashboard', {
-            replace: true,
-          });
+          navigate(getPostAuthDestination(nextProfile, nextRole, nextPath), { replace: true });
           return;
         }
 
@@ -107,7 +115,7 @@ export default function AuthLayout() {
     return () => {
       alive = false;
     };
-  }, [authLoading, navigate, session]);
+  }, [authLoading, navigate, session, nextPath]);
 
   const switchMode = (next: AuthMode) => {
     setMode(next);
@@ -126,7 +134,7 @@ export default function AuthLayout() {
       const { error: googleError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/start?mode=login`,
+          redirectTo: `${window.location.origin}/start?mode=login${nextPath ? `&next=${encodeURIComponent(nextPath)}` : ''}`,
         },
       });
 
@@ -159,7 +167,7 @@ export default function AuthLayout() {
               full_name: fullName,
               account_type: role,
             },
-            emailRedirectTo: `${window.location.origin}/confirmed`,
+            emailRedirectTo: `${window.location.origin}/confirmed${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ''}`,
             captchaToken,
           },
         });
@@ -174,16 +182,7 @@ export default function AuthLayout() {
         if (postSignUpSession.session) {
           const nextProfile = await fetchProfile(postSignUpSession.session.user.id);
           const nextRole = nextProfile?.account_type === 'employer' ? 'employer' : role;
-          navigate(
-            nextProfile?.onboarding_completed
-              ? nextRole === 'employer'
-                ? '/employer/dashboard'
-                : '/candidate/dashboard'
-              : nextRole === 'employer'
-                ? '/employer/onboarding'
-                : '/candidate',
-            { replace: true }
-          );
+          navigate(getPostAuthDestination(nextProfile, nextRole, nextPath), { replace: true });
           return;
         }
 
@@ -205,16 +204,7 @@ export default function AuthLayout() {
 
       const nextProfile = await fetchProfile(activeSession.user.id);
       const nextRole = nextProfile?.account_type === 'employer' ? 'employer' : 'candidate';
-      navigate(
-        nextProfile?.onboarding_completed
-          ? nextRole === 'employer'
-            ? '/employer/dashboard'
-            : '/candidate/dashboard'
-          : nextRole === 'employer'
-            ? '/employer/onboarding'
-            : '/candidate',
-        { replace: true }
-      );
+      navigate(getPostAuthDestination(nextProfile, nextRole, nextPath), { replace: true });
 
       void signInData;
     } catch (authError) {
