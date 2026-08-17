@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Bookmark, Briefcase, Gift, HelpCircle, Info, LayoutDashboard, LogOut, Mail, MessageSquareText, Menu, Settings, User, X } from 'lucide-react';
+import { Bookmark, Briefcase, Gift, HelpCircle, Info, LayoutDashboard, LogOut, Mail, MessageSquareText, Menu, Settings, Sparkles, User, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useUnreadMessagesCount } from '../hooks/useUnreadMessages';
 import NotificationBell from './NotificationBell';
@@ -12,6 +12,7 @@ const links = [
   { to: '/candidate/activity', label: 'Saved & Applied', icon: Bookmark },
   { to: '/candidate/messages', label: 'Messages', icon: MessageSquareText },
   { to: '/candidate/offers', label: 'Offers', icon: Gift },
+  { to: '/candidate/role-pilot', label: 'Role Pilot', icon: Sparkles },
   { to: '/candidate/settings', label: 'Settings', icon: Settings },
 ];
 

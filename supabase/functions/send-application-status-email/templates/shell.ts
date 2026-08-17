@@ -207,7 +207,7 @@ export function buildStatusEmailHtml(params: {
                 </tr>
               </table>
               <p style="margin:0 0 6px 0; font-family: Arial, Helvetica, sans-serif; font-size:13px; font-weight:700; color:#1A1A1A;">
-                ${jobTitle} &middot; ${companyName}
+               ${escapeHtml(jobTitle)} &middot; ${escapeHtml(companyName)}
               </p>
               <p style="margin:0; font-family: Arial, Helvetica, sans-serif; font-size:14px; line-height:1.6; color:#5F5E5A;">
                 Hi ${escapeHtml(name)}, ${copy.body}
