@@ -18,11 +18,15 @@ export type AuthMode = 'signup' | 'login' | 'forgot';
 export type MarketplaceRole = 'candidate' | 'employer';
 
 function getPostAuthDestination(profile: Profile | null, fallbackRole: MarketplaceRole, nextPath: string | null) {
-  if (nextPath) return nextPath;
   const nextRole = profile?.account_type === 'employer' ? 'employer' : fallbackRole;
-  return profile?.onboarding_completed
-    ? nextRole === 'employer' ? '/employer/dashboard' : '/candidate/dashboard'
-    : nextRole === 'employer' ? '/employer/onboarding' : '/candidate';
+  if (!profile?.onboarding_completed) {
+    // Onboarding always comes first — a requested `next` destination is
+    // honored only after the candidate/employer has completed it, so we
+    // don't skip preference capture just because someone was bounced here
+    // from e.g. a job application link.
+    return nextRole === 'employer' ? '/employer/onboarding' : '/candidate/onboarding';
+  }
+  return nextPath || (nextRole === 'employer' ? '/employer/dashboard' : '/candidate/dashboard');
 }
 
 export function GoogleIcon() {
@@ -41,10 +45,9 @@ export default function AuthLayout() {
   const [searchParams] = useSearchParams();
   const requestedNext = searchParams.get('next');
   const nextPath = requestedNext && requestedNext.startsWith('/') && !requestedNext.startsWith('//') ? requestedNext : null;
+  const requestedRole: MarketplaceRole = searchParams.get('role') === 'employer' ? 'employer' : 'candidate';
   const [mode, setMode] = useState<AuthMode>(searchParams.get('mode') === 'login' ? 'login' : 'signup');
-  const [role, setRole] = useState<MarketplaceRole>(
-    searchParams.get('role') === 'employer' ? 'employer' : 'candidate'
-  );
+  const [role, setRole] = useState<MarketplaceRole>(requestedRole);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -94,7 +97,9 @@ export default function AuthLayout() {
         }
 
         setProfile(nextProfile);
-        const nextRole = nextProfile?.account_type === 'employer' ? 'employer' : 'candidate';
+        const nextRole = nextProfile?.onboarding_completed
+          ? nextProfile.account_type === 'employer' ? 'employer' : 'candidate'
+          : nextProfile?.account_type === 'employer' ? 'employer' : requestedRole;
         setRole(nextRole);
 
         if (nextProfile?.onboarding_completed) {
@@ -102,7 +107,7 @@ export default function AuthLayout() {
           return;
         }
 
-        navigate(nextRole === 'employer' ? '/employer/onboarding' : '/candidate', {
+        navigate(nextRole === 'employer' ? '/employer/onboarding' : '/candidate/onboarding', {
           replace: true,
         });
       } catch {
@@ -115,7 +120,7 @@ export default function AuthLayout() {
     return () => {
       alive = false;
     };
-  }, [authLoading, navigate, session, nextPath]);
+  }, [authLoading, navigate, session, nextPath, requestedRole]);
 
   const switchMode = (next: AuthMode) => {
     setMode(next);
@@ -131,10 +136,13 @@ export default function AuthLayout() {
     setInfo('');
 
     try {
+      const googleRedirectParams = new URLSearchParams({ mode: 'login', role });
+      if (nextPath) googleRedirectParams.set('next', nextPath);
+
       const { error: googleError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/start?mode=login${nextPath ? `&next=${encodeURIComponent(nextPath)}` : ''}`,
+          redirectTo: `${window.location.origin}/start?${googleRedirectParams.toString()}`,
         },
       });
 

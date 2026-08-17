@@ -19,6 +19,8 @@ import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import AuthLayout from './pages/AuthLayout';
 import Confirmed from './pages/Confirmed';
+import ResetPassword from './pages/ResetPassword';
+import CandidateOnboarding from './pages/CandidateOnboarding';
 import CandidateDashboard from './pages/CandidateDashboard';
 import CandidateProfile from './pages/CandidateProfile';
 import CandidateHome from './pages/CandidateHome';
@@ -112,7 +114,7 @@ function AppShell() {
                                 ? 'Employer Onboarding | RoleWave'
                                 : path === '/employer/settings'
                                   ? 'Employer Settings | RoleWave'
-                                : path === '/employer/dashboard'
+                                : path === '/employer' || path === '/employer/dashboard'
                                   ? 'Employer Dashboard | RoleWave'
                                   : path === '/employer/messages'
                                     ? 'Employer Messages | RoleWave'
@@ -308,8 +310,10 @@ function AppShell() {
       <Route path="/welcome" element={<PwaOnboarding />} />
       <Route path="/account-deletion-scheduled" element={<AccountDeletionScheduled />} />
       <Route path="/confirmed" element={<Confirmed />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/resume/view" element={<ResumeViewer />} />
       <Route path="/candidate" element={<CandidateDashboard />} />
+      <Route path="/candidate/onboarding" element={<CandidateOnboarding />} />
       <Route path="/candidate/dashboard" element={<CandidateDashboard />} />
       <Route path="/candidate/profile" element={<CandidateProfile />} />
       <Route path="/candidate/settings" element={<CandidateSettings />} />
@@ -319,6 +323,7 @@ function AppShell() {
       <Route path="/candidate/messages" element={<CandidateMessages />} />
       <Route path="/employer/onboarding" element={<EmployerOnboarding />} />
       <Route path="/employer/settings" element={<EmployerSettings />} />
+      <Route path="/employer" element={<EmployerDashboard />} />
       <Route path="/employer/dashboard" element={<EmployerDashboard />} />
       <Route path="/employer/messages" element={<EmployerMessages />} />
       <Route path="/post" element={<PostJob />} />

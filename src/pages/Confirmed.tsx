@@ -68,9 +68,9 @@ export default function Confirmed() {
             : '/candidate/dashboard'
           : role === 'employer'
             ? '/employer/onboarding'
-            : '/candidate';
+            : '/candidate/onboarding';
 
-        navigate(nextPath || destination, { replace: true });
+        navigate(profile?.onboarding_completed ? nextPath || destination : destination, { replace: true });
       } catch {
         if (alive) setRouting(false);
       }

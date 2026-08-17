@@ -80,6 +80,7 @@ export interface CandidateProfile {
   bio: string | null;
   location: string | null;
   years_experience: number | null;
+  job_type?: string | null;
   skills: string[];
   preferred_locations: string[];
   preferred_job_titles: string[];

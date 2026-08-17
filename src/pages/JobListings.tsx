@@ -30,6 +30,8 @@ const jobTypeFilters = [
   { value: 'Part-time', label: 'Part-time' },
   { value: 'Contract', label: 'Contract' },
   { value: 'Internship', label: 'Internship' },
+  { value: 'SIWES', label: 'SIWES' },
+  { value: 'NYSC PPA', label: 'NYSC PPA' },
 ];
 
 const experienceFilters = [

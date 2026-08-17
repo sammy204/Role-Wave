@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Bookmark,
@@ -13,7 +13,6 @@ import {
   Sparkles,
   Star,
   Target,
-  TrendingUp,
   Undo2,
   X,
 } from 'lucide-react';
@@ -38,6 +37,50 @@ function timeAgo(date: string): string {
   return `${Math.floor(diff / 2592000)} months ago`;
 }
 
+function normalized(value: string | null | undefined) {
+  return (value || '').trim().toLowerCase();
+}
+
+function wordSet(value: string | null | undefined) {
+  return new Set(normalized(value).split(/[^a-z0-9+#]+/).filter((word) => word.length > 1));
+}
+
+function scoreJob(job: Job, candidate: CandidateProfile) {
+  let score = 0;
+  const jobTitleWords = wordSet(job.title);
+  const jobTagWords = new Set((job.tags || []).flatMap((tag) => [...wordSet(tag)]));
+  const candidateTitleWords = (candidate.preferred_job_titles || []).flatMap((title) => [...wordSet(title)]);
+  const candidateSkillWords = (candidate.skills || []).flatMap((skill) => [...wordSet(skill)]);
+
+  candidateTitleWords.forEach((word) => {
+    if (jobTitleWords.has(word)) score += 12;
+    if (jobTagWords.has(word)) score += 5;
+  });
+  candidateSkillWords.forEach((word) => {
+    if (jobTagWords.has(word)) score += 10;
+    if (jobTitleWords.has(word)) score += 4;
+  });
+
+  if (candidate.job_type && normalized(candidate.job_type) === normalized(job.job_type)) score += 30;
+
+  const preferredLocations = (candidate.preferred_locations || []).map(normalized);
+  const jobLocation = normalized(job.location);
+  if (preferredLocations.includes(jobLocation)) score += 20;
+  if (job.work_type === 'Remote' && preferredLocations.includes('remote')) score += 20;
+
+  const experience = candidate.years_experience ?? 0;
+  if (!job.experience_level || (experience === 0 && ['entry', 'junior'].includes(normalized(job.experience_level)))) {
+    score += 8;
+  } else if (experience >= 3 && ['senior', 'lead'].includes(normalized(job.experience_level))) {
+    score += 8;
+  } else if (experience >= 1 && ['junior', 'mid'].includes(normalized(job.experience_level))) {
+    score += 6;
+  }
+
+  if (job.featured) score += 2;
+  return score;
+}
+
 
 export default function CandidateDashboard() {
   const navigate = useNavigate();
@@ -50,11 +93,7 @@ export default function CandidateDashboard() {
   const [applications, setApplications] = useState<(JobApplication & { job?: Job & { company?: Company } })[]>([]);
   const [savedJobs, setSavedJobs] = useState<(Job & { company?: Company })[]>([]);
   const [matchedJobs, setMatchedJobs] = useState<(Job & { company?: Company })[]>([]);
-  const [marketplaceStats, setMarketplaceStats] = useState({ live: 0, companies: 0, new: 0, verifiedPct: 0 });
   const [topCompanies, setTopCompanies] = useState<Company[]>([]);
-  const [subscriptionEmail, setSubscriptionEmail] = useState('');
-  const [subscriptionState, setSubscriptionState] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
-  const [subscriptionMessage, setSubscriptionMessage] = useState('');
   const [mutatingApplicationId, setMutatingApplicationId] = useState<string | null>(null);
   const [reactivatedMessage, setReactivatedMessage] = useState('');
 
@@ -79,13 +118,15 @@ export default function CandidateDashboard() {
           return;
         }
 
-        setSubscriptionEmail(session.user.email || '');
-
         const nextProfile = await fetchProfile(session.user.id);
         if (!alive) return;
 
         if (nextProfile?.account_type === 'employer') {
           navigate('/employer/dashboard', { replace: true });
+          return;
+        }
+        if (!nextProfile?.onboarding_completed) {
+          navigate('/candidate/onboarding', { replace: true });
           return;
         }
         setProfile(nextProfile);
@@ -99,31 +140,6 @@ export default function CandidateDashboard() {
         const typedCandidate = (candidateRow || null) as CandidateProfile | null;
         setCandidateProfile(typedCandidate);
 
-        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-
-        const [
-          { count: liveCount },
-          { count: companyCount },
-          { count: newCount },
-        ] = await Promise.all([
-          supabase.from('jobs').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-          supabase.from('companies').select('*', { count: 'exact', head: true }),
-          supabase
-            .from('jobs')
-            .select('*', { count: 'exact', head: true })
-            .eq('status', 'active')
-            .gte('created_at', oneDayAgo),
-        ]);
-
-        if (alive) {
-          setMarketplaceStats((prev) => ({
-            ...prev,
-            live: liveCount || 0,
-            companies: companyCount || 0,
-            new: newCount || 0,
-          }));
-        }
-
         const { data: companiesData } = await supabase
           .from('companies')
           .select('*')
@@ -131,12 +147,6 @@ export default function CandidateDashboard() {
         const companyMap = new Map((companiesData || []).map((c: Company) => [c.id, c]));
         if (alive) {
           setTopCompanies((companiesData || []).slice(0, 3));
-          const totalCompanies = (companiesData || []).length;
-          const verifiedCompanies = (companiesData || []).filter((c: Company) => c.verified).length;
-          setMarketplaceStats((prev) => ({
-            ...prev,
-            verifiedPct: totalCompanies > 0 ? Math.round((verifiedCompanies / totalCompanies) * 100) : 0,
-          }));
         }
 
         const { data: applicationRows } = await supabase
@@ -174,25 +184,29 @@ export default function CandidateDashboard() {
             .filter((j): j is NonNullable<typeof j> => Boolean(j))
         );
 
-        // Skill-matched jobs: active jobs whose tags overlap with the
-        // candidate's skills, excluding anything already applied to.
-        if (typedCandidate?.skills?.length) {
-          const { data: activeJobsData } = await supabase
-            .from('jobs')
-            .select('*')
-            .eq('status', 'active')
-            .order('created_at', { ascending: false })
-            .limit(60);
+        // Build a personalized feed from every preference captured during
+        // onboarding. Jobs already applied to are excluded so the dashboard
+        // keeps showing genuinely actionable opportunities.
+        const { data: activeJobsData } = await supabase
+          .from('jobs')
+          .select('*')
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(100);
 
-          const lowerSkills = typedCandidate.skills.map((s) => s.toLowerCase());
-          const matches = ((activeJobsData || []) as Job[])
-            .filter((job) => !appliedJobIds.includes(job.id))
-            .filter((job) => job.tags?.some((tag) => lowerSkills.includes(tag.toLowerCase())))
-            .slice(0, 4)
-            .map((job) => ({ ...job, company: companyMap.get(job.company_id) }));
+        const matches = typedCandidate
+          ? ((activeJobsData || []) as Job[])
+              .filter((job) => !appliedJobIds.includes(job.id))
+              .map((job) => ({
+                job: { ...job, company: companyMap.get(job.company_id) },
+                score: scoreJob(job, typedCandidate),
+              }))
+              .sort((a, b) => b.score - a.score || new Date(b.job.created_at).getTime() - new Date(a.job.created_at).getTime())
+              .slice(0, 6)
+              .map(({ job }) => job)
+          : [];
 
-          if (alive) setMatchedJobs(matches);
-        }
+        if (alive) setMatchedJobs(matches);
       } catch (loadError) {
         if (alive) {
           setError(loadError instanceof Error ? loadError.message : 'Could not load your dashboard.');
@@ -208,39 +222,6 @@ export default function CandidateDashboard() {
       alive = false;
     };
   }, [navigate]);
-
-  const handleSubscribe = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const normalizedEmail = subscriptionEmail.trim().toLowerCase();
-    if (!normalizedEmail) {
-      setSubscriptionState('error');
-      setSubscriptionMessage('Please enter your email address.');
-      return;
-    }
-
-    setSubscriptionState('saving');
-    setSubscriptionMessage('');
-
-    const { error } = await supabase.from('email_subscriptions').insert({
-      email: normalizedEmail,
-    });
-
-    if (error) {
-      if (error.code === '23505') {
-        setSubscriptionState('success');
-        setSubscriptionMessage('You are already subscribed.');
-        return;
-      }
-
-      setSubscriptionState('error');
-      setSubscriptionMessage(error.message || 'Could not save your subscription.');
-      return;
-    }
-
-    setSubscriptionState('success');
-    setSubscriptionMessage('You are subscribed. We will send you new job alerts.');
-  };
 
   const profileCompletion = calculateProfileCompletion(profile, candidateProfile);
   const profileSuggestions = getProfileCompletionSuggestions(profile, candidateProfile);
@@ -301,19 +282,6 @@ export default function CandidateDashboard() {
 
     return focus.slice(0, 3);
   }, [matchedJobs.length, profileCompletion, profileSuggestions, unreadMessagesCount]);
-
-  const marketInsight = useMemo(() => {
-    if (marketplaceStats.new > 0 && matchedJobs.length > 0) {
-      return `There ${marketplaceStats.new === 1 ? 'is' : 'are'} ${marketplaceStats.new} new ${marketplaceStats.new === 1 ? 'role' : 'roles'} today, including ${matchedJobs.length} that match your listed skills.`;
-    }
-    if (marketplaceStats.new > 0) {
-      return `The marketplace added ${marketplaceStats.new} new ${marketplaceStats.new === 1 ? 'role' : 'roles'} today. Keep your profile updated so better matches can find you.`;
-    }
-    if (marketplaceStats.verifiedPct >= 50) {
-      return `${marketplaceStats.verifiedPct}% of companies currently shown are verified. Prioritize verified listings when comparing opportunities.`;
-    }
-    return `${marketplaceStats.live} live roles are currently available across ${marketplaceStats.companies} companies.`;
-  }, [marketplaceStats, matchedJobs.length]);
 
  const withdrawApplication = async (applicationId: string) => {
     setMutatingApplicationId(applicationId);
@@ -384,7 +352,7 @@ export default function CandidateDashboard() {
                 Welcome back{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}.
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[#5F5E5A] sm:text-base">
-                Track applications, save jobs, and keep your profile polished without the page feeling busy.
+                Keep track of your applications, discover new opportunities, and stay ready for what&apos;s next.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
@@ -500,14 +468,6 @@ export default function CandidateDashboard() {
           </section>
         </div>
 
-        <section className="flex items-start gap-3 rounded-panel border border-[#5DCAA5] bg-[#E1F5EE] p-5 shadow-[0_12px_30px_rgba(29,158,117,0.08)]">
-          <TrendingUp size={19} className="mt-0.5 shrink-0 text-accent-deep" />
-          <div>
-            <div className="text-sm font-semibold text-accent-text">Market insight</div>
-            <p className="mt-1 text-sm leading-relaxed text-accent-text">{marketInsight}</p>
-          </div>
-        </section>
-
         <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
           <div className="space-y-4">
             {/* Recent applications */}
@@ -576,13 +536,14 @@ export default function CandidateDashboard() {
               )}
             </div>
 
-            {/* Jobs matching your skills */}
+            {/* Personalized recommendations */}
             {matchedJobs.length > 0 ? (
               <div className="rounded-panel border border-white/70 bg-white/78 p-5 shadow-[0_18px_50px_rgba(26,26,26,0.06)] backdrop-blur-xl">
                 <div className="mb-3 flex items-center gap-2">
                   <Sparkles size={15} className="text-accent-deep" />
-                  <div className="text-sm font-semibold text-ink">Jobs matching your skills</div>
+                  <div className="text-sm font-semibold text-ink">Recommended for you</div>
                 </div>
+                <p className="mb-3 text-xs text-muted">Based on your opportunity type, interests, skills, experience, and preferred locations.</p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {matchedJobs.map((job) => (
                     <Link
@@ -600,10 +561,9 @@ export default function CandidateDashboard() {
                 </div>
               </div>
             ) : (
-              !candidateProfile?.skills?.length && (
-                <div className="rounded-panel border border-dashed border-[#D3D1C7] bg-white/50 p-5 text-center backdrop-blur-xl">
+              <div className="rounded-panel border border-dashed border-[#D3D1C7] bg-white/50 p-5 text-center backdrop-blur-xl">
                   <Sparkles size={18} className="mx-auto text-accent-deep" />
-                  <div className="mt-2 text-sm font-semibold text-ink">Add your skills to see matches</div>
+                  <div className="mt-2 text-sm font-semibold text-ink">We&apos;re looking for a closer fit</div>
                   <p className="mt-1 text-xs text-muted">
                     Tell us what you're good at and we'll surface jobs that fit — right here.
                   </p>
@@ -614,7 +574,6 @@ export default function CandidateDashboard() {
                     Add skills to your profile →
                   </Link>
                 </div>
-              )
             )}
           </div>
 
@@ -647,62 +606,6 @@ export default function CandidateDashboard() {
                   </Link>
                 </div>
               )}
-            </div>
-
-            <div className="rounded-panel border border-white/70 bg-white/78 p-5 shadow-[0_18px_50px_rgba(26,26,26,0.06)] backdrop-blur-xl">
-              <div className="mb-3 flex items-center justify-between">
-                <div className="text-sm font-semibold text-ink">Marketplace pulse</div>
-                <span className="text-xs text-faint">Live data</span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 border-b border-line pb-4">
-                <div className="rounded-2xl border border-[#E8E4DA] bg-[#FBFAF7] px-3 py-3">
-                  <div className="text-xs text-muted">Live jobs</div>
-                  <div className="mt-1 text-lg font-semibold text-ink">{marketplaceStats.live}</div>
-                </div>
-                <div className="rounded-2xl border border-[#E8E4DA] bg-[#FBFAF7] px-3 py-3">
-                  <div className="text-xs text-muted">Companies</div>
-                  <div className="mt-1 text-lg font-semibold text-ink">{marketplaceStats.companies}</div>
-                </div>
-                <div className="rounded-2xl border border-[#E8E4DA] bg-[#FBFAF7] px-3 py-3">
-                  <div className="text-xs text-muted">New today</div>
-                  <div className="mt-1 text-lg font-semibold text-ink">{marketplaceStats.new}</div>
-                </div>
-                <div className="rounded-2xl border border-[#E8E4DA] bg-[#FBFAF7] px-3 py-3">
-                  <div className="text-xs text-muted">Verified</div>
-                  <div className="mt-1 text-lg font-semibold text-ink">{marketplaceStats.verifiedPct}%</div>
-                </div>
-              </div>
-
-              <form className="mt-4" onSubmit={handleSubscribe}>
-                <div className="mb-2 text-sm font-semibold text-ink">Get job alerts</div>
-                <p className="mb-3 text-xs leading-relaxed text-muted">
-                  Stay on top of new roles without checking the board every day.
-                </p>
-                <input
-                  type="email"
-                  value={subscriptionEmail}
-                  onChange={(event) => setSubscriptionEmail(event.target.value)}
-                  placeholder="Your email address"
-                  className="field-shell mb-2 px-3 py-2 text-[13px]"
-                />
-                <button
-                  type="submit"
-                  disabled={subscriptionState === 'saving'}
-                  className="w-full rounded-lg bg-[#1D9E75] py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[#168a63] disabled:opacity-60"
-                >
-                  {subscriptionState === 'saving' ? 'Saving...' : 'Notify me'}
-                </button>
-                {subscriptionMessage && (
-                  <div
-                    className={`mt-2 text-[12px] ${
-                      subscriptionState === 'success' ? 'text-[#085041]' : 'text-[#A15A00]'
-                    }`}
-                  >
-                    {subscriptionMessage}
-                  </div>
-                )}
-              </form>
             </div>
 
             {/* Saved jobs preview */}

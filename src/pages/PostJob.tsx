@@ -391,6 +391,8 @@ export default function PostJob() {
                     <option>Part-time</option>
                     <option>Contract</option>
                     <option>Internship</option>
+                    <option>SIWES</option>
+                    <option>NYSC PPA</option>
                   </select>
                 </Field>
                 <Field label="Salary">
