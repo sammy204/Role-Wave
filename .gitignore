@@ -23,3 +23,4 @@ dist-ssr
 .env
 PROJECT-ROADMAP.md
 navbar-pwa-avatar-backbutton.patch
+android/app/google-services.json
