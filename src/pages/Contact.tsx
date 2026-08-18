@@ -1,13 +1,51 @@
-import { ArrowUpRight, Instagram, Linkedin, Mail, MessageCircle, Twitter } from 'lucide-react';
+import { FormEvent, useState } from 'react';
+import { ArrowRight, ArrowUpRight, Instagram, Linkedin, Mail, MessageCircle, Twitter } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { TurnstileWidget } from '../components/TurnstileWidget';
 
 const channels = [
   { icon: Mail, label: 'Email us', value: 'support@rolewave.cv', href: 'mailto:support@rolewave.cv' },
-  { icon: Twitter, label: 'Twitter / X', value: '@rolewave', href: 'https://twitter.com/rolewave' },
+  { icon: Twitter, label: 'Twitter / X', value: '@rolewavecv', href: 'https://x.com/rolewavecv' },
   { icon: Instagram, label: 'Instagram', value: '@rolewave', href: 'https://instagram.com/rolewave' },
   { icon: Linkedin, label: 'LinkedIn', value: 'RoleWave Nigeria', href: 'https://linkedin.com/company/rolewave' },
 ];
 
 export default function Contact() {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [category, setCategory] = useState('General support');
+  const [message, setMessage] = useState('');
+  const [website, setWebsite] = useState('');
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setError('');
+
+    const { error: functionError } = await supabase.functions.invoke('submit-support-request', {
+      body: { name, email, category, message, website, captchaToken },
+    });
+
+    if (functionError) {
+      setError(functionError.message || 'We could not send your message. Please try again.');
+      setSubmitting(false);
+      return;
+    }
+
+    setName('');
+    setEmail('');
+    setCategory('General support');
+    setMessage('');
+    setWebsite('');
+    setCaptchaToken('');
+    setSent(true);
+    setSubmitting(false);
+  };
+
   return (
     <div className="page-shell">
       <div className="mx-auto w-full max-w-[1180px] px-4 pb-10 pt-6 sm:px-6 lg:px-8">
@@ -37,17 +75,54 @@ export default function Contact() {
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#E1F5EE] text-[#085041]">
                 <MessageCircle size={21} />
               </div>
-              <p className="mt-7 text-[10px] font-bold uppercase tracking-[1.7px] text-[#1D9E75]">Start with email</p>
-              <h2 className="font-display mt-2 text-[32px] font-bold leading-[1.05] text-[#1A1A1A]">Have something on your mind?</h2>
+              <p className="mt-7 text-[10px] font-bold uppercase tracking-[1.7px] text-[#1D9E75]">Contact support</p>
+              <h2 className="font-display mt-2 text-[32px] font-bold leading-[1.05] text-[#1A1A1A]">How can we help?</h2>
               <p className="mt-4 text-sm leading-6 text-[#5F5E5A]">
-                Send us the details and the RoleWave team will route your message to the right place.
+                Send us the details and the RoleWave team will get back to you by email.
               </p>
-              <a
-                href="mailto:support@rolewave.cv"
-                className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-[#1D9E75] px-4 py-3.5 text-sm font-bold text-white shadow-[0_12px_28px_rgba(15,110,86,.22)] transition-transform hover:-translate-y-0.5"
-              >
-                support@rolewave.cv <ArrowUpRight size={16} />
-              </a>
+
+              {sent ? (
+                <div className="mt-6 rounded-2xl border border-[#B9E8D4] bg-[#E1F5EE] p-4 text-sm leading-6 text-[#085041]">
+                  Thanks for contacting RoleWave. Our support team will review your message and reply by email.
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="text-xs font-semibold text-[#5F5E5A]">
+                      Name
+                      <input value={name} onChange={(event) => setName(event.target.value)} required maxLength={100} className="mt-1.5 w-full rounded-xl border border-[#D3D1C7] bg-white px-3 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#1D9E75]" />
+                    </label>
+                    <label className="text-xs font-semibold text-[#5F5E5A]">
+                      Email
+                      <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required maxLength={254} className="mt-1.5 w-full rounded-xl border border-[#D3D1C7] bg-white px-3 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#1D9E75]" />
+                    </label>
+                  </div>
+                  <label className="block text-xs font-semibold text-[#5F5E5A]">
+                    What can we help with?
+                    <select value={category} onChange={(event) => setCategory(event.target.value)} className="mt-1.5 w-full rounded-xl border border-[#D3D1C7] bg-white px-3 py-3 text-sm font-normal text-[#1A1A1A] outline-none focus:border-[#1D9E75]">
+                      <option>General support</option>
+                      <option>Account help</option>
+                      <option>Job listing</option>
+                      <option>Payment</option>
+                      <option>Technical issue</option>
+                      <option>Safety report</option>
+                    </select>
+                  </label>
+                  <label className="block text-xs font-semibold text-[#5F5E5A]">
+                    Message
+                    <textarea value={message} onChange={(event) => setMessage(event.target.value)} required maxLength={5000} rows={5} className="mt-1.5 w-full resize-y rounded-xl border border-[#D3D1C7] bg-white px-3 py-3 text-sm font-normal leading-6 text-[#1A1A1A] outline-none focus:border-[#1D9E75]" />
+                  </label>
+                  <label className="hidden" aria-hidden="true">
+                    Website
+                    <input tabIndex={-1} autoComplete="off" value={website} onChange={(event) => setWebsite(event.target.value)} />
+                  </label>
+                  <TurnstileWidget onVerify={setCaptchaToken} />
+                  {error && <p className="text-xs leading-5 text-red-700">{error}</p>}
+                  <button type="submit" disabled={submitting} className="inline-flex items-center gap-2 rounded-2xl bg-[#1D9E75] px-4 py-3.5 text-sm font-bold text-white shadow-[0_12px_28px_rgba(15,110,86,.22)] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60">
+                    {submitting ? 'Sending…' : 'Send message'} <ArrowRight size={16} />
+                  </button>
+                </form>
+              )}
             </div>
           </section>
 

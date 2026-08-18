@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowRight, Check, ChevronLeft, Eye, EyeOff, Linkedin } from 'lucide-react';
+import { ArrowRight, Check, ChevronLeft, Eye, EyeOff } from 'lucide-react';
 import type { TurnstileInstance } from '@marsidev/react-turnstile';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
@@ -719,12 +719,9 @@ function PwaAuthCard({
                   <div className="h-px flex-1 bg-[#D3D1C7]" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2.5">
-                  <button type="button" onClick={onGoogle} disabled={loading} className="flex items-center justify-center gap-2 rounded-2xl border border-[#D3D1C7] bg-white/80 py-3.5 text-sm font-semibold text-[#1A1A1A] transition-colors hover:bg-white">
+                <div>
+                  <button type="button" onClick={onGoogle} disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#D3D1C7] bg-white/80 py-3.5 text-sm font-semibold text-[#1A1A1A] transition-colors hover:bg-white">
                     <GoogleIcon /> Google
-                  </button>
-                  <button type="button" disabled className="flex items-center justify-center gap-2 rounded-2xl border border-[#D3D1C7] bg-white/60 py-3.5 text-sm font-semibold text-[#1A1A1A] opacity-75">
-                    <Linkedin size={17} className="text-[#0A66C2]" /> LinkedIn
                   </button>
                 </div>
 

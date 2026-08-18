@@ -122,11 +122,11 @@ export default function JobDetail() {
       ['og:title', shareTitle],
       ['og:description', shareDescription],
       ['og:url', shareUrl],
-      ['og:image', `${window.location.origin}/rolewave-og.svg`],
+      ['og:image', `${window.location.origin}/rolewave-pwa-512.png`],
       ['twitter:card', 'summary_large_image'],
       ['twitter:title', shareTitle],
       ['twitter:description', shareDescription],
-      ['twitter:image', `${window.location.origin}/rolewave-og.svg`],
+      ['twitter:image', `${window.location.origin}/rolewave-pwa-512.png`],
     ];
 
     const createdTags = tags.map(([property, content]) => {

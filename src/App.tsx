@@ -27,6 +27,7 @@ import CandidateHome from './pages/CandidateHome';
 import CandidateActivity from './pages/CandidateActivity';
 import CandidateOffers from './pages/CandidateOffers';
 import RolePilot from './pages/RolePilot';
+import RoleWavePro from './pages/RoleWavePro';
 import EmployerOnboarding from './pages/EmployerOnboarding';
 import EmployerSettings from './pages/EmployerSettings';
 import JobApplication from './pages/JobApplication';
@@ -111,6 +112,8 @@ function AppShell() {
                               ? 'My Offers | RoleWave'
                             : path === '/candidate/role-pilot'
                               ? 'Role Pilot | RoleWave'
+                            : path === '/candidate/pro'
+                              ? 'RoleWave Pro | RoleWave'
                             : path === '/candidate/messages'
                               ? 'Candidate Messages | RoleWave'
                           : path === '/employer/onboarding'
@@ -324,6 +327,7 @@ function AppShell() {
       <Route path="/candidate/activity" element={<CandidateActivity />} />
       <Route path="/candidate/offers" element={<CandidateOffers />} />
       <Route path="/candidate/role-pilot" element={<RolePilot />} />
+      <Route path="/candidate/pro" element={<RoleWavePro />} />
       <Route path="/candidate/messages" element={<CandidateMessages />} />
       <Route path="/employer/onboarding" element={<EmployerOnboarding />} />
       <Route path="/employer/settings" element={<EmployerSettings />} />
