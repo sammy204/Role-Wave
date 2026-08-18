@@ -318,7 +318,7 @@ export default function PostJob() {
             </span>
           </div>
 
-          <div className="mb-1.5 font-display text-2xl font-bold text-ink">Post a job</div>
+          <div data-tour="employer-post-job-page" className="mb-1.5 font-display text-2xl font-bold text-ink">Post a job</div>
           <div className="mb-6 text-sm text-muted">
             Post directly from your employer account. You can choose whether applications go external,
             by email, or through RoleWave.

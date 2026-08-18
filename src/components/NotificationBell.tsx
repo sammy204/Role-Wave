@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, CheckCheck } from 'lucide-react';
+import { Bell, CheckCheck, Trash2 } from 'lucide-react';
 import { useNotifications } from '../hooks/useNotifications';
 import { describeNotification, notificationHref, timeAgo } from '../lib/notifications';
 
@@ -13,7 +13,6 @@ export default function NotificationBell({
   role: 'candidate' | 'employer';
   variant?: Variant;
 }) {
-  const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -29,6 +28,8 @@ export default function NotificationBell({
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, [open]);
 
+  const { notifications, unreadCount, markRead, markAllRead, clearAll } = useNotifications();
+
   const buttonClass =
     variant === 'dark'
       ? 'relative rounded-full p-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white'
@@ -40,6 +41,11 @@ export default function NotificationBell({
     await markRead(id);
     setOpen(false);
     navigate(href);
+  };
+
+  const handleClearAll = async () => {
+    if (!window.confirm('Clear all notifications? This cannot be undone.')) return;
+    await clearAll();
   };
 
   return (
@@ -67,15 +73,26 @@ export default function NotificationBell({
         >
           <div className="flex items-center justify-between border-b border-line px-4 py-3">
             <span className="text-[13px] font-semibold text-ink">Notifications</span>
-            {unreadCount > 0 && (
-              <button
-                onClick={() => markAllRead()}
-                className="flex items-center gap-1 text-[12px] font-semibold text-accent-text hover:underline"
-              >
-                <CheckCheck size={13} />
-                Mark all read
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {unreadCount > 0 && (
+                <button
+                  onClick={() => markAllRead()}
+                  className="flex items-center gap-1 text-[12px] font-semibold text-accent-text hover:underline"
+                >
+                  <CheckCheck size={13} />
+                  Mark all read
+                </button>
+              )}
+              {notifications.length > 0 && (
+                <button
+                  onClick={handleClearAll}
+                  className="flex items-center gap-1 text-[12px] font-semibold text-muted hover:text-red-600 hover:underline"
+                >
+                  <Trash2 size={13} />
+                  Clear all
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="max-h-[360px] overflow-y-auto">

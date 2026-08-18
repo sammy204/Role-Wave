@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Bell, Briefcase, Database, LockKeyhole, LogOut, Mail, Save, ShieldCheck, X } from 'lucide-react';
+import { AlertTriangle, Bell, Briefcase, Database, LockKeyhole, LogOut, Mail, RotateCcw, Save, ShieldCheck, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/useAuth';
 import { getCurrentPushSubscription, enablePushNotifications, disablePushNotifications, pushNotificationsConfigured, pushNotificationSupportMessage } from '../lib/pushNotifications';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { resetTutorial } from '../lib/tutorial';
+import { openCookieSettings } from '../components/CookieConsent';
 
 type Visibility = 'open' | 'not_open' | 'hidden';
 type Theme = 'light' | 'dark' | 'system';
@@ -49,6 +51,12 @@ export default function CandidateSettings() {
   const [recommendationEmails, setRecommendationEmails] = useState(true);
   const [marketingEmails, setMarketingEmails] = useState(false);
   const [pauseOptionalEmails, setPauseOptionalEmails] = useState(false);
+
+  const replayTutorial = () => {
+    if (!session) return;
+    resetTutorial(session.user.id, 'candidate');
+    navigate('/candidate/dashboard');
+  };
 
   useEffect(() => {
     if (!message) return;
@@ -299,6 +307,19 @@ export default function CandidateSettings() {
         {message && <div className="rounded-2xl border border-[#5DCAA5] bg-[#E1F5EE] px-4 py-3 text-sm text-[#085041]">{message}</div>}
         {error && <div className="rounded-2xl border border-[#F0D080] bg-[#FFF8E6] px-4 py-3 text-sm text-[#7A5000]">{error}</div>}
 
+        <details className="panel order-0 rounded-[28px] p-5 sm:p-6">
+          <summary className="flex cursor-pointer items-start gap-3">
+            <RotateCcw className="mt-0.5 text-[#1D9E75]" size={20} />
+            <div>
+              <h2 className="font-semibold text-[#1A1A1A]">Workspace guidance</h2>
+              <p className="mt-1 text-sm text-[#5F5E5A]">Take the short tour again to revisit the main RoleWave features.</p>
+            </div>
+          </summary>
+          <button type="button" onClick={replayTutorial} className="mt-5 inline-flex items-center gap-2 rounded-xl border border-[#1D9E75] bg-white px-4 py-2.5 text-sm font-semibold text-[#0F6E56] hover:bg-[#E1F5EE]">
+            <RotateCcw size={15} /> Replay RoleWave tour
+          </button>
+        </details>
+
         <details className="panel order-2 rounded-[28px] p-5 sm:p-6">
           <summary className="flex cursor-pointer items-start gap-3">
             <ShieldCheck className="mt-0.5 text-[#1D9E75]" size={20} />
@@ -452,6 +473,9 @@ export default function CandidateSettings() {
             <Link to="/terms" className="rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-4 py-3 text-sm font-semibold text-[#0F6E56] hover:border-[#5DCAA5]">
               Read Terms of Service
             </Link>
+            <button type="button" onClick={openCookieSettings} className="rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-4 py-3 text-left text-sm font-semibold text-[#0F6E56] hover:border-[#5DCAA5]">
+              Manage Cookie Settings
+            </button>
           </div>
           <p className="mt-3 text-xs leading-5 text-[#8A867E]">You can request account deletion from the danger zone below. Data export requests can be sent through Contact Us.</p>
         </details>

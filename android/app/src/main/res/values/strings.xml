@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">RoleWave</string>
+    <string name="title_activity_main">RoleWave</string>
+    <string name="package_name">cv.rolewave.app</string>
+    <string name="custom_url_scheme">cv.rolewave.app</string>
+</resources>

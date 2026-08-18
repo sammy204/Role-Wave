@@ -1,5 +1,6 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { formatMonthDay } from './dateFormat';
 import type { AppNotification } from '../types';
 
 export type ConnectionStatus = 'SUBSCRIBED' | 'CLOSED' | 'CHANNEL_ERROR' | 'TIMED_OUT';
@@ -34,6 +35,11 @@ export async function markNotificationRead(notificationId: string): Promise<void
 
 export async function markAllNotificationsRead(): Promise<void> {
   const { error } = await supabase.rpc('mark_all_notifications_read');
+  if (error) throw error;
+}
+
+export async function clearAllNotifications(): Promise<void> {
+  const { error } = await supabase.rpc('clear_all_notifications');
   if (error) throw error;
 }
 
@@ -99,7 +105,7 @@ export function timeAgo(iso: string): string {
   if (hours < 24) return `${hours}h`;
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days}d`;
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return formatMonthDay(iso);
 }
 
 /** Human-readable copy for a notification, used by both the badge dropdown and any future full list. */

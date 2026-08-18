@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import {
   fetchNotifications,
+  clearAllNotifications,
   markAllNotificationsRead,
   markNotificationRead,
   subscribeToNotifications,
@@ -98,5 +99,16 @@ export function useNotifications() {
     }
   }, [load]);
 
-  return { notifications, unreadCount, markRead, markAllRead, refresh: load };
+  const clearAll = useCallback(async () => {
+    const previous = notifications;
+    setNotifications([]);
+    try {
+      await clearAllNotifications();
+    } catch {
+      setNotifications(previous);
+      load();
+    }
+  }, [load, notifications]);
+
+  return { notifications, unreadCount, markRead, markAllRead, clearAll, refresh: load };
 }

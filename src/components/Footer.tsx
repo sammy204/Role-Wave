@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 const socialLinks = [
   {
     name: 'X',
-    href: 'https://x.com/rolewave',
+    href: 'https://x.com/rolewavecv',
     color: '#000000',
     icon: (
       <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">

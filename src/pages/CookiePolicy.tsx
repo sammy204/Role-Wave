@@ -51,11 +51,11 @@ export default function CookiePolicy() {
                 <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer" className="font-semibold text-accent-text underline underline-offset-2">Cloudflare's privacy policy</a>{' '}for details.
               </li>
             </ul>
-            <p>We do not use Google Analytics, advertising cookies, or any other tracking technology at this time.</p>
+            <p>We do not use advertising cookies or sell personal information. RoleWave may use analytics and diagnostic tools to monitor errors, performance, and platform reliability when you allow them.</p>
           </Section>
 
           <Section title="3. Analytics">
-            <p>We do not currently run analytics on RoleWave. Our cookie banner includes an optional, off by default analytics setting reserved for future use. If we ever turn analytics on, it will only apply to visitors who opt in, and we will update this policy first.</p>
+            <p>Analytics and diagnostics are optional. You can choose whether to allow them in the cookie banner. This currently includes error and performance monitoring. We will update this policy if the tools or purposes change.</p>
           </Section>
 
           <Section title="4. Managing cookies and local storage">

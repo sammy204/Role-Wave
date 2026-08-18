@@ -19,7 +19,7 @@ import {
 } from '../lib/messages';
 import type { Conversation, EmployerProfile, Message } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
-
+import { formatDate, formatDateLong, formatTime } from '../lib/dateFormat';
 function formatRelative(date: string) {
   const now = new Date();
   const then = new Date(date);
@@ -28,16 +28,9 @@ function formatRelative(date: string) {
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
-  return then.toLocaleDateString();
+  return formatDate(then);
 }
 
-function formatTime(date: string) {
-  const then = new Date(date);
-  const now = new Date();
-  const sameDay = then.toDateString() === now.toDateString();
-  const time = then.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  return sameDay ? time : `${then.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })} ${time}`;
-}
 
 function deliveryLabel(message: Message) {
   if (message.read_at) return 'Read';
@@ -56,7 +49,7 @@ function formatDayLabel(date: string) {
   yesterday.setDate(today.getDate() - 1);
   if (then.toDateString() === today.toDateString()) return 'Today';
   if (then.toDateString() === yesterday.toDateString()) return 'Yesterday';
-  return then.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  return formatDateLong(then);
 }
 
 export default function EmployerMessages() {

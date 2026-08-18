@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Cookie, X } from 'lucide-react';
 
 const STORAGE_KEY = 'rw_cookie_consent';
+export const COOKIE_SETTINGS_EVENT = 'rolewave:open-cookie-settings';
 
 type ConsentRecord = {
   necessary: true;
@@ -18,10 +19,24 @@ export function getCookieConsent(): ConsentRecord | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as ConsentRecord;
+    const parsed: unknown = JSON.parse(raw);
+    if (
+      typeof parsed !== 'object' ||
+      parsed === null ||
+      (parsed as { necessary?: unknown }).necessary !== true ||
+      typeof (parsed as { analytics?: unknown }).analytics !== 'boolean' ||
+      typeof (parsed as { decidedAt?: unknown }).decidedAt !== 'string'
+    ) {
+      return null;
+    }
+    return parsed as ConsentRecord;
   } catch {
     return null;
   }
+}
+
+export function openCookieSettings() {
+  window.dispatchEvent(new Event(COOKIE_SETTINGS_EVENT));
 }
 
 export function hasAnalyticsConsent(): boolean {
@@ -44,6 +59,15 @@ export default function CookieConsent() {
 
   useEffect(() => {
     setVisible(getCookieConsent() === null);
+
+    const handleOpenSettings = () => {
+      setAnalyticsChecked(getCookieConsent()?.analytics === true);
+      setExpanded(true);
+      setVisible(true);
+    };
+
+    window.addEventListener(COOKIE_SETTINGS_EVENT, handleOpenSettings);
+    return () => window.removeEventListener(COOKIE_SETTINGS_EVENT, handleOpenSettings);
   }, []);
 
   if (!visible) return null;
@@ -58,11 +82,6 @@ export default function CookieConsent() {
     setVisible(false);
   };
 
-  const saveChoices = () => {
-    saveConsent(analyticsChecked);
-    setVisible(false);
-  };
-
   return (
     <div className="fixed inset-x-0 bottom-0 z-[60] px-3 pb-3 sm:px-4 sm:pb-4">
       <div className="mx-auto w-full max-w-[560px] rounded-panel border border-line bg-white/95 p-4 shadow-card-hover backdrop-blur-xl sm:p-5">
@@ -74,8 +93,8 @@ export default function CookieConsent() {
             <div className="text-[14px] font-semibold text-ink">We use cookies</div>
             <p className="mt-1 text-[12.5px] leading-relaxed text-muted">
               We use essential cookies and local storage to keep you signed in and RoleWave working
-              properly. With your permission, we'd also like to use optional analytics cookies to
-              understand how the site is used. See our{' '}
+              properly. With your permission, we'd also like to use analytics and diagnostics to
+              monitor errors, performance, and platform reliability. See our{' '}
               <Link to="/privacy" className="font-semibold text-accent-text underline underline-offset-2">
                 Privacy Policy
               </Link>{' '}
@@ -88,19 +107,19 @@ export default function CookieConsent() {
                   <input type="checkbox" checked disabled className="mt-0.5" />
                   <span>
                     <span className="font-semibold">Necessary</span> — required for login sessions and
-                    core site function. Always on.
+                    core site function.
                   </span>
                 </label>
                 <label className="flex items-start gap-2 text-[12.5px] text-ink">
                   <input
                     type="checkbox"
                     checked={analyticsChecked}
-                    onChange={(e) => setAnalyticsChecked(e.target.checked)}
+                    onChange={(event) => setAnalyticsChecked(event.target.checked)}
                     className="mt-0.5"
                   />
                   <span>
-                    <span className="font-semibold">Analytics</span> — helps us understand usage so we
-                    can improve RoleWave. Off by default.
+                    <span className="font-semibold">Analytics &amp; diagnostics</span> &mdash; helps us monitor
+                    errors, performance, and platform usage so we can keep RoleWave reliable.
                   </span>
                 </label>
               </div>
@@ -128,7 +147,10 @@ export default function CookieConsent() {
                 </button>
               ) : (
                 <button
-                  onClick={saveChoices}
+                  onClick={() => {
+                    saveConsent(analyticsChecked);
+                    setVisible(false);
+                  }}
                   className="px-2 py-2 text-[12.5px] font-semibold text-muted underline underline-offset-2 hover:text-ink"
                 >
                   Save choices

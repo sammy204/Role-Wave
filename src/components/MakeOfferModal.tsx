@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Send, Save, Ban, CheckCircle2, Clock3, FileDown } from 'lucide-react';
+import { X, Send, Save, Ban, CheckCircle2, Clock3 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { CandidateProfile, Job, JobApplication, Offer } from '../types';
 
@@ -88,7 +88,6 @@ export default function MakeOfferModal({ application, employerProfileId, onClose
   const [error, setError] = useState('');
   const [existingOffer, setExistingOffer] = useState<Offer | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm(application.job));
-  const [downloadingLetter, setDownloadingLetter] = useState(false);
 
   const candidateProfileId = application.candidate_profile_id;
 

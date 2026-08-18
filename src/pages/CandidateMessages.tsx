@@ -20,7 +20,7 @@ import {
 } from '../lib/messages';
 import type { Conversation, Message } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
-
+import { formatDate, formatDateLong, formatTime } from '../lib/dateFormat';
 function formatRelative(date: string) {
   const now = new Date();
   const then = new Date(date);
@@ -29,17 +29,8 @@ function formatRelative(date: string) {
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
-  return then.toLocaleDateString();
+  return formatDate(then);
 }
-
-function formatTime(date: string) {
-  const then = new Date(date);
-  const now = new Date();
-  const sameDay = then.toDateString() === now.toDateString();
-  const time = then.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  return sameDay ? time : `${then.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })} ${time}`;
-}
-
 function deliveryLabel(message: Message) {
   if (message.read_at) return 'Read';
   if (message.delivered_at) return 'Delivered';
@@ -57,7 +48,7 @@ function formatDayLabel(date: string) {
   yesterday.setDate(today.getDate() - 1);
   if (then.toDateString() === today.toDateString()) return 'Today';
   if (then.toDateString() === yesterday.toDateString()) return 'Yesterday';
-  return then.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  return formatDateLong(then);
 }
 
 export default function CandidateMessages() {
@@ -392,7 +383,7 @@ export default function CandidateMessages() {
     <div className="page-shell">
       <div className="mx-auto w-full max-w-[1320px] px-4 pb-8 pt-6 sm:px-6 lg:px-8">
         <div className="mb-6">
-          <h1 className="font-display text-3xl font-bold tracking-[-0.03em] text-ink sm:text-4xl">Messages</h1>
+          <h1 data-tour="candidate-messages-page" className="font-display text-3xl font-bold tracking-[-0.03em] text-ink sm:text-4xl">Messages</h1>
           <p className="mt-2 text-sm leading-relaxed text-muted">Conversations with employers who've reached out.</p>
         </div>
 

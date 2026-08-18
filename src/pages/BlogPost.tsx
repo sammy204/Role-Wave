@@ -2,8 +2,8 @@ import { useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowUpRight } from 'lucide-react';
 import { blogPosts, getPostBySlug, type BlogSection } from '../data/blogPosts';
+import { formatPublishedDate as formatDate } from '../lib/dateFormat';
 
-function formatDate(iso: string) { return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }); }
 function Section({ section }: { section: BlogSection }) {
   if (section.type === 'heading') return <h2 className="font-display mt-9 text-2xl font-bold text-[#1A1A1A] sm:text-[26px]">{section.text}</h2>;
   if (section.type === 'paragraph') return <p className="mt-4 text-[15px] leading-7 text-[#4A4842] sm:text-base sm:leading-8">{section.text}</p>;

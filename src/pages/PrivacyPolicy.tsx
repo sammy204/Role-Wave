@@ -86,9 +86,8 @@ export default function PrivacyPolicy() {
               RoleWave uses your browser's local storage to keep you signed in between visits, this
               is <span className="font-semibold text-ink">strictly necessary</span> and cannot be
               turned off without logging you out. We do not currently use third party advertising or
-              tracking cookies. If we introduce optional analytics in the future, we will ask for your
-              consent first via the cookie banner, and you can withdraw that consent at any time from
-              the same banner. See our{' '}
+              tracking cookies. We may use analytics and diagnostic tools to monitor errors,
+              performance, and platform reliability when you allow them. See our{' '}
               <Link
                 to="/cookie-policy"
                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
@@ -96,7 +95,7 @@ export default function PrivacyPolicy() {
               >
                 Cookie Policy
               </Link>{' '}
-              for more details and the current choices available to you.
+              for more details about how these technologies are used.
             </p>
           </Section>
 

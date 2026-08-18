@@ -3,12 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Ban, CheckCircle2, ChevronDown, Clock3, Gift, MapPin, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
+import { formatDate } from '../lib/dateFormat';
 import type { Job, Offer } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
-
-function formatDate(date: string) {
-  return new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-}
 
 function formatMoney(amount: number | null, currency: string, period: string) {
   if (amount == null) return 'Not specified';
@@ -145,7 +142,7 @@ export default function CandidateOffers() {
     <div className="page-shell px-4 py-6 pb-24 sm:px-6 lg:px-8">
       <div className="mx-auto w-full max-w-[760px] space-y-4">
         <div className="panel rounded-[28px] p-5">
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-[#E1F5EE] px-3 py-1 text-xs font-semibold text-[#085041]"><Gift size={12} /> Offers</div>
+          <div data-tour="candidate-offers-page" className="mb-2 inline-flex items-center gap-2 rounded-full bg-[#E1F5EE] px-3 py-1 text-xs font-semibold text-[#085041]"><Gift size={12} /> Offers</div>
           <h1 className="font-display text-2xl font-bold text-[#1A1A1A]">Your offers</h1>
           <p className="mt-2 text-sm leading-relaxed text-[#5F5E5A]">Review offers from employers and respond when you’re ready.</p>
         </div>

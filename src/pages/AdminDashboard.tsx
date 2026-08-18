@@ -253,6 +253,7 @@ export default function AdminDashboard() {
   const [revokingInviteId, setRevokingInviteId] = useState<number | null>(null);
   const [deletingInviteId, setDeletingInviteId] = useState<number | null>(null);
   const [adminWelcomeSending, setAdminWelcomeSending] = useState(false);
+  const [adminWelcomeTestSending, setAdminWelcomeTestSending] = useState(false);
   const [revokingAdminId, setRevokingAdminId] = useState<string | null>(null);
   const [adminProfileFirstName, setAdminProfileFirstName] = useState('');
   const [adminProfileLastName, setAdminProfileLastName] = useState('');
@@ -728,6 +729,28 @@ export default function AdminDashboard() {
       setError(sendErr instanceof Error ? sendErr.message : 'Could not send admin welcome emails.');
     } finally {
       setAdminWelcomeSending(false);
+    }
+  };
+
+  const sendAdminWelcomeTest = async () => {
+    const confirmed = window.confirm(`Send a test of this email to ${authEmail || 'your admin email'}?`);
+    if (!confirmed) return;
+
+    setAdminWelcomeTestSending(true);
+    setNotice('');
+    setError('');
+
+    try {
+      const { data, error: sendError } = await supabase.functions.invoke('send-admin-welcome', {
+        body: { mode: 'self', force: true },
+      });
+      if (sendError) throw sendError;
+      if (data?.error) throw new Error(data.error);
+      setNotice(`Test email sent to ${authEmail || 'your admin email'}.`);
+    } catch (sendErr) {
+      setError(sendErr instanceof Error ? sendErr.message : 'Could not send the test email.');
+    } finally {
+      setAdminWelcomeTestSending(false);
     }
   };
 
@@ -2028,12 +2051,49 @@ export default function AdminDashboard() {
               <button
                 type="button"
                 onClick={sendAdminWelcomeToAll}
-                disabled={adminWelcomeSending || adminRoster.length === 0}
+                disabled={adminWelcomeSending || adminWelcomeTestSending || adminRoster.length === 0}
                 className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl border border-[#D3D1C7] bg-white px-4 py-2.5 text-sm font-semibold text-[#1A1A1A] transition hover:border-[#5DCAA5] hover:text-[#085041] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Send size={15} />
-                {adminWelcomeSending ? 'Sending welcomes...' : 'Resend welcome to all admins'}
+                {adminWelcomeSending ? 'Sending welcome emails...' : 'Send welcome email to all admins'}
               </button>
+              <button
+                type="button"
+                onClick={sendAdminWelcomeTest}
+                disabled={adminWelcomeSending || adminWelcomeTestSending}
+                className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-[#5DCAA5] bg-[#F0FAF6] px-4 py-2.5 text-sm font-semibold text-[#085041] transition hover:bg-[#E1F5EE] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Send size={15} />
+                {adminWelcomeTestSending ? 'Sending test...' : 'Send test email to me'}
+              </button>
+              <details className="mt-4 rounded-2xl border border-[#D3D1C7] bg-white p-5">
+                <summary className="cursor-pointer text-sm font-semibold text-[#1A1A1A]">Preview welcome email</summary>
+                <div className="mt-4 max-w-3xl rounded-xl bg-[#FBFAF7] p-5 text-sm leading-6 text-[#5F5E5A]">
+                  <p className="font-semibold text-[#1A1A1A]">Subject: RoleWave Admin Team: Preparing for Launch</p>
+                  <p className="mt-5">Dear [Admin Name],</p>
+                  <p className="mt-3">Thank you for being part of the RoleWave team and for taking on the responsibility of helping us build and maintain a reliable platform for job seekers and employers.</p>
+                  <p className="mt-3">Behind the scenes, our engineering team has invested significant time and care into preparing RoleWave for launch. A great deal of work has gone into building the platform, improving its reliability, strengthening security, and creating an experience we can confidently put in the hands of our users.</p>
+                  <p className="mt-3">As we move closer to launch, the role of our Admin Team becomes equally important. Engineering can build the platform, but the Admin Team helps keep it trustworthy, organized, and useful for everyone.</p>
+                  <h4 className="mt-5 font-semibold text-[#1A1A1A]">Your Responsibilities as a RoleWave Admin</h4>
+                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                    <li><strong>Job Moderation:</strong> Review job postings for legitimacy, relevance, completeness, and compliance.</li>
+                    <li><strong>Employer Review:</strong> Monitor accounts and investigate suspicious or misleading activity.</li>
+                    <li><strong>Job Quality:</strong> Identify expired, duplicated, misleading, or inappropriate listings.</li>
+                    <li><strong>User Reports:</strong> Review reports and take appropriate action.</li>
+                    <li><strong>Platform Safety:</strong> Help identify scams, fraud, and suspicious accounts.</li>
+                    <li><strong>Administrative Actions:</strong> Apply RoleWave policies fairly and consistently.</li>
+                    <li><strong>Escalation:</strong> Bring serious, unusual, or uncertain cases to the appropriate team.</li>
+                    <li><strong>Confidentiality:</strong> Treat user, employer, and platform information as confidential.</li>
+                  </ul>
+                  <h4 className="mt-5 font-semibold text-[#1A1A1A]">Getting Started</h4>
+                  <p className="mt-2">Please review the Admin Dashboard and familiarise yourself with job moderation, employer review, user reports, and administrative actions.</p>
+                  <p className="mt-3">For serious, unusual, or uncertain matters, please contact <strong className="text-[#1A1A1A]">Bolarinwa</strong>. Please do not make high-impact decisions involving account removal, suspected fraud, or sensitive user matters without escalating them where appropriate.</p>
+                  <div className="mt-5 rounded-xl border border-[#D3D1C7] p-4"><p className="font-semibold text-[#1A1A1A]">Our goal</p><p className="mt-1">To make RoleWave a platform that people can trust.</p></div>
+                  <p className="mt-5">Thank you again for joining the RoleWave team. The successful launch of RoleWave will be a team effort across engineering, administration, operations, and every person contributing behind the scenes.</p>
+                  <p className="mt-3">Best regards,<br /><strong className="text-[#1A1A1A]">The RoleWave Co-Founders</strong></p>
+                  <p className="mt-4 text-xs text-[#8A867E]">The email also includes an “Open admin dashboard” button.</p>
+                </div>
+              </details>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">

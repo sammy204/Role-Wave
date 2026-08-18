@@ -148,7 +148,7 @@ async function sendWelcome(
     body: JSON.stringify({
       from: FROM_ADDRESS,
       to: [target.email],
-      subject: `Welcome to RoleWave Admin, ${name}`,
+      subject: 'RoleWave Admin Team: Preparing for Launch',
       html,
     }),
   });

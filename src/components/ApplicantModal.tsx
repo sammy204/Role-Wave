@@ -19,6 +19,7 @@ import {
 import type { CandidateProfile, Job, JobApplication } from '../types';
 import { formatStatus, statusTone } from '../lib/applicationPipeline';
 import { candidateResumeViewerHref, getCandidateAssetUrl } from '../lib/candidateAssets';
+import { formatDate } from '../lib/dateFormat';
 
 type ApplicantModalProps = {
   application: JobApplication & { job?: Job; candidate?: CandidateProfile | null };
@@ -26,10 +27,6 @@ type ApplicantModalProps = {
   onMessage?: () => void;
   messaging?: boolean;
 };
-
-function formatDate(date: string): string {
-  return new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-}
 
 function initialsFor(name: string): string {
   return (

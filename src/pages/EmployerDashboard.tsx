@@ -384,7 +384,7 @@ const updateApplicationStatus = async (
         <div className="panel motion-safe:animate-fade-up mb-6 rounded-[28px] p-5 sm:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-accent-light px-3 py-1 text-xs font-semibold text-accent-text">
+              <div data-tour="employer-dashboard" className="mb-3 inline-flex items-center gap-2 rounded-full bg-accent-light px-3 py-1 text-xs font-semibold text-accent-text">
                 <BadgeCheck size={12} /> Employer dashboard
               </div>
               <h1 className="font-display text-3xl font-bold tracking-[-0.03em] text-ink sm:text-4xl">
@@ -457,6 +457,7 @@ const updateApplicationStatus = async (
               <div className="mt-4 flex items-center gap-2 border-t border-line pt-4">
                 <Link
                   to="/post"
+                  data-tour="employer-create-job"
                   className="flex flex-1 items-center justify-between rounded-2xl border border-line bg-white px-4 py-3 text-sm font-semibold text-ink transition-all duration-200 hover:-translate-y-[1px] hover:border-[#5DCAA5]"
                 >
                   <span className="inline-flex items-center gap-2">
@@ -475,7 +476,7 @@ const updateApplicationStatus = async (
             >
               <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <div className="text-sm font-semibold text-ink">Posted jobs</div>
+              <div data-tour="employer-posted-jobs" className="text-sm font-semibold text-ink">Posted jobs</div>
                   <div className="text-sm text-muted">Manage the roles under your company.</div>
                 </div>
                 <div className="relative w-full lg:max-w-[320px]">
@@ -585,7 +586,7 @@ const updateApplicationStatus = async (
             >
               <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <div className="text-sm font-semibold text-ink">Applications</div>
+                  <div data-tour="employer-applications" className="text-sm font-semibold text-ink">Applications</div>
                   <div className="text-sm text-muted">
                     View candidates who applied through RoleWave.
                   </div>

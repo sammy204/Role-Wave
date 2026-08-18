@@ -345,7 +345,7 @@ export default function CandidateDashboard() {
         <div className="overflow-hidden rounded-[34px] border border-white/70 bg-[linear-gradient(135deg,#ffffff_0%,#f4efff_52%,#eefaf6_100%)] p-5 shadow-[0_24px_70px_rgba(26,26,26,0.07)] backdrop-blur-xl sm:p-6 lg:p-7">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-2xl">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#E1F5EE] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#085041]">
+              <div data-tour="candidate-dashboard" className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#E1F5EE] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#085041]">
                 Candidate workspace
               </div>
               <h1 className="font-display text-[30px] font-bold leading-[1.04] tracking-[-0.04em] text-[#1A1A1A] sm:text-[42px]">
@@ -358,6 +358,7 @@ export default function CandidateDashboard() {
                 <button
                   type="button"
                   onClick={() => navigate('/jobs')}
+                  data-tour="candidate-browse"
                   className="inline-flex items-center gap-2 rounded-full bg-[#1A1A1A] px-4 py-2.5 text-sm font-semibold text-white transition-transform duration-200 hover:-translate-y-[1px]"
                 >
                   Browse jobs <ArrowRight size={14} />
@@ -383,6 +384,7 @@ export default function CandidateDashboard() {
               </div>
               <Link
                 to="/candidate/messages"
+                data-tour="candidate-messages"
                 className="group rounded-[24px] border border-white/70 bg-[#1A1A1A] p-4 text-white shadow-[0_10px_24px_rgba(26,26,26,0.12)] transition-transform duration-200 hover:-translate-y-[1px]"
               >
                 <div className="flex items-center justify-between">
@@ -474,7 +476,7 @@ export default function CandidateDashboard() {
             <div className="rounded-panel border border-white/70 bg-white/78 p-5 shadow-[0_18px_50px_rgba(26,26,26,0.06)] backdrop-blur-xl">
               <div className="mb-3 flex items-center justify-between">
                 <div className="text-sm font-semibold text-ink">Recent applications</div>
-                <Link to="/candidate/activity" className="text-xs font-semibold text-accent-text hover:underline">
+                <Link to="/candidate/activity" data-tour="candidate-activity" className="text-xs font-semibold text-accent-text hover:underline">
                   View all
                 </Link>
               </div>

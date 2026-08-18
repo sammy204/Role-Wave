@@ -742,7 +742,7 @@ export default function CandidateDashboard() {
                 )}
 
                 <div className="max-w-2xl">
-                  <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-[#085041] shadow-sm">
+                  <div data-tour="candidate-profile-page" className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-[#085041] shadow-sm">
                     <BadgeCheck size={12} /> Candidate dashboard
                   </div>
                   <h1 className="font-display text-3xl font-bold text-[#1A1A1A] sm:text-4xl">

@@ -50,6 +50,7 @@ import BlogPost from './pages/BlogPost';
 import CookiePolicy from './pages/CookiePolicy';
 import Unsubscribe from './pages/Unsubscribe';
 import MessageToastHost from './components/MessageToastHost';
+import InAppTutorial from './components/InAppTutorial';
 import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat';
 import { useIsPwa } from './lib/usePwaDisplayMode';
 
@@ -190,6 +191,20 @@ function AppShell() {
     path !== '/start' &&
     path !== '/confirmed' &&
     path !== '/welcome';
+
+  const tutorialRole = profile?.account_type === 'employer' ? 'employer' : profile?.account_type === 'candidate' ? 'candidate' : null;
+  const tutorialPaths = tutorialRole === 'candidate'
+    ? ['/candidate', '/candidate/dashboard', '/candidate/profile', '/jobs', '/candidate/activity', '/candidate/offers', '/candidate/messages']
+    : ['/employer', '/employer/dashboard', '/post', '/employer/messages'];
+  const tutorialActive = Boolean(
+    session && tutorialRole && tutorialPaths.includes(path)
+  );
+  const tutorialAutoStart = Boolean(
+    session && tutorialRole &&
+      (tutorialRole === 'candidate'
+        ? path === '/candidate' || path === '/candidate/dashboard'
+        : path === '/employer' || path === '/employer/dashboard')
+  );
 
   useEffect(() => {
     if (authLoading) return;
@@ -364,6 +379,7 @@ function AppShell() {
         <InstallPrompt />
         <PushNotificationPrompt />
         <MessageToastHost />
+        {tutorialRole && session && <InAppTutorial userId={session.user.id} role={tutorialRole} active={tutorialActive} autoStart={tutorialAutoStart} />}
       </>
     );
   }
@@ -378,6 +394,7 @@ function AppShell() {
       <InstallPrompt />
       <PushNotificationPrompt />
       <MessageToastHost />
+      {tutorialRole && session && <InAppTutorial userId={session.user.id} role={tutorialRole} active={tutorialActive} autoStart={tutorialAutoStart} />}
     </div>
   );
 }

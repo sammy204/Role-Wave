@@ -54,7 +54,7 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
     if (route === '/jobs') {
       return path === '/jobs' || (path.startsWith('/jobs/') && !path.endsWith('/apply'));
     }
-    return path.startsWith(route);
+    return path === route || path.startsWith(`${route}/`);
   };
 
   const handleSignOut = async () => {
@@ -95,7 +95,7 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
   };
 
   const NavLinks = ({ onNavigate }: { onNavigate?: () => void }) => (
-    <nav className="flex flex-1 flex-col gap-1">
+    <nav className="flex flex-1 flex-col gap-1" data-tour="candidate-navigation">
       {links.map((item) => {
         const Icon = item.icon;
         const active = isActive(item.to);
