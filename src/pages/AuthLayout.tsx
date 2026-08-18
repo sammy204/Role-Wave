@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { ArrowRight, Check, ChevronLeft, Eye, EyeOff } from 'lucide-react';
 import type { TurnstileInstance } from '@marsidev/react-turnstile';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import { useAuth } from '../lib/useAuth';
 import { useIsPwa } from '../lib/usePwaDisplayMode';
+import { getNativeOAuthRedirectUrl } from '../lib/nativeAuthDeepLink';
 import { withTimeout } from '../lib/withTimeout';
 import type { Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -139,10 +141,14 @@ export default function AuthLayout() {
       const googleRedirectParams = new URLSearchParams({ mode: 'login', role });
       if (nextPath) googleRedirectParams.set('next', nextPath);
 
+      const redirectTo = Capacitor.isNativePlatform()
+        ? getNativeOAuthRedirectUrl(googleRedirectParams)
+        : `${window.location.origin}/start?${googleRedirectParams.toString()}`;
+
       const { error: googleError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/start?${googleRedirectParams.toString()}`,
+          redirectTo,
         },
       });
 

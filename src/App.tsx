@@ -53,6 +53,8 @@ import MessageToastHost from './components/MessageToastHost';
 import InAppTutorial from './components/InAppTutorial';
 import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat';
 import { useIsPwa } from './lib/usePwaDisplayMode';
+import { setNativeSystemBarAppearance } from './lib/nativeInit';
+import { syncNativePushToken } from './lib/nativePushNotifications';
 
 function App() {
   return (
@@ -70,6 +72,17 @@ function AppShell() {
   const isPwa = useIsPwa();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
+
+  useEffect(() => {
+    void setNativeSystemBarAppearance(
+      path.startsWith('/candidate') ? '#1D9E75' : '#FBFAF7',
+      path.startsWith('/candidate'),
+    ).catch(() => {});
+  }, [path]);
+
+  useEffect(() => {
+    void syncNativePushToken();
+  }, [session?.user.id]);
 
   useEffect(() => {
     const previousScrollRestoration = window.history.scrollRestoration;

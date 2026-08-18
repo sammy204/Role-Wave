@@ -12,7 +12,10 @@
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",
+    "@capacitor/app": "^8.1.1",
     "@capacitor/core": "^8.5.0",
+    "@capacitor/push-notifications": "^8.1.2",
+    "@capawesome/capacitor-android-edge-to-edge-support": "^8.0.8",
     "@marsidev/react-turnstile": "^1.5.5",
     "@sentry/react": "^10.70.0",
     "@supabase/supabase-js": "^2.57.4",

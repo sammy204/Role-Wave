@@ -90,8 +90,11 @@ export default function WorkspaceNav({ role }: { role: WorkspaceRole }) {
         ];
 
   return (
-    <nav data-tour="employer-navigation" className="sticky top-0 z-50 border-b border-white/70 bg-white/88 backdrop-blur-xl shadow-[0_6px_30px_rgba(26,26,26,0.05)]">
-      <div className="mx-auto flex h-[68px] max-w-[1320px] items-center justify-between px-4 sm:px-6 lg:px-8">
+<nav
+  data-tour="employer-navigation"
+  className="sticky top-0 z-50 border-b border-white/70 bg-white/88 backdrop-blur-xl shadow-[0_6px_30px_rgba(26,26,26,0.05)]"
+  style={{ paddingTop: 'env(safe-area-inset-top)' }}
+>      <div className="mx-auto flex h-[68px] max-w-[1320px] items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link to={basePath} className="flex items-center gap-3">
           {role === 'employer' && company ? (
             <CompanyLogo
@@ -170,8 +173,10 @@ export default function WorkspaceNav({ role }: { role: WorkspaceRole }) {
               className="fixed inset-0 z-40 cursor-default bg-black/20 lg:hidden"
               onClick={() => setMenuOpen(false)}
             />
-            <div className="absolute left-0 right-0 top-[68px] z-50 mx-3 rounded-[24px] border border-[#D3D1C7] bg-white px-4 py-4 shadow-[0_18px_38px_rgba(26,26,26,0.12)] lg:hidden">
-              <div className="grid gap-2">
+<div
+  className="absolute left-0 right-0 z-50 mx-3 rounded-[24px] border border-[#D3D1C7] bg-white px-4 py-4 shadow-[0_18px_38px_rgba(26,26,26,0.12)] lg:hidden"
+  style={{ top: 'calc(68px + env(safe-area-inset-top))' }}
+>              <div className="grid gap-2">
                 {links.map((item) => {
                   const Icon = item.icon;
                   const showUnread = item.to === messagesPath && unreadCount > 0;

@@ -173,7 +173,13 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
       </aside>
 
       {/* Mobile top bar */}
-      <div className="sticky top-0 z-40 flex h-[60px] items-center justify-between border-b border-line bg-sidebar px-4 lg:hidden">
+      <div
+        className="sticky top-0 z-40 flex items-center justify-between border-b border-line bg-sidebar px-4 lg:hidden"
+        style={{
+          paddingTop: 'env(safe-area-inset-top)',
+          height: 'calc(60px + env(safe-area-inset-top))',
+        }}
+      >
         <Link to="/candidate/dashboard" className="flex items-center gap-2">
           <img src="/rolewave-icon.png" alt="RoleWave" className="h-[28px] w-[28px] object-contain" />
           <span className="text-[15px] font-bold text-white">RoleWave</span>

@@ -4,6 +4,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/useAuth';
 import { getCurrentPushSubscription, enablePushNotifications, disablePushNotifications, pushNotificationsConfigured, pushNotificationSupportMessage } from '../lib/pushNotifications';
+import { Capacitor } from '@capacitor/core';
+import { disableNativePushNotifications, enableNativePushNotifications, getNativePushEnabled, nativePushNotificationsAvailable } from '../lib/nativePushNotifications';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { resetTutorial } from '../lib/tutorial';
 import { openCookieSettings } from '../components/CookieConsent';
@@ -94,7 +96,7 @@ export default function CandidateSettings() {
     let alive = true;
     void Promise.all([
       supabase.from('candidate_profiles').select('visibility_to_employers, preferred_job_titles').eq('id', session.user.id).maybeSingle(),
-      getCurrentPushSubscription(),
+      nativePushNotificationsAvailable() ? getNativePushEnabled(session.user.id) : getCurrentPushSubscription(),
       supabase.from('profiles').select('email_application_updates, email_new_messages, email_job_recommendations, email_marketing_communications, email_pause_optional').eq('id', session.user.id).maybeSingle(),
     ]).then(([profileResult, subscription, settingsResult]) => {
       if (!alive) return;
@@ -137,7 +139,10 @@ export default function CandidateSettings() {
     setError('');
     setMessage('');
     try {
-      if (pushEnabled) await disablePushNotifications();
+      if (Capacitor.getPlatform() === 'android') {
+        if (pushEnabled) await disableNativePushNotifications();
+        else await enableNativePushNotifications();
+      } else if (pushEnabled) await disablePushNotifications();
       else await enablePushNotifications();
       setPushEnabled(!pushEnabled);
       setMessage(`Push notifications ${pushEnabled ? 'disabled' : 'enabled'}.`);
@@ -532,11 +537,11 @@ export default function CandidateSettings() {
               <div className="text-sm font-semibold text-[#1A1A1A]">Push notifications</div>
               <div className="mt-1 text-xs text-[#8A867E]">{pushEnabled ? 'Enabled on this device' : 'Disabled on this device'}</div>
             </div>
-            <button type="button" onClick={togglePush} disabled={pushSaving || !pushNotificationsConfigured()} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${pushEnabled ? 'bg-[#1D9E75] text-white' : 'border border-[#D3D1C7] bg-white text-[#5F5E5A]'} disabled:cursor-not-allowed disabled:opacity-50`}>
+            <button type="button" onClick={togglePush} disabled={pushSaving || (!nativePushNotificationsAvailable() && !pushNotificationsConfigured())} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${pushEnabled ? 'bg-[#1D9E75] text-white' : 'border border-[#D3D1C7] bg-white text-[#5F5E5A]'} disabled:cursor-not-allowed disabled:opacity-50`}>
               {pushSaving ? 'Updating...' : pushEnabled ? 'Turn off' : 'Turn on'}
             </button>
           </div>
-          {!pushNotificationsConfigured() && <p className="mt-2 text-xs text-[#8A867E]">{pushNotificationSupportMessage()}</p>}
+          {!nativePushNotificationsAvailable() && !pushNotificationsConfigured() && <p className="mt-2 text-xs text-[#8A867E]">{pushNotificationSupportMessage()}</p>}
         </details>
 
         <details className="panel order-5 rounded-[28px] p-5 sm:p-6">
