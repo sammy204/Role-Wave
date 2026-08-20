@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Ban, CheckCircle2, ChevronDown, Clock3, Gift, MapPin, Trash2 } from 'lucide-react';
+import { Ban, CheckCircle2, ChevronDown, Clock3, Download, FileText, Gift, MapPin, Trash2, Upload } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import { formatDate } from '../lib/dateFormat';
-import type { Job, Offer } from '../types';
+import type { Job, Offer, OfferDocument } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 function formatMoney(amount: number | null, currency: string, period: string) {
@@ -26,6 +26,7 @@ export default function CandidateOffers() {
   const navigate = useNavigate();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [jobs, setJobs] = useState<Map<string, Job>>(new Map());
+  const [documentsByOffer, setDocumentsByOffer] = useState<Map<string, OfferDocument[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [respondingOfferId, setRespondingOfferId] = useState<string | null>(null);
@@ -34,6 +35,10 @@ export default function CandidateOffers() {
   const [respondingBusy, setRespondingBusy] = useState(false);
   const [expandedOfferId, setExpandedOfferId] = useState<string | null>(null);
   const [removingOfferId, setRemovingOfferId] = useState<string | null>(null);
+  const [signedFile, setSignedFile] = useState<File | null>(null);
+  const [signedMessage, setSignedMessage] = useState('');
+  const [uploadingSignedOfferId, setUploadingSignedOfferId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
 
   const loadOffers = useCallback(async () => {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -67,6 +72,15 @@ export default function CandidateOffers() {
 
     setOffers(nextOffers);
     setJobs(new Map(((jobRows || []) as Job[]).map((job) => [job.id, job])));
+    const { data: documentRows, error: documentsError } = nextOffers.length
+      ? await supabase.from('offer_documents').select('*').in('offer_id', nextOffers.map((offer) => offer.id)).order('sort_order', { ascending: true })
+      : { data: [], error: null };
+    if (documentsError) throw documentsError;
+    const documentMap = new Map<string, OfferDocument[]>();
+    for (const document of (documentRows || []) as OfferDocument[]) {
+      documentMap.set(document.offer_id, [...(documentMap.get(document.offer_id) || []), document]);
+    }
+    setDocumentsByOffer(documentMap);
     setExpandedOfferId((current) => current && nextOffers.some((offer) => offer.id === current) ? current : nextOffers.find((offer) => offer.status === 'sent')?.id ?? nextOffers[0]?.id ?? null);
   }, [navigate]);
 
@@ -94,6 +108,16 @@ export default function CandidateOffers() {
     setRespondingBusy(true);
     setError('');
     try {
+      const offerDocuments = documentsByOffer.get(offer.id) || [];
+      const hasEmployerDocuments = offerDocuments.some((document) => document.document_type === 'employer_offer');
+      const hasSignedDocument = offerDocuments.some((document) => document.document_type === 'candidate_signed');
+      if (responseAction === 'accepted' && hasEmployerDocuments && !signedFile && !hasSignedDocument) {
+        throw new Error('Choose the signed offer document before accepting this offer.');
+      }
+      if (responseAction === 'accepted' && signedFile) {
+        const uploaded = await uploadSignedDocument(offer);
+        if (!uploaded) throw new Error('Could not upload the signed offer document.');
+      }
       const { data, error: responseError } = await supabase
         .from('offers')
         .update({ status: responseAction, response_message: responseMessage.trim() || null })
@@ -134,35 +158,110 @@ export default function CandidateOffers() {
     }
   };
 
+  const downloadDocument = async (document: OfferDocument) => {
+    setError('');
+    const { data, error: signedUrlError } = await supabase.storage.from('offer-documents').createSignedUrl(document.storage_path, 60 * 10);
+    if (signedUrlError || !data?.signedUrl) {
+      setError(signedUrlError?.message || 'Could not open this document.');
+      return;
+    }
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const uploadSignedDocument = async (offer: Offer): Promise<boolean> => {
+    if (!signedFile) return true;
+    if (!['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(signedFile.type)) {
+      setError('Signed documents must be PDF, DOC, or DOCX files.');
+      return false;
+    }
+    if (signedFile.size > 10 * 1024 * 1024) {
+      setError('Signed documents must be smaller than 10 MB.');
+      return false;
+    }
+
+    setUploadingSignedOfferId(offer.id);
+    setError('');
+    try {
+      const safeName = signedFile.name.replace(/[^a-zA-Z0-9._-]/g, '-');
+      const path = `${offer.id}/candidate-${crypto.randomUUID()}-${safeName}`;
+      const { error: uploadError } = await supabase.storage.from('offer-documents').upload(path, signedFile, { contentType: signedFile.type, upsert: false });
+      if (uploadError) throw uploadError;
+
+      const { data: document, error: documentError } = await supabase.from('offer_documents').insert({
+        offer_id: offer.id,
+        storage_path: path,
+        file_name: signedFile.name,
+        mime_type: signedFile.type,
+        file_size: signedFile.size,
+        sort_order: (documentsByOffer.get(offer.id) || []).length,
+        document_type: 'candidate_signed',
+        uploaded_by: offer.candidate_profile_id,
+        document_message: signedMessage.trim() || null,
+      }).select('*').single();
+      if (documentError) {
+        await supabase.storage.from('offer-documents').remove([path]);
+        throw documentError;
+      }
+
+      setDocumentsByOffer((current) => new Map(current).set(offer.id, [...(current.get(offer.id) || []), document as OfferDocument]));
+      setSignedFile(null);
+      setSignedMessage('');
+      return true;
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : 'Could not send the signed document.');
+      return false;
+    } finally {
+      setUploadingSignedOfferId(null);
+    }
+  };
+
   const activeOffers = useMemo(() => offers.filter((offer) => offer.status === 'sent'), [offers]);
+  const historyOffers = useMemo(() => offers.filter((offer) => offer.status !== 'sent'), [offers]);
+  const visibleOffers = activeTab === 'pending' ? activeOffers : historyOffers;
 
   if (loading) return <div className="flex min-h-screen items-center justify-center px-4"><div className="rounded-panel border border-line bg-surface px-5 py-5 shadow-card"><LoadingSpinner className="text-[#1D9E75]" /></div></div>;
 
   return (
     <div className="page-shell px-4 py-6 pb-24 sm:px-6 lg:px-8">
       <div className="mx-auto w-full max-w-[760px] space-y-4">
-        <div className="panel rounded-[28px] p-5">
-          <div data-tour="candidate-offers-page" className="mb-2 inline-flex items-center gap-2 rounded-full bg-[#E1F5EE] px-3 py-1 text-xs font-semibold text-[#085041]"><Gift size={12} /> Offers</div>
-          <h1 className="font-display text-2xl font-bold text-[#1A1A1A]">Your offers</h1>
+        <div className="overflow-hidden rounded-[30px] border border-white/70 bg-[linear-gradient(135deg,#ffffff_0%,#f4efff_54%,#eefaf6_100%)] p-5 shadow-[0_20px_55px_rgba(26,26,26,0.07)] sm:p-6">
+          <div data-tour="candidate-offers-page" className="mb-2 inline-flex items-center gap-2 rounded-full bg-[#E1F5EE] px-3 py-1 text-xs font-semibold text-[#085041]"><Gift size={12} /> Offer center</div>
+          <h1 className="font-display text-2xl font-bold tracking-[-0.03em] text-[#1A1A1A] sm:text-3xl">Your offers</h1>
           <p className="mt-2 text-sm leading-relaxed text-[#5F5E5A]">Review offers from employers and respond when you’re ready.</p>
+        </div>
+
+        <div className="mt-[-8px] grid grid-cols-2 gap-2 sm:mt-[-12px] sm:ml-auto sm:max-w-[220px]">
+          <div className="rounded-2xl border border-white/80 bg-white/85 px-3 py-2.5 shadow-sm"><div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#8A867E]">Pending</div><div className="mt-1 text-xl font-bold text-[#0B5C73]">{activeOffers.length}</div></div>
+          <div className="rounded-2xl border border-white/80 bg-white/85 px-3 py-2.5 shadow-sm"><div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#8A867E]">History</div><div className="mt-1 text-xl font-bold text-[#1A1A1A]">{historyOffers.length}</div></div>
         </div>
 
         {error && <div className="rounded-xl border border-[#F0D080] bg-[#FFF8E6] px-4 py-3 text-sm text-[#7A5000]">{error}</div>}
 
-        {offers.length === 0 ? (
+        <div className="flex rounded-2xl border border-[#E9E7DE] bg-white p-1.5 shadow-[0_8px_22px_rgba(26,26,26,0.04)]">
+          {(['pending', 'history'] as const).map((tab) => {
+            const count = tab === 'pending' ? activeOffers.length : historyOffers.length;
+            return (
+              <button key={tab} type="button" onClick={() => setActiveTab(tab)} className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${activeTab === tab ? 'bg-[#1A1A1A] text-white shadow-sm' : 'text-[#5F5E5A] hover:bg-[#F1EFE8]'}`}>
+                {tab === 'pending' ? 'Pending' : 'History'} <span className={activeTab === tab ? 'text-white/65' : 'text-[#B4B2A9]'}>({count})</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {visibleOffers.length === 0 ? (
           <div className="panel rounded-[28px] p-8 text-center">
             <Gift className="mx-auto text-[#1D9E75]" size={28} />
-            <h2 className="mt-3 font-semibold text-[#1A1A1A]">No offers yet</h2>
-            <p className="mt-1 text-sm text-[#5F5E5A]">Offers you receive will appear here.</p>
-            <Link to="/jobs" className="mt-4 inline-flex rounded-lg bg-[#1D9E75] px-4 py-2 text-sm font-semibold text-white">Browse jobs</Link>
+            <h2 className="mt-3 font-semibold text-[#1A1A1A]">{activeTab === 'pending' ? 'No pending offers' : 'No offer history yet'}</h2>
+            <p className="mt-1 text-sm text-[#5F5E5A]">{activeTab === 'pending' ? 'New offers from employers will appear here when they are ready for your response.' : 'Accepted, declined, withdrawn, and expired offers will appear here.'}</p>
+            {activeTab === 'pending' && offers.length === 0 && <Link to="/jobs" className="mt-4 inline-flex rounded-lg bg-[#1D9E75] px-4 py-2 text-sm font-semibold text-white">Browse jobs</Link>}
           </div>
         ) : (
-          offers.map((offer) => {
+          visibleOffers.map((offer) => {
             const job = jobs.get(offer.job_id);
             const isResponding = respondingOfferId === offer.id;
             const isExpanded = expandedOfferId === offer.id;
             return (
-              <article key={offer.id} className="panel rounded-[28px] p-5">
+              <article key={offer.id} className={`rounded-[28px] border bg-white p-5 shadow-[0_14px_35px_rgba(26,26,26,0.05)] ${offer.status === 'sent' ? 'border-[#8FD3E8]' : 'border-[#E9E7DE]'}`}>
                 <div
                   onClick={() => setExpandedOfferId((current) => current === offer.id ? null : offer.id)}
                   onKeyDown={(event) => {
@@ -190,11 +289,42 @@ export default function CandidateOffers() {
                   {offer.start_date && <span className="inline-flex items-center gap-2"><Clock3 size={14} />Starts {formatDate(offer.start_date)}</span>}
                   {offer.expiry_date && offer.status === 'sent' && <span>Expires {formatDate(offer.expiry_date)}</span>}
                 </div>
-                {offer.benefits_notes && <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-[#0B5C73]">{offer.benefits_notes}</p>}
+                 {offer.benefits_notes && <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-[#0B5C73]">{offer.benefits_notes}</p>}
+                 {offer.employer_message && <div className="mt-4 rounded-xl border border-[#D6EAF0] bg-[#F3FBFD] p-3 text-sm leading-relaxed text-[#0B5C73]"><div className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em]">Message from employer</div><p className="whitespace-pre-wrap">{offer.employer_message}</p></div>}
+                 {(documentsByOffer.get(offer.id) || []).length > 0 && offer.status !== 'expired' && (
+                   <div className="mt-4 rounded-xl border border-line bg-[#FBFAF7] p-3">
+                     <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted">Offer documents</div>
+                     <div className="space-y-2">
+                       {(documentsByOffer.get(offer.id) || []).map((document) => (
+                         <button key={document.id} type="button" onClick={() => downloadDocument(document)} className="flex w-full items-center gap-3 rounded-lg border border-line bg-white px-3 py-2 text-left text-sm font-semibold text-ink hover:border-accent">
+                           <FileText size={15} className="shrink-0 text-accent-deep" /><span className="min-w-0 flex-1 truncate">{document.file_name}</span><Download size={14} className="shrink-0 text-muted" />
+                         </button>
+                       ))}
+                     </div>
+                   </div>
+                 )}
+                  {offer.status === 'sent' && (documentsByOffer.get(offer.id) || []).some((document) => document.document_type === 'employer_offer') && (
+                    <div className="mt-4 rounded-xl border border-dashed border-[#5DCAA5] bg-[#F3FBF7] p-3">
+                      <div className="text-sm font-semibold text-[#085041]">Signed copy for acceptance</div>
+                      <p className="mt-1 text-xs leading-relaxed text-[#5F5E5A]">Sign the document externally, then choose it here. It will be sent to the employer when you accept the offer.</p>
+                      <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[#5DCAA5] bg-white px-3 py-2 text-xs font-semibold text-[#085041] hover:bg-[#E1F5EE]">
+                        <Upload size={13} /> {signedFile ? 'Choose a different file' : 'Choose signed document'}
+                        <input type="file" accept="application/pdf,.pdf,.doc,.docx" className="sr-only" onChange={(event) => setSignedFile(event.target.files?.[0] || null)} />
+                      </label>
+                      {signedFile && <div className="mt-2 truncate text-xs font-semibold text-[#085041]">Selected: {signedFile.name}</div>}
+                      {signedFile && <textarea value={signedMessage} onChange={(event) => setSignedMessage(event.target.value)} rows={2} placeholder="Optional message to the employer" className="mt-3 w-full resize-none rounded-lg border border-line bg-white px-3 py-2 text-xs outline-none focus:border-accent" />}
+                      {(documentsByOffer.get(offer.id) || []).some((document) => document.document_type === 'candidate_signed') && !signedFile && <div className="mt-2 text-xs font-semibold text-[#085041]">A signed document has already been uploaded. Accept the offer to complete your response.</div>}
+                      {uploadingSignedOfferId === offer.id && <div className="mt-2 text-xs font-semibold text-[#085041]">Uploading signed document...</div>}
+                    </div>
+                  )}
 
                 {offer.status === 'sent' ? (isResponding ? (
                   <div className="mt-5 rounded-xl border border-[#8FD3E8] bg-[#FBFAF7] p-3">
-                    <textarea value={responseMessage} onChange={(event) => setResponseMessage(event.target.value)} rows={3} placeholder={responseAction === 'accepted' ? 'Optional note to the employer' : 'Optional reason to share with the employer'} className="w-full resize-none rounded-md border border-line bg-white p-2 text-sm outline-none focus:border-accent" />
+                     {responseAction === 'declined' ? (
+                       <textarea value={responseMessage} onChange={(event) => setResponseMessage(event.target.value)} rows={3} placeholder="Optional reason to share with the employer" className="w-full resize-none rounded-md border border-line bg-white p-2 text-sm outline-none focus:border-accent" />
+                     ) : (
+                       <p className="text-sm leading-relaxed text-[#5F5E5A]">Your signed document and its message will be sent to the employer with your acceptance.</p>
+                     )}
                     <div className="mt-2 flex gap-2">
                       <button onClick={() => submitResponse(offer)} disabled={respondingBusy} className={`rounded-lg px-3.5 py-2 text-xs font-semibold text-white disabled:opacity-60 ${responseAction === 'accepted' ? 'bg-[#1D9E75]' : 'bg-[#B3261E]'}`}>{respondingBusy ? 'Sending...' : `Confirm ${responseAction === 'accepted' ? 'accept' : 'decline'}`}</button>
                       <button onClick={() => setRespondingOfferId(null)} disabled={respondingBusy} className="rounded-lg border border-line bg-white px-3.5 py-2 text-xs font-semibold text-muted">Cancel</button>
@@ -216,7 +346,7 @@ export default function CandidateOffers() {
             );
           })
         )}
-        {activeOffers.length > 0 && <p className="text-center text-xs text-[#8A8982]">You have {activeOffers.length} offer{activeOffers.length === 1 ? '' : 's'} awaiting a response.</p>}
+        {activeTab === 'pending' && activeOffers.length > 0 && <p className="text-center text-xs text-[#8A8982]">You have {activeOffers.length} offer{activeOffers.length === 1 ? '' : 's'} awaiting a response.</p>}
       </div>
     </div>
   );

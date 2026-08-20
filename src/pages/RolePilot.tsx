@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { Sparkles, FileText, Search, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/useAuth';
+import ComingSoonPage from '../components/ComingSoonPage';
+import { rolePilotEnabled } from '../lib/featureFlags';
 
 type MatchDimension = {
   name: string;
@@ -82,6 +84,19 @@ function ComingSoonCard({
 }
 
 export default function RolePilot() {
+  if (!rolePilotEnabled) {
+    return (
+      <ComingSoonPage
+        title="Role Pilot"
+        description="Your guided job-search companion is being prepared. We’ll help you understand your fit, focus your applications, and make your next move with more confidence."
+      />
+    );
+  }
+
+  return <RolePilotWorkspace />;
+}
+
+function RolePilotWorkspace() {
   const { session } = useAuth();
   const [rows, setRows] = useState<AppliedJobRow[]>([]);
   const [loading, setLoading] = useState(true);

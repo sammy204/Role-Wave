@@ -1,4 +1,6 @@
 import { Check, Eye, LockKeyhole, Sparkles, Target, Zap } from 'lucide-react';
+import ComingSoonPage from '../components/ComingSoonPage';
+import { roleWaveProEnabled } from '../lib/featureFlags';
 
 const proBenefits = [
   'More Role Pilot usage for every stage of your job search',
@@ -14,6 +16,15 @@ const freeBenefits = [
 ];
 
 export default function RoleWavePro() {
+  if (!roleWaveProEnabled) {
+    return (
+      <ComingSoonPage
+        title="RoleWave Pro"
+        description="A more powerful way to get more from your job search is on the way. We’re putting the finishing touches on RoleWave Pro before it launches."
+      />
+    );
+  }
+
   return (
     <main className="page-shell">
       <div className="mx-auto w-full max-w-[1180px] px-4 pb-10 pt-6 sm:px-6 lg:px-8">

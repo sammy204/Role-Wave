@@ -14,15 +14,24 @@ export type ApplicationStatus = JobApplication['status'];
  */
 export const PIPELINE_STAGES: ApplicationStatus[] = [
   'submitted',
-  'reviewed',
   'shortlisted',
   'interview',
   'hired',
 ];
 
+export const PIPELINE_TABS = [
+  { id: 'applied', label: 'Applied' },
+  { id: 'shortlisted', label: 'Shortlisted' },
+  { id: 'interview', label: 'Interview' },
+  { id: 'offer', label: 'Offer' },
+  { id: 'hired', label: 'Hired' },
+] as const;
+
+export type PipelineTab = (typeof PIPELINE_TABS)[number]['id'];
+
 export const STATUS_LABELS: Record<ApplicationStatus, string> = {
   submitted: 'Applied',
-  reviewed: 'Reviewing',
+  reviewed: 'Under review',
   shortlisted: 'Shortlisted',
   interview: 'Interview',
   offer: 'Offer',

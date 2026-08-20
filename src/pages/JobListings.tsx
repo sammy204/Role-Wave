@@ -1,16 +1,14 @@
 import { useState, useEffect, useMemo, type Dispatch, type SetStateAction } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, SlidersHorizontal, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { withTimeout } from '../lib/withTimeout';
-import { PAGE_SIZE, getPaginatedJobs } from '../lib/pagination';
+import { PAGE_SIZE, getPaginatedJobs, getPaginationItems } from '../lib/pagination';
 import type { Job, Company } from '../types';
 import JobCard from '../components/JobCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const FETCH_TIMEOUT_MS = 25000;
-
-const chipOptions = ['All', 'Remote', 'Hybrid', 'Full-time', 'Contract'];
 
 const workTypeFilters = [
   { label: 'Remote' },
@@ -58,13 +56,11 @@ export default function JobListings() {
   const [searchParams] = useSearchParams();
   const initialQ = searchParams.get('q') || '';
   const initialCity = searchParams.get('city') || '';
-  const initialType = searchParams.get('type') || '';
 
   const [jobs, setJobs] = useState<(Job & { company?: Company })[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState(initialQ);
-  const [activeChip, setActiveChip] = useState(initialType || 'All');
   const [selectedWorkTypes, setSelectedWorkTypes] = useState<string[]>([]);
   const [selectedCities, setSelectedCities] = useState<string[]>(initialCity ? [initialCity] : []);
   const [selectedJobTypes, setSelectedJobTypes] = useState<string[]>([]);
@@ -77,7 +73,7 @@ export default function JobListings() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, activeChip, selectedWorkTypes, selectedCities, selectedJobTypes, selectedExperienceLevels, selectedAuthorizations, selectedApplicationMethods, salaryFloor]);
+  }, [searchQuery, selectedWorkTypes, selectedCities, selectedJobTypes, selectedExperienceLevels, selectedAuthorizations, selectedApplicationMethods, salaryFloor]);
 
   useEffect(() => {
     async function fetchJobs() {
@@ -129,14 +125,6 @@ export default function JobListings() {
       );
     }
 
-    if (activeChip !== 'All') {
-      if (activeChip === 'Remote' || activeChip === 'Hybrid') {
-        result = result.filter((j) => j.work_type === activeChip);
-      } else {
-        result = result.filter((j) => j.job_type === activeChip);
-      }
-    }
-
     if (selectedWorkTypes.length > 0) {
       result = result.filter((j) => selectedWorkTypes.includes(j.work_type));
     }
@@ -177,7 +165,6 @@ export default function JobListings() {
   }, [
     jobs,
     searchQuery,
-    activeChip,
     selectedWorkTypes,
     selectedCities,
     selectedJobTypes,
@@ -203,6 +190,7 @@ export default function JobListings() {
   const totalPages = Math.max(1, Math.ceil(filteredJobs.length / PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const paginatedJobs = getPaginatedJobs(filteredJobs, safeCurrentPage, PAGE_SIZE);
+  const paginationItems = getPaginationItems(safeCurrentPage, totalPages);
 
   useEffect(() => {
     if (currentPage !== safeCurrentPage) {
@@ -338,22 +326,22 @@ export default function JobListings() {
 
   return (
     <div className="page-shell">
-      <div className="mx-auto flex w-full max-w-[1320px] items-center gap-2 px-4 py-3 sm:px-6 lg:px-8">
+      <div className="mx-auto grid w-full max-w-[1320px] grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
         <div data-tour="candidate-jobs-page" className="text-sm font-semibold text-[#1A1A1A]">All jobs</div>
-        <div className="flex-1" />
-        <div className="flex items-center rounded-full border border-[#D3D1C7] bg-white px-3 py-2 max-w-sm shadow-[0_6px_18px_rgba(26,26,26,0.03)]">
-          <Search size={14} className="text-[#B4B2A9] mr-2" />
+        <div className="mx-auto flex w-full max-w-[420px] items-center rounded-full border border-[#B8B5AA] bg-white px-3.5 py-2.5 shadow-[0_8px_22px_rgba(26,26,26,0.07)] transition-colors focus-within:border-[#5DCAA5]">
+          <Search size={15} className="mr-2 text-[#8A867E]" />
           <input
             type="text"
             placeholder="Role, skill or company..."
-            className="bg-transparent border-none outline-none text-sm text-[#1A1A1A] w-32 sm:w-48"
+            className="w-full bg-transparent text-sm text-[#1A1A1A] outline-none placeholder:text-[#8A867E]"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+        <div />
       </div>
 
-      <div className="mx-auto flex w-full max-w-[1320px] items-center gap-2 overflow-x-auto px-4 py-3 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-[1320px] items-center gap-2 px-4 py-3 sm:px-6 lg:px-8">
         {initialQ && (
           <span className="text-sm font-semibold text-[#1A1A1A] whitespace-nowrap hidden sm:inline">
             Results for <span className="text-[#1D9E75]">"{initialQ}"</span>
@@ -361,19 +349,6 @@ export default function JobListings() {
           </span>
         )}
         <div className="flex-1 min-w-0" />
-        {chipOptions.map((chip) => (
-          <button
-            key={chip}
-            onClick={() => setActiveChip(chip)}
-            className={`flex-shrink-0 rounded-full px-4 py-[8px] text-[13px] font-semibold whitespace-nowrap transition-all duration-200 ${
-              activeChip === chip
-                ? 'bg-[#E1F5EE] text-[#085041] border border-[#5DCAA5]'
-                : 'bg-white text-[#5F5E5A] border border-[#D3D1C7] hover:border-[#5DCAA5] shadow-[0_6px_18px_rgba(26,26,26,0.03)]'
-            }`}
-          >
-            {chip}
-          </button>
-        ))}
         <span className="text-[13px] text-[#B4B2A9] whitespace-nowrap hidden sm:inline">
           {filteredJobs.length} jobs found
         </span>
@@ -429,27 +404,62 @@ export default function JobListings() {
               </div>
 
               {totalPages > 1 && (
-                <div className="mt-6 flex items-center justify-between gap-3 rounded-[20px] border border-[#E9E7DE] bg-white px-4 py-3 shadow-[0_6px_18px_rgba(26,26,26,0.03)]">
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-1.5 rounded-[20px] border border-[#E9E7DE] bg-white px-3 py-3 shadow-[0_6px_18px_rgba(26,26,26,0.03)] sm:gap-2 sm:px-4">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={safeCurrentPage === 1}
+                    aria-label="First page"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#D3D1C7] text-[#5F5E5A] transition-colors hover:border-[#5DCAA5] hover:text-[#085041] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ChevronsLeft size={16} />
+                  </button>
                   <button
                     type="button"
                     onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))}
                     disabled={safeCurrentPage === 1}
-                    className="rounded-full border border-[#D3D1C7] px-3 py-1.5 text-sm font-medium text-[#5F5E5A] disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label="Previous page"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#D3D1C7] text-[#5F5E5A] transition-colors hover:border-[#5DCAA5] hover:text-[#085041] disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Previous
+                    <ChevronLeft size={16} />
                   </button>
 
-                  <div className="text-sm text-[#5F5E5A]">
-                    Page {safeCurrentPage} of {totalPages}
-                  </div>
+                  {paginationItems.map((item, index) => item === 'ellipsis' ? (
+                    <span key={`ellipsis-${index}`} className="px-1 text-sm text-[#8A867E]" aria-hidden="true">…</span>
+                  ) : (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => setCurrentPage(item)}
+                      aria-label={`Go to page ${item}`}
+                      aria-current={safeCurrentPage === item ? 'page' : undefined}
+                      className={`inline-flex h-9 min-w-9 items-center justify-center rounded-full px-2 text-sm font-semibold transition-colors ${
+                        safeCurrentPage === item
+                          ? 'bg-[#1D9E75] text-white'
+                          : 'border border-[#D3D1C7] text-[#5F5E5A] hover:border-[#5DCAA5] hover:text-[#085041]'
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  ))}
 
                   <button
                     type="button"
                     onClick={() => setCurrentPage((page) => Math.min(page + 1, totalPages))}
                     disabled={safeCurrentPage === totalPages}
-                    className="rounded-full border border-[#D3D1C7] px-3 py-1.5 text-sm font-medium text-[#5F5E5A] disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label="Next page"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#D3D1C7] text-[#5F5E5A] transition-colors hover:border-[#5DCAA5] hover:text-[#085041] disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Next
+                    <ChevronRight size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={safeCurrentPage === totalPages}
+                    aria-label="Last page"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#D3D1C7] text-[#5F5E5A] transition-colors hover:border-[#5DCAA5] hover:text-[#085041] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ChevronsRight size={16} />
                   </button>
                 </div>
               )}

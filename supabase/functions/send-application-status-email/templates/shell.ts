@@ -27,6 +27,8 @@ export interface OfferDetails {
   location: string | null;
   expiryDate: string | null;
   benefitsNotes: string | null;
+  employerMessage: string | null;
+  documentCount: number;
 }
 
 const STATUS_COPY: Record<ApplicationStatus, (jobTitle: string, companyName: string) => StatusCopy> = {
@@ -122,8 +124,10 @@ export function buildStatusEmailHtml(params: {
                     ${offerDetailRow('Compensation', escapeHtml(offerDetails.compensation))}
                     ${offerDetails.workArrangement ? offerDetailRow('Work arrangement', escapeHtml(offerDetails.workArrangement) + (offerDetails.location ? ` &middot; ${escapeHtml(offerDetails.location)}` : '')) : ''}
                     ${offerDetails.startDate ? offerDetailRow('Start date', escapeHtml(offerDetails.startDate)) : ''}
-                    ${offerDetails.expiryDate ? offerDetailRow('Offer expires', escapeHtml(offerDetails.expiryDate)) : ''}
-                    ${offerDetails.benefitsNotes ? `<p style="margin:10px 0 0 0; font-family: Arial, Helvetica, sans-serif; font-size:13px; line-height:1.6; color:#0B5C73; white-space:pre-wrap;">${escapeHtml(offerDetails.benefitsNotes)}</p>` : ''}
+                     ${offerDetails.expiryDate ? offerDetailRow('Offer expires', escapeHtml(offerDetails.expiryDate)) : ''}
+                     ${offerDetails.benefitsNotes ? `<p style="margin:10px 0 0 0; font-family: Arial, Helvetica, sans-serif; font-size:13px; line-height:1.6; color:#0B5C73; white-space:pre-wrap;">${escapeHtml(offerDetails.benefitsNotes)}</p>` : ''}
+                     ${offerDetails.employerMessage ? `<p style="margin:14px 0 0 0; padding-top:12px; border-top:1px solid #B8DDE8; font-family: Arial, Helvetica, sans-serif; font-size:13px; line-height:1.6; color:#0B5C73; white-space:pre-wrap;">${escapeHtml(offerDetails.employerMessage)}</p>` : ''}
+                     ${offerDetails.documentCount > 0 ? `<p style="margin:14px 0 0 0; font-family: Arial, Helvetica, sans-serif; font-size:12px; color:#0B5C73;">${offerDetails.documentCount} offer document${offerDetails.documentCount === 1 ? '' : 's'} attached to this email.</p>` : ''}
                   </td>
                 </tr>
               </table>

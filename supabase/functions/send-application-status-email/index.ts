@@ -74,6 +74,7 @@ Deno.serve(async (request) => {
     const body = await request.json().catch(() => ({}));
     const applicationId = typeof body.application_id === 'string' ? body.application_id : '';
     const status = typeof body.status === 'string' ? body.status : '';
+    const offerId = typeof body.offer_id === 'string' ? body.offer_id : '';
 
     if (!applicationId || !TARGET_STATUSES.includes(status as ApplicationStatus)) {
       return json({ error: 'Missing or invalid application_id/status.' }, 400);
@@ -95,12 +96,14 @@ Deno.serve(async (request) => {
       return json({ processed: true });
     }
 
-    const { data: existingSend } = await adminClient
-      .from('application_status_emails_sent')
-      .select('id')
-      .eq('application_id', applicationId)
-      .eq('status', validStatus)
-      .maybeSingle();
+    const { data: existingSend } = offerId
+      ? await adminClient.from('offer_document_emails_sent').select('id').eq('offer_id', offerId).maybeSingle()
+      : await adminClient
+        .from('application_status_emails_sent')
+        .select('id')
+        .eq('application_id', applicationId)
+        .eq('status', validStatus)
+        .maybeSingle();
 
     if (existingSend) {
       return json({ processed: true });
@@ -152,19 +155,39 @@ Deno.serve(async (request) => {
     if (companyError) throw companyError;
 
     let offerDetails: OfferDetails | null = null;
+    let offerAttachments: { path: string; filename: string }[] = [];
     if (validStatus === 'offer') {
-      const { data: offer, error: offerError } = await adminClient
+      let offerQuery = adminClient
         .from('offers')
-        .select('role_title, salary_amount, salary_currency, salary_period, start_date, work_arrangement, location, benefits_notes, expiry_date')
-        .eq('application_id', applicationId)
-        .eq('status', 'sent')
-        .order('sent_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .select('id, role_title, salary_amount, salary_currency, salary_period, start_date, work_arrangement, location, benefits_notes, expiry_date, employer_message')
+        .eq('status', 'sent');
+      if (offerId) {
+        offerQuery = offerQuery.eq('id', offerId);
+      } else {
+        offerQuery = offerQuery.eq('application_id', applicationId).order('sent_at', { ascending: false }).limit(1);
+      }
+      const { data: offer, error: offerError } = await offerQuery.maybeSingle();
 
       if (offerError) throw offerError;
 
       if (offer) {
+        const { data: documents, error: documentsError } = await adminClient
+          .from('offer_documents')
+          .select('storage_path, file_name')
+          .eq('offer_id', offer.id)
+          .order('sort_order', { ascending: true });
+        if (documentsError) throw documentsError;
+
+        for (const document of documents || []) {
+          const { data: signedDocument, error: signedDocumentError } = await adminClient.storage
+            .from('offer-documents')
+            .createSignedUrl(document.storage_path, 60 * 60);
+          if (signedDocumentError) throw signedDocumentError;
+          if (signedDocument?.signedUrl) {
+            offerAttachments.push({ path: signedDocument.signedUrl, filename: document.file_name });
+          }
+        }
+
         offerDetails = {
           roleTitle: offer.role_title,
           compensation: formatMoney(offer.salary_amount, offer.salary_currency, offer.salary_period),
@@ -173,6 +196,8 @@ Deno.serve(async (request) => {
           location: offer.location,
           expiryDate: offer.expiry_date ? formatDate(offer.expiry_date) : null,
           benefitsNotes: offer.benefits_notes,
+          employerMessage: offer.employer_message,
+          documentCount: offerAttachments.length,
         };
       }
     }
@@ -202,6 +227,7 @@ Deno.serve(async (request) => {
         to: [email],
         subject,
         html,
+        ...(offerAttachments.length ? { attachments: offerAttachments } : {}),
       }),
     });
 
@@ -214,12 +240,17 @@ Deno.serve(async (request) => {
     // Record the send. onConflict matches the unique(application_id, status)
     // constraint — if a retry lands here twice, the second insert is a
     // silent no-op rather than an error.
-    const { error: insertError } = await adminClient
-      .from('application_status_emails_sent')
-      .upsert(
-        { application_id: applicationId, status: validStatus },
-        { onConflict: 'application_id,status', ignoreDuplicates: true },
-      );
+    const { error: insertError } = offerId
+      ? await adminClient.from('offer_document_emails_sent').upsert(
+        { offer_id: offerId },
+        { onConflict: 'offer_id', ignoreDuplicates: true },
+      )
+      : await adminClient
+        .from('application_status_emails_sent')
+        .upsert(
+          { application_id: applicationId, status: validStatus },
+          { onConflict: 'application_id,status', ignoreDuplicates: true },
+        );
 
     if (insertError) throw insertError;
 

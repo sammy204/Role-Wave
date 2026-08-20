@@ -12,8 +12,8 @@ const links = [
   { to: '/candidate/activity', label: 'Saved & Applied', icon: Bookmark },
   { to: '/candidate/messages', label: 'Messages', icon: MessageSquareText },
   { to: '/candidate/offers', label: 'Offers', icon: Gift },
-  { to: '/candidate/role-pilot', label: 'Role Pilot', icon: Sparkles },
-  { to: '/candidate/pro', label: 'RoleWave Pro', icon: Crown },
+  { to: '/candidate/role-pilot', label: 'Role Pilot', icon: Sparkles, soon: true },
+  { to: '/candidate/pro', label: 'RoleWave Pro', icon: Crown, soon: true },
   { to: '/candidate/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -101,17 +101,18 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
         const active = isActive(item.to);
         const showUnread = item.to === '/candidate/messages' && unreadCount > 0;
         return (
-          <Link
+            <Link
             key={item.to}
             to={item.to}
             onClick={onNavigate}
             className={`flex items-center gap-3 rounded-panel px-4 py-3 text-[14px] font-semibold transition-colors duration-200 ${
               active ? 'bg-sidebar-active text-white' : 'text-white/85 hover:bg-white/10 hover:text-white'
             }`}
-          >
-            <Icon size={17} />
-            {item.label}
-            {showUnread && <UnreadDot />}
+            >
+              <Icon size={17} />
+              {item.label}
+              {item.soon && <span className="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white/60">Soon</span>}
+              {showUnread && <UnreadDot />}
           </Link>
         );
       })}

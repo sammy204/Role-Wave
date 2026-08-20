@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { X, Send, Save, Ban, CheckCircle2, Clock3 } from 'lucide-react';
+import { Download, FileText, X, Send, Save, Ban, CheckCircle2, Clock3 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import type { CandidateProfile, Job, JobApplication, Offer } from '../types';
+import type { CandidateProfile, Job, JobApplication, Offer, OfferDocument } from '../types';
 
 type MakeOfferModalProps = {
   application: JobApplication & { job?: Job; candidate?: CandidateProfile | null };
@@ -59,6 +59,7 @@ function formToOfferPayload(form: FormState) {
     location: form.location.trim() || null,
     benefits_notes: form.benefits_notes.trim() || null,
     expiry_date: form.expiry_date || null,
+    expires_at: form.expiry_date ? `${form.expiry_date}T23:59:59+01:00` : null,
   };
 }
 
@@ -87,6 +88,7 @@ export default function MakeOfferModal({ application, employerProfileId, onClose
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [existingOffer, setExistingOffer] = useState<Offer | null>(null);
+  const [offerDocuments, setOfferDocuments] = useState<OfferDocument[]>([]);
   const [form, setForm] = useState<FormState>(emptyForm(application.job));
 
   const candidateProfileId = application.candidate_profile_id;
@@ -110,6 +112,11 @@ export default function MakeOfferModal({ application, employerProfileId, onClose
 
         const offer = (data || null) as Offer | null;
         setExistingOffer(offer);
+        if (offer) {
+          const { data: documentRows } = await supabase.from('offer_documents').select('*').eq('offer_id', offer.id).order('sort_order', { ascending: true });
+          if (!alive) return;
+          setOfferDocuments((documentRows || []) as OfferDocument[]);
+        }
         if (offer && offer.status === 'draft') {
           setForm(offerToForm(offer));
         }
@@ -235,6 +242,15 @@ export default function MakeOfferModal({ application, employerProfileId, onClose
     }
   };
 
+  const downloadOfferDocument = async (document: OfferDocument) => {
+    const { data, error: signedUrlError } = await supabase.storage.from('offer-documents').createSignedUrl(document.storage_path, 60 * 10);
+    if (signedUrlError || !data?.signedUrl) {
+      setError(signedUrlError?.message || 'Could not open this document.');
+      return;
+    }
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+  };
+
   const isReadOnly = Boolean(existingOffer) && existingOffer!.status !== 'draft';
   const isSent = existingOffer?.status === 'sent';
   const isResolved = existingOffer && ['accepted', 'declined', 'withdrawn', 'expired'].includes(existingOffer.status);
@@ -314,6 +330,18 @@ export default function MakeOfferModal({ application, employerProfileId, onClose
                     <div>
                       <div className="mb-1 text-[11px] font-bold uppercase tracking-[1.6px] text-faint">Benefits &amp; notes</div>
                       <p className="whitespace-pre-wrap text-sm text-ink">{existingOffer!.benefits_notes}</p>
+                    </div>
+                  )}
+                  {offerDocuments.length > 0 && (
+                    <div className="mt-3 rounded-xl border border-line bg-paper p-3">
+                      <div className="mb-2 text-[11px] font-bold uppercase tracking-[1.6px] text-faint">Offer documents</div>
+                      <div className="space-y-2">
+                        {offerDocuments.map((document) => (
+                          <button key={document.id} type="button" onClick={() => downloadOfferDocument(document)} className="flex w-full items-center gap-2 rounded-lg border border-line bg-white px-3 py-2 text-left text-xs font-semibold text-ink hover:border-accent">
+                            <FileText size={14} className="shrink-0 text-accent-deep" /><span className="min-w-0 flex-1 truncate">{document.document_type === 'candidate_signed' ? 'Signed: ' : ''}{document.file_name}</span><Download size={13} className="shrink-0 text-muted" />
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -417,6 +445,7 @@ export default function MakeOfferModal({ application, employerProfileId, onClose
                       className="w-full resize-none rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-accent"
                     />
                   </Field>
+
                 </div>
               )}
 

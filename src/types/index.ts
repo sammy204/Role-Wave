@@ -153,6 +153,12 @@ export interface Offer {
   sent_at: string | null;
   responded_at: string | null;
   letter_pdf_path?: string | null;
+  letter_file_name?: string | null;
+  letter_file_size?: number | null;
+  letter_mime_type?: string | null;
+  letter_uploaded_at?: string | null;
+  expires_at?: string | null;
+  employer_message?: string | null;
   candidate_deleted_at?: string | null;
   created_at: string;
   updated_at: string;
@@ -202,5 +208,19 @@ export interface AppNotification {
   type: NotificationType;
   payload: Record<string, unknown>;
   read_at: string | null;
+  created_at: string;
+}
+
+export interface OfferDocument {
+  id: string;
+  offer_id: string;
+  storage_path: string;
+  file_name: string;
+  mime_type: string;
+  file_size: number;
+  sort_order: number;
+  document_type: 'employer_offer' | 'candidate_signed';
+  uploaded_by: string | null;
+  document_message: string | null;
   created_at: string;
 }
