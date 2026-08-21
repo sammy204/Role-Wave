@@ -5,6 +5,7 @@ const SERVICE_WORKER_TIMEOUT_MS = 10000;
 
 export function pushNotificationSupportMessage(): string | null {
   if (typeof window === 'undefined') return 'Push notifications are only available in a browser.';
+  if (import.meta.env.DEV) return 'Push notifications are unavailable in development.';
   if (!window.isSecureContext) return 'Push notifications require the secure HTTPS RoleWave site.';
   if (!VAPID_PUBLIC_KEY) return 'Push notifications are not configured in this deployment.';
   if (!('serviceWorker' in navigator)) return 'This iPhone does not support service workers here.';
@@ -33,8 +34,7 @@ export async function getCurrentPushSubscription(): Promise<PushSubscription | n
 async function getReadyServiceWorker(): Promise<ServiceWorkerRegistration> {
   const registrations = await navigator.serviceWorker.getRegistrations();
   if (registrations.length === 0) {
-    const workerUrl = import.meta.env.DEV ? '/dev-sw.js?dev-sw' : '/sw.js';
-    await navigator.serviceWorker.register(workerUrl, { type: 'module' });
+    await navigator.serviceWorker.register('/sw.js', { type: 'module' });
   }
 
   return Promise.race([

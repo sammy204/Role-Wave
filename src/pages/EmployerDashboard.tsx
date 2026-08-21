@@ -32,6 +32,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import ApplicantModal from '../components/ApplicantModal';
 import MakeOfferModal from '../components/MakeOfferModal';
 import SendOfferDocumentsModal from '../components/SendOfferDocumentsModal';
+import OfferActionModal from '../components/OfferActionModal';
 
 type JobStatus = 'active' | 'filled' | 'closed' | 'archived';
 type ApplicationStatus = JobApplication['status'];
@@ -41,6 +42,17 @@ type ApplicationPipelineTab = PipelineTab;
 function belongsToPipelineTab(status: ApplicationStatus, tab: ApplicationPipelineTab) {
   if (tab === 'applied') return status === 'submitted' || status === 'reviewed';
   return status === tab;
+}
+
+function deduplicateApplications(applications: JobApplication[]): JobApplication[] {
+  const seen = new Set<string>();
+  return applications.filter((application) => {
+    const applicantKey = application.candidate_profile_id || application.applicant_email.trim().toLowerCase();
+    const key = `${application.job_id}:${applicantKey}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function timeAgo(date: string): string {
@@ -97,6 +109,7 @@ export default function EmployerDashboard() {
   const [rejectionReasonDraft, setRejectionReasonDraft] = useState('');
   const [viewingApplicationId, setViewingApplicationId] = useState<string | null>(null);
   const [offerApplicationId, setOfferApplicationId] = useState<string | null>(null);
+  const [offerActionApplicationId, setOfferActionApplicationId] = useState<string | null>(null);
   const [documentOfferApplicationId, setDocumentOfferApplicationId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -176,7 +189,7 @@ export default function EmployerDashboard() {
             .order('created_at', { ascending: false });
           if (applicationError) throw applicationError;
 
-          const typedApplications = (applicationData || []) as JobApplication[];
+          const typedApplications = deduplicateApplications((applicationData || []) as JobApplication[]);
           const candidateIds = typedApplications
             .map((item) => item.candidate_profile_id)
             .filter((id): id is string => Boolean(id));
@@ -837,32 +850,14 @@ const updateApplicationStatus = async (
                             >
                               <Gift size={14} /> {application.status === 'hired' ? 'View accepted offer' : 'View offer'}
                             </button>
-                          ) : (
-                            application.status === 'interview' &&
-                            application.status !== 'rejected' &&
-                            application.status !== 'withdrawn' &&
-                            (
-                              <button
-                                onClick={() => setOfferApplicationId(application.id)}
-                                disabled={!application.candidate_profile_id}
-                                title={
-                                  application.candidate_profile_id
-                                    ? undefined
-                                    : 'Only available for applicants with a registered profile'
-                                }
-                                className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-ink transition-colors duration-200 hover:border-[#5DCAA5] disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                <Gift size={14} /> Make offer
-                              </button>
-                            )
-                          )}
+                          ) : null}
 
-                          {application.candidate_profile_id && application.status !== 'rejected' && application.status !== 'withdrawn' && application.status !== 'hired' && (
+                          {application.candidate_profile_id && !['rejected', 'withdrawn', 'hired', 'offer'].includes(application.status) && (
                             <button
-                              onClick={() => setDocumentOfferApplicationId(application.id)}
+                              onClick={() => setOfferActionApplicationId(application.id)}
                               className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#8FD3E8] bg-white px-4 py-2 text-sm font-semibold text-[#0B5C73] transition-colors duration-200 hover:border-[#0B5C73]"
                             >
-                              <FileText size={14} /> Send documents
+                              <FileText size={14} /> {application.status === 'interview' ? 'Offer options' : 'Send documents'}
                             </button>
                           )}
 
@@ -988,6 +983,25 @@ const updateApplicationStatus = async (
             employerProfileId={employerProfile.id}
             onClose={() => setOfferApplicationId(null)}
             onOfferSent={handleOfferSent}
+          />
+        );
+      })()}
+      {offerActionApplicationId && employerProfile && (() => {
+        const actionApplication = applications.find((item) => item.id === offerActionApplicationId);
+        if (!actionApplication) return null;
+        return (
+          <OfferActionModal
+            application={actionApplication}
+            showQuickOffer={actionApplication.status === 'interview'}
+            onClose={() => setOfferActionApplicationId(null)}
+            onMakeOffer={() => {
+              setOfferActionApplicationId(null);
+              setOfferApplicationId(actionApplication.id);
+            }}
+            onSendDocuments={() => {
+              setOfferActionApplicationId(null);
+              setDocumentOfferApplicationId(actionApplication.id);
+            }}
           />
         );
       })()}

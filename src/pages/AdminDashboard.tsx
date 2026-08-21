@@ -29,7 +29,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import CompanyLogo from '../components/CompanyLogo';
 
 type SubmissionTab = 'pending' | 'reviewed';
-type JobTab = 'all' | 'active' | 'filled' | 'closed' | 'archived';
+type JobTab = 'all' | 'pending_review' | 'active' | 'filled' | 'closed' | 'archived';
 type AdminView = 'overview' | 'profile' | 'tasks' | 'activity' | 'submissions' | 'jobs' | 'companies' | 'users' | 'analytics' | 'newsletter' | 'team' | 'create';
 type UserType = 'candidate' | 'employer' | 'unassigned';
 type JobStatus = 'active' | 'filled' | 'closed' | 'archived';
@@ -41,6 +41,7 @@ const FETCH_TIMEOUT_MS = 10000;
 const avatarColors: Company['avatar_color'][] = ['teal', 'blue', 'amber', 'purple', 'coral'];
 const jobTabs: Array<{ key: JobTab; label: string }> = [
   { key: 'all', label: 'All jobs' },
+  { key: 'pending_review', label: 'Pending review' },
   { key: 'active', label: 'Active' },
   { key: 'filled', label: 'Filled' },
   { key: 'closed', label: 'Closed' },
@@ -80,6 +81,8 @@ function formatRelative(date: string) {
 
 function statusTone(status: string) {
   switch (status) {
+    case 'pending_review':
+      return 'bg-[#FAEEDA] text-[#633806] border-[#F0D080]';
     case 'active':
       return 'bg-[#E1F5EE] text-[#085041] border-[#5DCAA5]';
     case 'filled':
@@ -94,6 +97,7 @@ function statusTone(status: string) {
 }
 
 function formatStatus(status: string) {
+  if (status === 'pending_review') return 'Pending review';
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
@@ -798,6 +802,7 @@ export default function AdminDashboard() {
     () => ({
       pendingSubmissions: submissions.filter((item) => item.status === 'pending').length,
       reviewedSubmissions: submissions.filter((item) => item.status !== 'pending').length,
+      pendingReviewJobs: jobs.filter((item) => item.status === 'pending_review').length,
       activeJobs: jobs.filter((item) => item.status === 'active').length,
       filledJobs: jobs.filter((item) => item.status === 'filled').length,
       closedJobs: jobs.filter((item) => item.status === 'closed').length,
@@ -1470,13 +1475,33 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl border border-[#F0D080] bg-[#FFF8E6] p-4 shadow-[0_10px_24px_rgba(217,164,65,0.08)]">
+        <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedView('submissions');
+              setSelectedSubmissionTab('pending');
+            }}
+            className="rounded-2xl border border-[#F0D080] bg-[#FFF8E6] p-4 text-left shadow-[0_10px_24px_rgba(217,164,65,0.08)] transition-transform hover:-translate-y-0.5"
+          >
             <div className="flex items-center gap-2 text-[#5F5E5A] text-xs uppercase tracking-[1px] mb-2">
-              <Clock3 size={12} /> Pending
+              <Clock3 size={12} /> Submissions pending
             </div>
             <div className="text-3xl font-bold tracking-[-0.04em] text-[#633806]">{counts.pendingSubmissions}</div>
-          </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedView('jobs');
+              setSelectedJobTab('pending_review');
+            }}
+            className="rounded-2xl border border-[#F0D080] bg-[#FFF8E6] p-4 text-left shadow-[0_10px_24px_rgba(217,164,65,0.08)] transition-transform hover:-translate-y-0.5"
+          >
+            <div className="flex items-center gap-2 text-[#5F5E5A] text-xs uppercase tracking-[1px] mb-2">
+              <Inbox size={12} /> ATS jobs to review
+            </div>
+            <div className="text-3xl font-bold tracking-[-0.04em] text-[#633806]">{counts.pendingReviewJobs}</div>
+          </button>
           <div className="rounded-2xl border border-[#5DCAA5] bg-[#E1F5EE] p-4">
             <div className="flex items-center gap-2 text-[#5F5E5A] text-xs uppercase tracking-[1px] mb-2">
               <Briefcase size={12} /> Active jobs
@@ -2988,4 +3013,3 @@ function SortHeader({
 function ArchiveIcon() {
   return <span className="text-[14px] leading-none">⭳</span>;
 }
-
