@@ -7,6 +7,7 @@ import { getCurrentPushSubscription, enablePushNotifications, disablePushNotific
 import { Capacitor } from '@capacitor/core';
 import { disableNativePushNotifications, enableNativePushNotifications, getNativePushEnabled, nativePushNotificationsAvailable } from '../lib/nativePushNotifications';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { getUserFacingError } from '../lib/userFacingError';
 import { resetTutorial } from '../lib/tutorial';
 import { openCookieSettings } from '../components/CookieConsent';
 
@@ -110,7 +111,7 @@ export default function CandidateSettings() {
       if (typeof settingsResult.data?.email_marketing_communications === 'boolean') setMarketingEmails(settingsResult.data.email_marketing_communications);
       if (typeof settingsResult.data?.email_pause_optional === 'boolean') setPauseOptionalEmails(settingsResult.data.email_pause_optional);
     }).catch((loadError) => {
-      if (alive) setError(loadError instanceof Error ? loadError.message : 'Could not load settings.');
+      if (alive) setError(getUserFacingError(loadError, 'We couldn’t load your settings. Please try again.'));
     }).finally(() => {
       if (alive) setLoading(false);
     });
@@ -129,7 +130,7 @@ export default function CandidateSettings() {
       .from('candidate_profiles')
       .update({ visibility_to_employers: visibility })
       .eq('id', session.user.id);
-    if (saveError) setError(saveError.message);
+    if (saveError) setError(getUserFacingError(saveError, 'We couldn’t save your settings. Please try again.'));
     else setMessage('Privacy settings saved.');
     setSaving(false);
   };
@@ -147,7 +148,7 @@ export default function CandidateSettings() {
       setPushEnabled(!pushEnabled);
       setMessage(`Push notifications ${pushEnabled ? 'disabled' : 'enabled'}.`);
     } catch (pushError) {
-      setError(pushError instanceof Error ? pushError.message : 'Could not update push notifications.');
+      setError(getUserFacingError(pushError, 'We couldn’t update notifications. Please try again.'));
     } finally {
       setPushSaving(false);
     }
@@ -164,7 +165,7 @@ export default function CandidateSettings() {
         preferred_job_titles: preferredJobTitles,
       })
       .eq('id', session.user.id);
-    if (preferencesError) setError(preferencesError.message);
+    if (preferencesError) setError(getUserFacingError(preferencesError, 'We couldn’t save your notification preferences. Please try again.'));
     else setMessage('Job preferences saved.');
     setJobPreferencesSaving(false);
   };
@@ -192,7 +193,7 @@ export default function CandidateSettings() {
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(session.user.email, {
       redirectTo: `${window.location.origin}/start?mode=login`,
     });
-    if (resetError) setError(resetError.message);
+    if (resetError) setError(getUserFacingError(resetError, 'We couldn’t send the password reset email. Please try again.'));
     else setMessage('Password reset instructions sent to your email.');
   };
 
@@ -217,7 +218,7 @@ export default function CandidateSettings() {
       await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
       navigate(scheduledFor ? `/account-deletion-scheduled?date=${encodeURIComponent(scheduledFor)}` : '/', { replace: true });
     } catch (deleteAccountError) {
-      setDeleteError(deleteAccountError instanceof Error ? deleteAccountError.message : 'Could not delete account.');
+      setDeleteError(getUserFacingError(deleteAccountError, 'We couldn’t delete your account. Please try again.'));
       setDeleting(false);
     }
   };
@@ -257,7 +258,7 @@ export default function CandidateSettings() {
       .eq('id', session.user.id);
     if (preferenceError) {
       setters[key](previous);
-      setError(preferenceError.message);
+      setError(getUserFacingError(preferenceError, 'We couldn’t save your preference. Please try again.'));
       return;
     }
     setPauseOptionalEmails(false);
@@ -290,7 +291,7 @@ export default function CandidateSettings() {
       setRecommendationEmails(previous.recommendationEmails);
       setMarketingEmails(previous.marketingEmails);
       setPauseOptionalEmails(previous.pauseOptionalEmails);
-      setError(preferenceError.message);
+      setError(getUserFacingError(preferenceError, 'We couldn’t save your preference. Please try again.'));
       return;
     }
     setMessage(paused ? 'Optional emails paused.' : 'Optional email preferences restored.');

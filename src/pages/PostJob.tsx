@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, Clock3, MapPin, Plus, Save, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { getUserFacingError } from '../lib/userFacingError';
 import { fetchProfile, slugify } from '../lib/admin';
 import type { Company, EmployerProfile, Job, Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -143,7 +144,7 @@ export default function PostJob() {
         setCompany(companyRow as Company);
       } catch (loadError) {
         if (alive) {
-          setError(loadError instanceof Error ? loadError.message : 'Could not load employer workspace.');
+          setError(getUserFacingError(loadError, 'We couldn’t load your employer workspace. Please try again.'));
         }
       } finally {
         if (alive) setLoading(false);

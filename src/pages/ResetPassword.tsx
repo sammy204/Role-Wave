@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Eye, EyeOff, CheckCircle2, KeyRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { getUserFacingError } from '../lib/userFacingError';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 // Supabase's client has detectSessionInUrl enabled, so clicking the password
@@ -84,7 +85,7 @@ export default function ResetPassword() {
       if (updateError) throw updateError;
       setDone(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      setError(getUserFacingError(err, 'We couldn’t reset your password. Please try again.'));
     } finally {
       setLoading(false);
     }

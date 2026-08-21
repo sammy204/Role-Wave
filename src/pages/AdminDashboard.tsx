@@ -22,6 +22,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { getUserFacingError } from '../lib/userFacingError';
 import { withTimeout } from '../lib/withTimeout';
 import { fetchProfile, slugify } from '../lib/admin';
 import type { Company, Job, JobSubmission, Profile } from '../types';
@@ -392,7 +393,7 @@ export default function AdminDashboard() {
         setTasks((taskResult.data || []) as AdminTask[]);
       } catch (loadError) {
         if (!mountedRef.current) return;
-        setError(loadError instanceof Error ? loadError.message : 'Failed to load admin dashboard.');
+        setError(getUserFacingError(loadError, 'We couldn’t load the admin dashboard. Please try again.'));
       } finally {
         if (mountedRef.current) {
           setLoading(false);
@@ -425,7 +426,7 @@ export default function AdminDashboard() {
         setNewsletterSends((sendsResult.data || []) as NewsletterSend[]);
       })
       .catch((loadError) => {
-        if (alive) setError(loadError instanceof Error ? loadError.message : 'Could not load newsletter data.');
+        if (alive) setError(getUserFacingError(loadError, 'We couldn’t load newsletter data. Please try again.'));
       })
       .finally(() => {
         if (alive) setNewsletterLoading(false);
@@ -445,7 +446,7 @@ export default function AdminDashboard() {
         .order('created_at', { ascending: false });
       if (!mountedRef.current) return;
       if (invitesError) {
-        setError(invitesError.message || 'Could not load invites.');
+        setError(getUserFacingError(invitesError, 'We couldn’t load invites. Please try again.'));
         return;
       }
       setInvites((data || []) as AdminInvite[]);
@@ -533,7 +534,7 @@ export default function AdminDashboard() {
       setInviteLastName('');
       loadInvites();
     } catch (sendError) {
-      setError(sendError instanceof Error ? sendError.message : 'Could not send invite.');
+      setError(getUserFacingError(sendError, 'We couldn’t send the invite. Please try again.'));
     } finally {
       setInviteSending(false);
     }
@@ -553,7 +554,7 @@ export default function AdminDashboard() {
       setNotice(`Invite for ${invite.email} revoked.`);
       loadInvites();
     } catch (revokeErr) {
-      setError(revokeErr instanceof Error ? revokeErr.message : 'Could not revoke invite.');
+      setError(getUserFacingError(revokeErr, 'We couldn’t revoke the invite. Please try again.'));
     } finally {
       setRevokingInviteId(null);
     }
@@ -573,7 +574,7 @@ export default function AdminDashboard() {
       setInvites((current) => current.filter((item) => item.id !== invite.id));
       setNotice(`Revoked invite for ${invite.email} deleted.`);
     } catch (deleteErr) {
-      setError(deleteErr instanceof Error ? deleteErr.message : 'Could not delete invite.');
+      setError(getUserFacingError(deleteErr, 'We couldn’t delete the invite. Please try again.'));
     } finally {
       setDeletingInviteId(null);
     }
@@ -597,7 +598,7 @@ export default function AdminDashboard() {
       setProfiles((current) => current.map((user) => user.id === admin.id ? { ...user, is_admin: false } : user));
       setNotice(`${admin.first_name}'s admin access has been removed.`);
     } catch (revokeErr) {
-      setError(revokeErr instanceof Error ? revokeErr.message : 'Could not remove admin access.');
+      setError(getUserFacingError(revokeErr, 'We couldn’t remove admin access. Please try again.'));
     } finally {
       setRevokingAdminId(null);
     }
@@ -625,7 +626,7 @@ export default function AdminDashboard() {
       setAdminProfile(data as AdminProfile);
       setNotice('Admin profile updated.');
     } catch (saveErr) {
-      setError(saveErr instanceof Error ? saveErr.message : 'Could not update admin profile.');
+      setError(getUserFacingError(saveErr, 'We couldn’t update the admin profile. Please try again.'));
     } finally {
       setAdminProfileSaving(false);
     }
@@ -655,7 +656,7 @@ export default function AdminDashboard() {
       setTaskForm({ title: '', description: '', assignedTo: '', priority: 'medium', dueAt: '' });
       setNotice('Task assigned.');
     } catch (taskErr) {
-      setError(taskErr instanceof Error ? taskErr.message : 'Could not create task.');
+      setError(getUserFacingError(taskErr, 'We couldn’t create the task. Please try again.'));
     } finally {
       setTaskSaving(false);
     }
@@ -671,7 +672,7 @@ export default function AdminDashboard() {
       setTasks((current) => current.map((item) => item.id === task.id ? { ...item, ...(data as AdminTask) } : item));
       setNotice('Task status updated.');
     } catch (taskErr) {
-      setError(taskErr instanceof Error ? taskErr.message : 'Could not update task status.');
+      setError(getUserFacingError(taskErr, 'We couldn’t update the task. Please try again.'));
     }
   };
 
@@ -691,7 +692,7 @@ export default function AdminDashboard() {
       setTasks((current) => current.map((item) => item.id === task.id ? { ...item, ...(data as AdminTask) } : item));
       setNotice('Task assignment updated.');
     } catch (taskErr) {
-      setError(taskErr instanceof Error ? taskErr.message : 'Could not reassign task.');
+      setError(getUserFacingError(taskErr, 'We couldn’t reassign the task. Please try again.'));
     }
   };
 
@@ -706,7 +707,7 @@ export default function AdminDashboard() {
       setTasks((current) => current.filter((item) => item.id !== task.id));
       setNotice('Task deleted.');
     } catch (taskErr) {
-      setError(taskErr instanceof Error ? taskErr.message : 'Could not delete task.');
+      setError(getUserFacingError(taskErr, 'We couldn’t delete the task. Please try again.'));
     } finally {
       setTaskDeletingId(null);
     }
@@ -730,7 +731,7 @@ export default function AdminDashboard() {
       const sent = typeof data?.sent === 'number' ? data.sent : 0;
       setNotice(`Admin welcome email sent to ${sent} admin${sent === 1 ? '' : 's'}.`);
     } catch (sendErr) {
-      setError(sendErr instanceof Error ? sendErr.message : 'Could not send admin welcome emails.');
+      setError(getUserFacingError(sendErr, 'We couldn’t send the welcome emails. Please try again.'));
     } finally {
       setAdminWelcomeSending(false);
     }
@@ -752,7 +753,7 @@ export default function AdminDashboard() {
       if (data?.error) throw new Error(data.error);
       setNotice(`Test email sent to ${authEmail || 'your admin email'}.`);
     } catch (sendErr) {
-      setError(sendErr instanceof Error ? sendErr.message : 'Could not send the test email.');
+      setError(getUserFacingError(sendErr, 'We couldn’t send the test email. Please try again.'));
     } finally {
       setAdminWelcomeTestSending(false);
     }
@@ -789,7 +790,7 @@ export default function AdminDashboard() {
       setNewsletterCtaLabel('');
       setNewsletterCtaUrl('');
     } catch (sendError) {
-      setError(sendError instanceof Error ? sendError.message : 'Could not send newsletter.');
+      setError(getUserFacingError(sendError, 'We couldn’t send the newsletter. Please try again.'));
     } finally {
       setNewsletterSending(false);
     }
@@ -1094,7 +1095,7 @@ export default function AdminDashboard() {
       setSelectedView('jobs');
       setNotice(`Created "${createForm.jobTitle}" for ${createForm.companyName}.`);
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : 'Failed to create job.');
+      setError(getUserFacingError(createError, 'We couldn’t create the job. Please try again.'));
     } finally {
       setSavingJob(false);
     }
@@ -1142,7 +1143,7 @@ export default function AdminDashboard() {
       setSubmissionStatusInState(submissionId, 'approved');
       setNotice(`Published "${submission.job_title}" to live jobs.`);
     } catch (approveError) {
-      setError(approveError instanceof Error ? approveError.message : 'Failed to approve submission.');
+      setError(getUserFacingError(approveError, 'We couldn’t approve the submission. Please try again.'));
     } finally {
       setProcessingId(null);
     }
@@ -1159,7 +1160,7 @@ export default function AdminDashboard() {
       setSubmissionStatusInState(submissionId, 'rejected');
       setNotice('Submission rejected.');
     } catch (rejectError) {
-      setError(rejectError instanceof Error ? rejectError.message : 'Failed to reject submission.');
+      setError(getUserFacingError(rejectError, 'We couldn’t reject the submission. Please try again.'));
     } finally {
       setProcessingId(null);
     }
@@ -1188,7 +1189,7 @@ export default function AdminDashboard() {
       removeSubmissionFromState(submissionId);
       setNotice('Reviewed submission removed.');
     } catch (removeError) {
-      setError(removeError instanceof Error ? removeError.message : 'Failed to remove reviewed submission.');
+      setError(getUserFacingError(removeError, 'We couldn’t remove the submission. Please try again.'));
     } finally {
       setProcessingId(null);
     }
@@ -1226,7 +1227,7 @@ export default function AdminDashboard() {
 
       setNotice(`Marked "${target.title}" as ${formatStatus(nextStatus).toLowerCase()}.`);
     } catch (statusError) {
-      setError(statusError instanceof Error ? statusError.message : 'Failed to update job status.');
+      setError(getUserFacingError(statusError, 'We couldn’t update the job status. Please try again.'));
     } finally {
       setProcessingId(null);
     }
@@ -1252,7 +1253,7 @@ export default function AdminDashboard() {
       );
       setNotice(`${target.name} is now ${nextVerified ? 'verified' : 'unverified'}.`);
     } catch (verifyError) {
-      setError(verifyError instanceof Error ? verifyError.message : 'Failed to update verification status.');
+      setError(getUserFacingError(verifyError, 'We couldn’t update verification. Please try again.'));
     } finally {
       setProcessingId(null);
     }
@@ -1278,7 +1279,7 @@ export default function AdminDashboard() {
       setJobs((current) => current.filter((job) => job.company_id !== companyId));
       setNotice(`${target.name} and its linked jobs were deleted.`);
     } catch (deleteErr) {
-      setError(deleteErr instanceof Error ? deleteErr.message : 'Could not delete company.');
+      setError(getUserFacingError(deleteErr, 'We couldn’t delete the company. Please try again.'));
     } finally {
       setProcessingId(null);
     }
@@ -1307,7 +1308,7 @@ export default function AdminDashboard() {
       setSelectedCompanyIds(new Set());
       setNotice(`${ids.length} compan${ids.length === 1 ? 'y' : 'ies'} deleted.`);
     } catch (deleteErr) {
-      setError(deleteErr instanceof Error ? deleteErr.message : 'Could not delete selected companies.');
+      setError(getUserFacingError(deleteErr, 'We couldn’t delete the selected companies. Please try again.'));
     } finally {
       setProcessingId(null);
     }
@@ -1340,7 +1341,7 @@ export default function AdminDashboard() {
       removeJobFromState(jobId);
       setNotice(`Deleted "${target.title}".`);
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : 'Failed to delete job.');
+      setError(getUserFacingError(deleteError, 'We couldn’t delete the job. Please try again.'));
     } finally {
       setProcessingId(null);
     }
@@ -1402,7 +1403,7 @@ export default function AdminDashboard() {
         }
         succeeded += 1;
       } catch (bulkError) {
-        setError(bulkError instanceof Error ? bulkError.message : 'Some jobs could not be updated.');
+        setError(getUserFacingError(bulkError, 'We couldn’t update some jobs. Please try again.'));
       }
     }
 

@@ -35,6 +35,7 @@ import MakeOfferModal from '../components/MakeOfferModal';
 import SendOfferDocumentsModal from '../components/SendOfferDocumentsModal';
 import OfferActionModal from '../components/OfferActionModal';
 import InterviewProposalModal from '../components/InterviewProposalModal';
+import { getUserFacingError } from '../lib/userFacingError';
 
 type JobStatus = 'active' | 'filled' | 'closed' | 'archived';
 type ApplicationStatus = JobApplication['status'];
@@ -216,7 +217,7 @@ export default function EmployerDashboard() {
         }
       } catch (loadError) {
         if (alive) {
-          setError(loadError instanceof Error ? loadError.message : 'Could not load employer dashboard.');
+          setError(getUserFacingError(loadError, 'We couldn’t load your employer dashboard. Please try again.'));
         }
       } finally {
         if (alive) setLoading(false);
@@ -342,7 +343,7 @@ const updateApplicationStatus = async (
       );
       setNotice(`Application updated to ${formatApplicationStatus(nextStatus)}.`);
     } catch (updateError) {
-      setError(updateError instanceof Error ? updateError.message : 'Could not update application.');
+      setError(getUserFacingError(updateError, 'We couldn’t update this application. Please try again.'));
     } finally {
       setSaving(false);
     }
@@ -362,10 +363,13 @@ const updateApplicationStatus = async (
       const { error: cancelError } = await supabase.functions.invoke('cancel-interview', {
         body: { application_id: applicationId },
       });
-      if (cancelError) throw cancelError;
+      if (cancelError) {
+        throw cancelError;
+      }
+      setApplications((prev) => prev.map((item) => item.id === applicationId ? { ...item, status: 'shortlisted' } : item));
       setNotice('Interview cancelled. You can now propose new days and times.');
     } catch (cancelError) {
-      setError(cancelError instanceof Error ? cancelError.message : 'Could not cancel the interview.');
+      setError(getUserFacingError(cancelError, 'We couldn’t cancel the interview. Please try again.'));
     } finally {
       setSaving(false);
     }
@@ -393,7 +397,7 @@ const updateApplicationStatus = async (
       setApplications((prev) => prev.filter((item) => item.id !== applicationId));
       setNotice('Rejected application deleted.');
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : 'Could not delete application.');
+      setError(getUserFacingError(deleteError, 'We couldn’t delete this application. Please try again.'));
     } finally {
       setDeletingApplicationId(null);
       setConfirmDeleteApplicationId(null);
@@ -415,7 +419,7 @@ const updateApplicationStatus = async (
       setJobs((prev) => prev.map((job) => (job.id === jobId ? { ...job, status: nextStatus } : job)));
       setNotice(`Job marked as ${formatJobStatus(nextStatus)}.`);
     } catch (updateError) {
-      setError(updateError instanceof Error ? updateError.message : 'Could not update job.');
+      setError(getUserFacingError(updateError, 'We couldn’t update this job. Please try again.'));
     } finally {
       setSaving(false);
     }
@@ -436,7 +440,7 @@ const updateApplicationStatus = async (
       setApplications((prev) => prev.filter((item) => item.job_id !== jobId));
       setNotice('Job deleted.');
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : 'Could not delete job.');
+      setError(getUserFacingError(deleteError, 'We couldn’t delete this job. Please try again.'));
     } finally {
       setDeletingJobId(null);
       setConfirmDeleteJobId(null);
@@ -451,7 +455,7 @@ const updateApplicationStatus = async (
       const conversation = await startConversation(candidateProfileId, jobId);
       navigate(`/employer/messages?conversation=${conversation.id}`);
     } catch (messageError) {
-      setError(messageError instanceof Error ? messageError.message : 'Could not start conversation.');
+      setError(getUserFacingError(messageError, 'We couldn’t start the conversation. Please try again.'));
     } finally {
       setMessagingId(null);
     }

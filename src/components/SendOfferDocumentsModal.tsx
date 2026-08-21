@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CheckCircle2, FileText, Send, Upload, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { getUserFacingError } from '../lib/userFacingError';
 import type { CandidateProfile, Job, JobApplication, Offer } from '../types';
 
 type Props = {
@@ -109,7 +110,7 @@ export default function SendOfferDocumentsModal({ application, employerProfileId
       onOfferSent(application.id);
       setSent(true);
     } catch (sendError) {
-      setError(sendError instanceof Error ? sendError.message : 'Could not send the offer documents.');
+      setError(getUserFacingError(sendError, 'We couldn’t send the offer documents. Please try again.'));
     } finally {
       setSaving(false);
     }

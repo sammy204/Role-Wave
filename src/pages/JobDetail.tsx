@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import { ArrowLeft, MapPin, Home, Briefcase, Clock, CheckCircle, Share2, Send, Bookmark } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { getUserFacingError } from '../lib/userFacingError';
 import { withTimeout } from '../lib/withTimeout';
 import { fetchProfile } from '../lib/admin';
 import { useAuth } from '../lib/useAuth';
@@ -73,7 +74,7 @@ export default function JobDetail() {
 
         setJob({ ...(data as Job), company: companyData || undefined });
       } catch (fetchError) {
-        setError(fetchError instanceof Error ? fetchError.message : 'Failed to load job details.');
+        setError(getUserFacingError(fetchError, 'We couldn’t load this job. Please try again.'));
       } finally {
         setLoading(false);
       }

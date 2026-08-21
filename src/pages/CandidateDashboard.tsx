@@ -26,6 +26,7 @@ import { calculateProfileCompletion, getProfileCompletionSuggestions } from '../
 import type { CandidateProfile, Company, Job, JobApplication, Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 import CompanyLogo from '../components/CompanyLogo';
+import { getUserFacingError } from '../lib/userFacingError';
 
 function timeAgo(date: string): string {
   const then = new Date(date).getTime();
@@ -213,7 +214,7 @@ export default function CandidateDashboard() {
         if (alive) setMatchedJobs(matches);
       } catch (loadError) {
         if (alive) {
-          setError(loadError instanceof Error ? loadError.message : 'Could not load your dashboard.');
+          setError(getUserFacingError(loadError, 'We couldn’t load your dashboard. Please try again.'));
         }
       } finally {
         if (alive) setLoading(false);
@@ -300,7 +301,7 @@ export default function CandidateDashboard() {
         prev.map((item) => (item.id === applicationId ? { ...item, status: 'withdrawn' } : item))
       );
     } catch (mutationError) {
-      setError(mutationError instanceof Error ? mutationError.message : 'Could not withdraw application.');
+      setError(getUserFacingError(mutationError, 'We couldn’t withdraw this application. Please try again.'));
     } finally {
       setMutatingApplicationId(null);
     }
@@ -317,7 +318,7 @@ export default function CandidateDashboard() {
   
       setApplications((prev) => prev.filter((item) => item.id !== applicationId));
     } catch (mutationError) {
-      setError(mutationError instanceof Error ? mutationError.message : 'Could not delete application.');
+      setError(getUserFacingError(mutationError, 'We couldn’t delete this application. Please try again.'));
     } finally {
       setMutatingApplicationId(null);
     }

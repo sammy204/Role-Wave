@@ -20,6 +20,7 @@ import {
 } from '../lib/messages';
 import type { Conversation, Message } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { getUserFacingError } from '../lib/userFacingError';
 import { formatDate, formatDateLong, formatTime } from '../lib/dateFormat';
 function formatRelative(date: string) {
   const now = new Date();
@@ -133,7 +134,7 @@ export default function CandidateMessages() {
         const initial = requested && rows.some((c) => c.id === requested) ? requested : rows[0]?.id || null;
         setActiveId(initial);
       } catch (loadError) {
-        if (alive) setError(loadError instanceof Error ? loadError.message : 'Could not load your messages.');
+        if (alive) setError(getUserFacingError(loadError, 'We couldn’t load your messages. Please try again.'));
       } finally {
         if (alive) setLoading(false);
       }
@@ -204,7 +205,7 @@ export default function CandidateMessages() {
           prev.map((c) => (c.id === activeId ? { ...c, candidate_last_read_at: new Date().toISOString() } : c))
         );
       } catch (loadError) {
-        if (alive) setError(loadError instanceof Error ? loadError.message : 'Could not load conversation.');
+        if (alive) setError(getUserFacingError(loadError, 'We couldn’t load this conversation. Please try again.'));
       } finally {
         if (alive) setMessagesLoading(false);
       }
@@ -289,7 +290,7 @@ export default function CandidateMessages() {
       });
       setHasMoreMessages(hasMore);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Could not load older messages.');
+      setError(getUserFacingError(loadError, 'We couldn’t load older messages. Please try again.'));
     } finally {
       setLoadingMoreMessages(false);
     }
@@ -320,7 +321,7 @@ export default function CandidateMessages() {
       );
       setDraft('');
     } catch (sendError) {
-      setError(sendError instanceof Error ? sendError.message : 'Could not send message.');
+      setError(getUserFacingError(sendError, 'We couldn’t send your message. Please try again.'));
     } finally {
       setSending(false);
     }
@@ -347,7 +348,7 @@ export default function CandidateMessages() {
       setEditingId(null);
       setEditDraft('');
     } catch (editError) {
-      setError(editError instanceof Error ? editError.message : 'Could not edit message.');
+      setError(getUserFacingError(editError, 'We couldn’t edit your message. Please try again.'));
     } finally {
       setSavingEdit(false);
     }
@@ -362,7 +363,7 @@ export default function CandidateMessages() {
       const updated = await deleteMessage(messageId, userId);
       setMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : 'Could not delete message.');
+      setError(getUserFacingError(deleteError, 'We couldn’t delete your message. Please try again.'));
     } finally {
       setDeletingId(null);
       setConfirmDeleteId(null);

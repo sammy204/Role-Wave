@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import { ArrowRight, Check, ChevronLeft, Eye, EyeOff } from 'lucide-react';
 import type { TurnstileInstance } from '@marsidev/react-turnstile';
 import { supabase } from '../lib/supabase';
+import { getUserFacingError } from '../lib/userFacingError';
 import { fetchProfile } from '../lib/admin';
 import { useAuth } from '../lib/useAuth';
 import { useIsPwa } from '../lib/usePwaDisplayMode';
@@ -154,7 +155,7 @@ export default function AuthLayout() {
 
       if (googleError) throw googleError;
     } catch (authError) {
-      setError(authError instanceof Error ? authError.message : 'Google sign-in failed.');
+      setError(getUserFacingError(authError, 'We couldn’t sign you in with Google. Please try again.'));
       setLoading(false);
     }
   };
@@ -222,7 +223,7 @@ export default function AuthLayout() {
 
       void signInData;
     } catch (authError) {
-      setError(authError instanceof Error ? authError.message : 'Authentication failed.');
+      setError(getUserFacingError(authError, 'We couldn’t complete authentication. Please try again.'));
     } finally {
       setLoading(false);
       resetCaptcha();
@@ -246,7 +247,7 @@ export default function AuthLayout() {
       setResetSent(true);
       setInfo('Check your email for a password reset link.');
     } catch (authError) {
-      setError(authError instanceof Error ? authError.message : 'Could not send reset email.');
+      setError(getUserFacingError(authError, 'We couldn’t send the reset email. Please try again.'));
     } finally {
       setLoading(false);
       resetCaptcha();

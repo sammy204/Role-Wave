@@ -276,6 +276,10 @@ begin
   where id = v_schedule.id
   returning * into v_schedule;
 
+  update public.job_applications
+  set status = 'shortlisted', updated_at = now()
+  where id = p_application_id;
+
   return v_schedule;
 end;
 $$;
@@ -295,6 +299,12 @@ declare
 begin
   if new.candidate_profile_id is null then return new; end if;
   if new.status is distinct from old.status and new.status = any(v_target_statuses) then
+    if new.status = 'shortlisted' and exists (
+      select 1 from public.interview_schedules s
+      where s.application_id = new.id and s.status = 'cancelled'
+    ) then
+      return new;
+    end if;
     select decrypted_secret into v_webhook_secret
     from vault.decrypted_secrets
     where name = 'application_status_email_webhook_secret'

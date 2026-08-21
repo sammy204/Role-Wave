@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { buildInterviewConfirmedEmail } from '../_shared/interviewTemplates.ts';
+import { buildEmployerInterviewConfirmedEmail, buildInterviewConfirmedEmail } from '../_shared/interviewTemplates.ts';
 import { buildInterviewIcs, icsAttachment, sendResendEmail, type InterviewSchedule, type InterviewSlot } from '../_shared/interview.ts';
 
 const corsHeaders = {
@@ -26,9 +26,24 @@ Deno.serve(async (request) => {
     const candidateTimezone = typeof body.timezone === 'string' && body.timezone ? body.timezone : 'UTC';
     if (!slotId) return json({ error: 'Missing slot_id.' }, 400);
 
-    const { data: schedule, error: selectError } = await userClient.rpc('select_interview_slot', { p_slot_id: slotId });
-    if (selectError) return json({ error: selectError.message }, 409);
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
+    let schedule;
+    const { data: selectedSchedule, error: selectError } = await userClient.rpc('select_interview_slot', { p_slot_id: slotId });
+    if (selectError) {
+      // A previous attempt may have confirmed the slot and then failed while
+      // sending the second recipient's email. Allow that exact selection to
+      // retry the missing confirmation without changing the appointment.
+      const { data: existingSchedule } = await adminClient
+        .from('interview_schedules')
+        .select('*')
+        .eq('status', 'confirmed')
+        .eq('selected_slot_id', slotId)
+        .maybeSingle();
+      if (!existingSchedule) return json({ error: selectError.message }, 409);
+      schedule = existingSchedule;
+    } else {
+      schedule = selectedSchedule;
+    }
     const { data: slot } = await adminClient.from('interview_slots').select('*').eq('id', slotId).single();
     const { data: application } = await adminClient.from('job_applications').select('candidate_profile_id, job_id').eq('id', schedule.application_id).single();
     if (!slot || !application?.candidate_profile_id) return json({ error: 'Interview details could not be loaded.' }, 500);
@@ -59,25 +74,86 @@ Deno.serve(async (request) => {
       { profileId: application.candidate_profile_id, email: candidateAuth.user.email, name: candidateProfile?.full_name, timezone: candidateTimezone },
       { profileId: company.owner_profile_id, email: employerAuth.user.email, name: employerProfile?.full_name, timezone: typedSchedule.employer_timezone },
     ];
-    for (const recipient of recipients) {
-      const { data: alreadySent } = await adminClient.from('interview_email_sends').select('id').match({ schedule_id: typedSchedule.id, recipient_profile_id: recipient.profileId, email_type: 'confirmation' }).maybeSingle();
-      if (alreadySent) continue;
-      await sendResendEmail({
-        apiKey: resendApiKey,
-        from,
-        to: recipient.email,
-        subject: `Interview confirmed — ${job.title} on ${new Intl.DateTimeFormat('en-US', { timeZone: recipient.timezone, month: 'long', day: 'numeric' }).format(new Date(typedSlot.starts_at))}`,
-        html: buildInterviewConfirmedEmail({
+    const deliveryResults = await Promise.all(recipients.map(async (recipient) => {
+      const sendKey = {
+        schedule_id: typedSchedule.id,
+        recipient_profile_id: recipient.profileId,
+        email_type: 'confirmation',
+      } as const;
+      const { data: alreadySent, error: sendLookupError } = await adminClient
+        .from('interview_email_sends')
+        .select('id')
+        .match(sendKey)
+        .maybeSingle();
+      if (sendLookupError) throw sendLookupError;
+      if (alreadySent) return { profileId: recipient.profileId, sent: true, skipped: true };
+
+      const subject = `Interview confirmed — ${job.title} on ${new Intl.DateTimeFormat('en-US', { timeZone: recipient.timezone, month: 'long', day: 'numeric' }).format(new Date(typedSlot.starts_at))}`;
+      const html = recipient.profileId === company.owner_profile_id
+        ? buildEmployerInterviewConfirmedEmail({
+          firstName: recipient.name?.trim()?.split(/\s+/)[0] || 'there',
+          candidateName: candidateProfile?.full_name || 'The candidate',
+          roleTitle: job.title,
+          companyName: company.name,
+          startsAt: typedSlot.starts_at,
+          timezone: recipient.timezone,
+          meetingLink: typedSchedule.meeting_link,
+        })
+        : buildInterviewConfirmedEmail({
           firstName: recipient.name?.trim()?.split(/\s+/)[0] || 'there',
           roleTitle: job.title,
           companyName: company.name,
           startsAt: typedSlot.starts_at,
           timezone: recipient.timezone,
           meetingLink: typedSchedule.meeting_link,
-        }),
-        attachments: [icsAttachment(ics, `rolewave-interview-${typedSchedule.id}.ics`)],
+        });
+
+      let lastError: unknown;
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        try {
+          console.info('Sending interview confirmation email', {
+            scheduleId: typedSchedule.id,
+            recipient: recipient.email,
+            attempt,
+          });
+          await sendResendEmail({
+            apiKey: resendApiKey,
+            from,
+            to: recipient.email,
+            subject,
+            html,
+            attachments: [icsAttachment(ics, `rolewave-interview-${typedSchedule.id}.ics`)],
+          });
+          const { error: sendRecordError } = await adminClient
+            .from('interview_email_sends')
+            .upsert(sendKey, { onConflict: 'schedule_id,recipient_profile_id,email_type', ignoreDuplicates: true });
+          if (sendRecordError) throw sendRecordError;
+          return { profileId: recipient.profileId, sent: true, skipped: false };
+        } catch (error) {
+          lastError = error;
+          console.error('Interview confirmation email attempt failed', {
+            scheduleId: typedSchedule.id,
+            recipient: recipient.email,
+            attempt,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 500));
+        }
+      }
+      return {
+        profileId: recipient.profileId,
+        sent: false,
+        skipped: false,
+        error: lastError instanceof Error ? lastError.message : 'Email delivery failed.',
+      };
+    }));
+    const failedDeliveries = deliveryResults.filter((result) => !result.sent);
+    if (failedDeliveries.length) {
+      console.error('Interview confirmation delivery incomplete', {
+        scheduleId: typedSchedule.id,
+        failedRecipients: failedDeliveries.map((result) => result.profileId),
       });
-      await adminClient.from('interview_email_sends').upsert({ schedule_id: typedSchedule.id, recipient_profile_id: recipient.profileId, email_type: 'confirmation' }, { onConflict: 'schedule_id,recipient_profile_id,email_type', ignoreDuplicates: true });
+      return json({ error: 'Interview confirmed, but one or more confirmation emails could not be delivered.' }, 502);
     }
     return json({ schedule: typedSchedule, slot: typedSlot });
   } catch (error) {

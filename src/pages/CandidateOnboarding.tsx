@@ -170,7 +170,7 @@ export default function CandidateOnboarding() {
 
       navigate('/candidate/dashboard', { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      setError('We couldn’t complete your onboarding. Please try again.');
       setSaving(false);
     }
   };

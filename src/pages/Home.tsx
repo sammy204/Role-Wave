@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { getUserFacingError } from '../lib/userFacingError';
 import { withTimeout } from '../lib/withTimeout';
 import type { Job, Company } from '../types';
 import JobCard from '../components/JobCard';
@@ -49,7 +50,7 @@ export default function Home() {
         setJobs((jobsData || []).map((job) => ({ ...job, company: companyById.get(job.company_id) })));
 
       } catch (fetchError) {
-        setError(fetchError instanceof Error ? fetchError.message : 'Failed to load jobs.');
+        setError(getUserFacingError(fetchError, 'We couldn’t load jobs. Please try again.'));
       } finally {
         setLoading(false);
       }

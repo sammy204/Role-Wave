@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, FileText, Send } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { getUserFacingError } from '../lib/userFacingError';
 import { fetchProfile } from '../lib/admin';
 import type { Company, Job } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -126,7 +127,7 @@ export default function JobApplication() {
         }
       } catch (loadError) {
         if (alive) {
-          setError(loadError instanceof Error ? loadError.message : 'Could not load application form.');
+          setError(getUserFacingError(loadError, 'We couldn’t load the application form. Please try again.'));
         }
       } finally {
         if (alive) setLoading(false);
@@ -181,7 +182,7 @@ export default function JobApplication() {
       }
       setSuccess(true);
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Could not submit application.');
+      setError(getUserFacingError(submitError, 'We couldn’t submit your application. Please try again.'));
     } finally {
       setSubmitting(false);
     }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { X, Check, ZoomIn } from 'lucide-react';
+import { getUserFacingError } from '../lib/userFacingError';
 
 type AvatarCropModalProps = {
   file: File;
@@ -128,7 +129,7 @@ export default function AvatarCropModal({
       const croppedFile = new File([blob], outputFileName, { type: 'image/jpeg' });
       onConfirm(croppedFile);
     } catch (error) {
-      setExportError(error instanceof Error ? error.message : 'Could not process that image.');
+      setExportError(getUserFacingError(error, 'We couldn’t process that image. Please try again.'));
     } finally {
       setExporting(false);
     }

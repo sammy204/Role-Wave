@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Download, FileText } from 'lucide-react';
 import { getCandidateAssetUrl } from '../lib/candidateAssets';
+import { getUserFacingError } from '../lib/userFacingError';
 
 export default function ResumeViewer() {
   const navigate = useNavigate();
@@ -47,7 +48,7 @@ export default function ResumeViewer() {
         objectUrl = URL.createObjectURL(blob);
         if (alive) setFileUrl(objectUrl);
       } catch (loadError) {
-        if (alive) setError(loadError instanceof Error ? loadError.message : 'Could not load this resume.');
+        if (alive) setError(getUserFacingError(loadError, 'We couldn’t load this resume. Please try again.'));
       }
     }
 

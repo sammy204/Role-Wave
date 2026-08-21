@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Download, FileText, X, Send, Save, Ban, CheckCircle2, Clock3 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { getUserFacingError } from '../lib/userFacingError';
 import type { CandidateProfile, Job, JobApplication, Offer, OfferDocument } from '../types';
 
 type MakeOfferModalProps = {
@@ -122,7 +123,7 @@ export default function MakeOfferModal({ application, employerProfileId, onClose
         }
       } catch (loadError) {
         if (alive) {
-          setError(loadError instanceof Error ? loadError.message : 'Could not load offer.');
+          setError(getUserFacingError(loadError, 'We couldn’t load the offer. Please try again.'));
         }
       } finally {
         if (alive) setLoading(false);
@@ -184,7 +185,7 @@ export default function MakeOfferModal({ application, employerProfileId, onClose
       setExistingOffer(created);
       return created;
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Could not save offer draft.');
+      setError(getUserFacingError(saveError, 'We couldn’t save the offer draft. Please try again.'));
       return null;
     } finally {
       setSaving(false);
@@ -216,7 +217,7 @@ export default function MakeOfferModal({ application, employerProfileId, onClose
       setExistingOffer(data as Offer);
       onOfferSent(application.id);
     } catch (sendErr) {
-      setError(sendErr instanceof Error ? sendErr.message : 'Could not send offer.');
+      setError(getUserFacingError(sendErr, 'We couldn’t send the offer. Please try again.'));
     } finally {
       setSaving(false);
     }
@@ -236,7 +237,7 @@ export default function MakeOfferModal({ application, employerProfileId, onClose
       if (withdrawError) throw withdrawError;
       setExistingOffer(data as Offer);
     } catch (withdrawErr) {
-      setError(withdrawErr instanceof Error ? withdrawErr.message : 'Could not withdraw offer.');
+      setError(getUserFacingError(withdrawErr, 'We couldn’t withdraw the offer. Please try again.'));
     } finally {
       setSaving(false);
     }
@@ -245,7 +246,7 @@ export default function MakeOfferModal({ application, employerProfileId, onClose
   const downloadOfferDocument = async (document: OfferDocument) => {
     const { data, error: signedUrlError } = await supabase.storage.from('offer-documents').createSignedUrl(document.storage_path, 60 * 10);
     if (signedUrlError || !data?.signedUrl) {
-      setError(signedUrlError?.message || 'Could not open this document.');
+      setError(getUserFacingError(signedUrlError, 'We couldn’t open this document. Please try again.'));
       return;
     }
     window.open(data.signedUrl, '_blank', 'noopener,noreferrer');

@@ -7,6 +7,7 @@ import type { Company } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 import AvatarCropModal from '../components/AvatarCropModal';
 import CompanyLogo from '../components/CompanyLogo';
+import { getUserFacingError } from '../lib/userFacingError';
 
 const colorOptions: Company['avatar_color'][] = ['teal', 'blue', 'amber', 'purple', 'coral'];
 
@@ -117,7 +118,7 @@ export default function EmployerOnboarding() {
         }
       } catch (loadError) {
         if (alive) {
-          setError(loadError instanceof Error ? loadError.message : 'Could not load employer onboarding.');
+          setError(getUserFacingError(loadError, 'We couldn’t load employer onboarding. Please try again.'));
         }
       } finally {
         if (alive) setLoading(false);
@@ -166,7 +167,7 @@ export default function EmployerOnboarding() {
       const { data } = supabase.storage.from('company-logos').getPublicUrl(fileName);
       setLogoUrl(data.publicUrl);
     } catch (uploadError) {
-      setLogoError(uploadError instanceof Error ? uploadError.message : 'Could not upload that logo.');
+      setLogoError(getUserFacingError(uploadError, 'We couldn’t upload that logo. Please try again.'));
     } finally {
       setUploadingLogo(false);
     }
@@ -239,7 +240,7 @@ export default function EmployerOnboarding() {
 
       navigate('/post', { replace: true });
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Could not save employer details.');
+      setError(getUserFacingError(saveError, 'We couldn’t save employer details. Please try again.'));
     } finally {
       setSaving(false);
     }

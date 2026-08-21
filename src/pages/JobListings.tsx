@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, type Dispatch, type SetStateAction } from
 import { useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, SlidersHorizontal, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { getUserFacingError } from '../lib/userFacingError';
 import { withTimeout } from '../lib/withTimeout';
 import { PAGE_SIZE, getPaginatedJobs, getPaginationItems } from '../lib/pagination';
 import type { Job, Company } from '../types';
@@ -103,7 +104,7 @@ export default function JobListings() {
         const companyById = new Map((companiesData || []).map((company) => [company.id, company]));
         setJobs((jobsData || []).map((job) => ({ ...job, company: companyById.get(job.company_id) })));
       } catch (fetchError) {
-        setError(fetchError instanceof Error ? fetchError.message : 'Failed to load jobs.');
+        setError(getUserFacingError(fetchError, 'We couldn’t load jobs. Please try again.'));
       } finally {
         setLoading(false);
       }

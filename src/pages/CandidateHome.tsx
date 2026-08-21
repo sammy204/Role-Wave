@@ -7,6 +7,7 @@ import { withTimeout } from '../lib/withTimeout';
 import type { CandidateProfile, Company, Job, Profile } from '../types';
 import JobCard from '../components/JobCard';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { getUserFacingError } from '../lib/userFacingError';
 
 const FETCH_TIMEOUT_MS = 25000;
 
@@ -105,7 +106,7 @@ export default function CandidateHome() {
         setJobs(scoredJobs);
       } catch (loadError) {
         if (alive) {
-          setError(loadError instanceof Error ? loadError.message : 'Could not load your home feed.');
+          setError(getUserFacingError(loadError, 'We couldn’t load your home feed. Please try again.'));
         }
       } finally {
         if (alive) setLoading(false);

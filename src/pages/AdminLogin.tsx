@@ -8,6 +8,7 @@ import type { Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { validatePassword } from '../lib/passwordPolicy';
 import { TurnstileWidget } from '../components/TurnstileWidget';
+import { getUserFacingError } from '../lib/userFacingError';
 
 type AuthMode = 'signup' | 'login';
 interface AdminInvitePreview {
@@ -113,7 +114,7 @@ export default function AdminLogin() {
       );
       return false;
     } catch (acceptErr) {
-      setError(acceptErr instanceof Error ? acceptErr.message : 'Could not accept the invite.');
+      setError(getUserFacingError(acceptErr, 'We couldn’t accept the invite. Please try again.'));
       return false;
     } finally {
       setAcceptingInvite(false);
@@ -234,7 +235,7 @@ export default function AdminLogin() {
         },
       });
       if (signUpError) {
-        setError(signUpError.message);
+        setError(getUserFacingError(signUpError, 'We couldn’t create your account. Please try again.'));
         setLoading(false);
         resetCaptcha();
         return;
@@ -251,7 +252,7 @@ export default function AdminLogin() {
         options: { captchaToken },
       });
       if (signInError) {
-        setError(signInError.message);
+        setError(getUserFacingError(signInError, 'We couldn’t sign you in. Please try again.'));
         setLoading(false);
         resetCaptcha();
         return;

@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { buildInterviewCancelledEmail } from '../_shared/interviewTemplates.ts';
+import { buildEmployerInterviewCancelledEmail, buildInterviewCancelledEmail } from '../_shared/interviewTemplates.ts';
 import { sendResendEmail } from '../_shared/interview.ts';
 
 const corsHeaders = {
@@ -25,9 +25,30 @@ Deno.serve(async (request) => {
     const applicationId = typeof body.application_id === 'string' ? body.application_id : '';
     if (!applicationId) return json({ error: 'Missing application_id.' }, 400);
 
-    const { data: schedule, error: cancelError } = await userClient.rpc('cancel_interview', { p_application_id: applicationId });
-    if (cancelError) return json({ error: cancelError.message }, 400);
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
+    const { data: schedule, error: cancelError } = await userClient.rpc('cancel_interview', { p_application_id: applicationId });
+    if (cancelError) {
+      const { data: existingSchedule } = await adminClient
+        .from('interview_schedules')
+        .select('*')
+        .eq('application_id', applicationId)
+        .eq('status', 'cancelled')
+        .maybeSingle();
+      if (!existingSchedule) return json({ error: cancelError.message }, 400);
+      const { error: repairError } = await adminClient
+        .from('job_applications')
+        .update({ status: 'shortlisted', updated_at: new Date().toISOString() })
+        .eq('id', applicationId);
+      if (repairError) throw repairError;
+      return json({ schedule: existingSchedule, repaired: true });
+    }
+    // Keep older/partially-applied database functions from leaving the
+    // application stuck in Interview after the schedule is cancelled.
+    const { error: applicationStatusError } = await adminClient
+      .from('job_applications')
+      .update({ status: 'shortlisted', updated_at: new Date().toISOString() })
+      .eq('id', applicationId);
+    if (applicationStatusError) throw applicationStatusError;
     const { data: application } = await adminClient.from('job_applications').select('candidate_profile_id, job_id').eq('id', applicationId).single();
     if (!application?.candidate_profile_id) return json({ schedule });
     const { data: job } = await adminClient.from('jobs').select('title, company_id').eq('id', application.job_id).single();
@@ -53,7 +74,9 @@ Deno.serve(async (request) => {
         from,
         to: recipient.email,
         subject: `Interview cancelled — ${job.title}`,
-        html: buildInterviewCancelledEmail({ firstName: recipient.name?.trim()?.split(/\s+/)[0] || 'there', roleTitle: job.title, companyName: company.name, ctaUrl: recipient.profileId === application.candidate_profile_id ? 'https://rolewave.cv/candidate/activity' : 'https://rolewave.cv/employer/dashboard' }),
+        html: recipient.profileId === company.owner_profile_id
+          ? buildEmployerInterviewCancelledEmail({ firstName: recipient.name?.trim()?.split(/\s+/)[0] || 'there', candidateName: candidateProfile?.full_name || 'The candidate', roleTitle: job.title, companyName: company.name, ctaUrl: 'https://rolewave.cv/employer/dashboard' })
+          : buildInterviewCancelledEmail({ firstName: recipient.name?.trim()?.split(/\s+/)[0] || 'there', roleTitle: job.title, companyName: company.name, ctaUrl: 'https://rolewave.cv/candidate/activity' }),
       });
       await adminClient.from('interview_email_sends').upsert({ schedule_id: schedule.id, recipient_profile_id: recipient.profileId, email_type: 'cancellation' }, { onConflict: 'schedule_id,recipient_profile_id,email_type', ignoreDuplicates: true });
     }

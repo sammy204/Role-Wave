@@ -31,7 +31,7 @@ export default function Contact() {
     });
 
     if (functionError) {
-      setError(functionError.message || 'We could not send your message. Please try again.');
+      setError('We couldn’t send your message. Please try again.');
       setSubmitting(false);
       return;
     }

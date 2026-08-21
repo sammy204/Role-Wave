@@ -7,6 +7,7 @@ import {
   getCurrentPushSubscription,
   pushNotificationsConfigured,
 } from '../lib/pushNotifications';
+import { getUserFacingError } from '../lib/userFacingError';
 
 export default function PushNotificationPrompt() {
   const isPwa = useIsPwa();
@@ -53,7 +54,7 @@ export default function PushNotificationPrompt() {
       await enablePushNotifications();
       setVisible(false);
     } catch (enableError) {
-      setError(enableError instanceof Error ? enableError.message : 'Could not enable notifications.');
+      setError(getUserFacingError(enableError, 'We couldn’t enable notifications. Please try again.'));
     } finally {
       setWorking(false);
     }

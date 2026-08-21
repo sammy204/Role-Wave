@@ -5,6 +5,7 @@ import { withTimeout } from '../lib/withTimeout';
 import type { Profile } from '../types';
 import { useAuth } from '../lib/useAuth';
 import LoadingSpinner from './LoadingSpinner';
+import { getUserFacingError } from '../lib/userFacingError';
 
 const AUTH_CHECK_TIMEOUT_MS = 7000;
 
@@ -51,7 +52,7 @@ export default function AdminGuard() {
 
         if (profileError) {
           if (alive) {
-            setDebugError(profileError.message);
+            setDebugError(getUserFacingError(profileError, 'We couldn’t verify admin access. Please try again.'));
             setProfile(null);
             setIsAdmin(false);
             setDebugStep('Profile query failed.');

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/useAuth';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { getUserFacingError } from '../lib/userFacingError';
 import { resetTutorial } from '../lib/tutorial';
 import { openCookieSettings } from '../components/CookieConsent';
 
@@ -52,8 +53,8 @@ export default function EmployerSettings() {
         marketing: result.data?.email_marketing_communications === true,
         paused: result.data?.email_pause_optional === true,
       });
-      if (result.error) setError(result.error.message);
-    }).catch((loadError) => { if (alive) setError(loadError instanceof Error ? loadError.message : 'Could not load settings.'); }).finally(() => { if (alive) setLoading(false); });
+      if (result.error) setError(getUserFacingError(result.error, 'We couldn’t load your settings. Please try again.'));
+    }).catch((loadError) => { if (alive) setError(getUserFacingError(loadError, 'We couldn’t load your settings. Please try again.')); }).finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, [authLoading, navigate, session]);
 
@@ -63,7 +64,7 @@ export default function EmployerSettings() {
     setEmails((current) => ({ ...current, [stateKey]: value, ...(emails.paused && value ? { paused: false } : {}) }));
     setSaving(key); setError(''); setMessage('');
     const { error: saveError } = await supabase.from('profiles').update({ [key]: value, ...(emails.paused && value ? { email_pause_optional: false } : {}) }).eq('id', session.user.id);
-    if (saveError) { setError(saveError.message); setEmails((current) => ({ ...current, [stateKey]: !value })); } else setMessage('Email preference saved.');
+    if (saveError) { setError(getUserFacingError(saveError, 'We couldn’t save your email preferences. Please try again.')); setEmails((current) => ({ ...current, [stateKey]: !value })); } else setMessage('Email preference saved.');
     setSaving(null);
   };
 
@@ -72,7 +73,7 @@ export default function EmployerSettings() {
     setSaving('pause'); setError(''); setMessage('');
     const update = paused ? { email_pause_optional: true, email_application_updates: false, email_new_messages: false, email_marketing_communications: false } : { email_pause_optional: false };
     const { error: saveError } = await supabase.from('profiles').update(update).eq('id', session.user.id);
-    if (saveError) setError(saveError.message);
+    if (saveError) setError(getUserFacingError(saveError, 'We couldn’t save your settings. Please try again.'));
     else { setEmails((current) => ({ ...current, paused, ...(paused ? { application: false, messages: false, marketing: false } : {}) })); setMessage(paused ? 'Optional emails paused.' : 'Optional emails restored.'); }
     setSaving(null);
   };
@@ -80,7 +81,7 @@ export default function EmployerSettings() {
   const resetPassword = async () => {
     if (!session?.user.email) return;
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(session.user.email, { redirectTo: `${window.location.origin}/start?mode=login` });
-    if (resetError) setError(resetError.message); else setMessage('Password reset instructions sent.');
+    if (resetError) setError(getUserFacingError(resetError, 'We couldn’t send the reset email. Please try again.')); else setMessage('Password reset instructions sent.');
   };
 
   const deleteAccount = async () => {
@@ -94,7 +95,7 @@ export default function EmployerSettings() {
       if (scheduledFor) sessionStorage.setItem('rolewave-account-deletion-scheduled', scheduledFor);
       await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
       navigate(scheduledFor ? `/account-deletion-scheduled?date=${encodeURIComponent(scheduledFor)}` : '/', { replace: true });
-    } catch (deleteErrorValue) { setDeleteError(deleteErrorValue instanceof Error ? deleteErrorValue.message : 'Could not delete account.'); setDeleting(false); }
+    } catch (deleteErrorValue) { setDeleteError(getUserFacingError(deleteErrorValue, 'We couldn’t delete your account. Please try again.')); setDeleting(false); }
   };
 
   if (authLoading || loading) return <div className="page-shell items-center justify-center px-4"><LoadingSpinner className="text-[#1D9E75]" /></div>;

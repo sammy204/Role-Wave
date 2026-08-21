@@ -19,6 +19,7 @@ import { formatStatus, statusTone } from '../lib/applicationPipeline';
 import { formatDate } from '../lib/dateFormat';
 import type { CandidateProfile, InterviewSchedule, InterviewSlot, Job, JobApplication, Offer } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { getUserFacingError } from '../lib/userFacingError';
 
 function formatRelative(date: string) {
   const now = new Date();
@@ -141,7 +142,7 @@ export default function CandidateActivity() {
         setOffersByApplication(offerMap);
       } catch (loadError) {
         if (alive) {
-          setError(loadError instanceof Error ? loadError.message : 'Could not load your activity.');
+          setError(getUserFacingError(loadError, 'We couldn’t load your activity. Please try again.'));
         }
       } finally {
         if (alive) setLoading(false);
@@ -177,7 +178,7 @@ if (error) throw error;
         prev.map((item) => (item.id === applicationId ? { ...item, status: 'withdrawn' } : item))
       );
     } catch (withdrawError) {
-      setError(withdrawError instanceof Error ? withdrawError.message : 'Could not withdraw application.');
+      setError(getUserFacingError(withdrawError, 'We couldn’t withdraw this application. Please try again.'));
     } finally {
       setWithdrawingId(null);
       setConfirmWithdrawId(null);
@@ -197,7 +198,7 @@ if (error) throw error;
 
       setApplications((prev) => prev.filter((item) => item.id !== applicationId));
     } catch (dismissError) {
-      setError(dismissError instanceof Error ? dismissError.message : 'Could not remove application.');
+      setError(getUserFacingError(dismissError, 'We couldn’t remove this application. Please try again.'));
     } finally {
       setDismissingId(null);
     }
@@ -227,7 +228,7 @@ if (error) throw error;
       const schedule = data?.schedule as InterviewSchedule | undefined;
       if (schedule) setSchedulesByApplication((current) => new Map(current).set(schedule.application_id, schedule));
     } catch (selectError) {
-      setError(selectError instanceof Error ? selectError.message : 'Could not confirm this interview day and time.');
+      setError(getUserFacingError(selectError, 'We couldn’t confirm this interview day and time. Please try again.'));
     } finally {
       setSelectingSlotId(null);
     }
@@ -257,7 +258,7 @@ if (error) throw error;
       setResponseAction(null);
       setResponseMessage('');
     } catch (respondError) {
-      setError(respondError instanceof Error ? respondError.message : 'Could not send your response.');
+      setError(getUserFacingError(respondError, 'We couldn’t send your response. Please try again.'));
     } finally {
       setRespondingBusy(false);
     }

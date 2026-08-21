@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CalendarDays, Link2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { getUserFacingError } from '../lib/userFacingError';
 import type { JobApplication } from '../types';
 
 interface InterviewProposalModalProps {
@@ -45,15 +46,7 @@ export default function InterviewProposalModal({ application, onClose, onCreated
       },
     });
     if (invokeError) {
-      let message = invokeError.message || 'Could not propose interview days and times.';
-      const response = (invokeError as { context?: unknown }).context;
-      if (response instanceof Response) {
-        const responseBody = await response.json().catch(() => null) as { error?: unknown } | null;
-        if (typeof responseBody?.error === 'string' && responseBody.error.trim()) {
-          message = responseBody.error;
-        }
-      }
-      setError(message);
+      setError(getUserFacingError(invokeError, 'We couldn’t create the interview schedule. Please try again.'));
     } else onCreated();
     setSaving(false);
   };

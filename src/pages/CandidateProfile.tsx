@@ -26,6 +26,7 @@ import { fetchProfile } from '../lib/admin';
 import type { CandidateProfile, Profile } from '../types';
 import { calculateProfileCompletion, getProfileCompletionSuggestions } from '../lib/profileCompletion';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { getUserFacingError } from '../lib/userFacingError';
 import AvatarCropModal from '../components/AvatarCropModal';
 import { candidateResumeViewerHref, getCandidateAssetUrl, uploadCandidateAsset } from '../lib/candidateAssets';
 
@@ -248,7 +249,7 @@ export default function CandidateDashboard() {
         }
       } catch (loadError) {
         if (alive) {
-          setError(loadError instanceof Error ? loadError.message : 'Could not load your account.');
+          setError(getUserFacingError(loadError, 'We couldn’t load your account. Please try again.'));
         }
       } finally {
         if (alive) setLoading(false);
@@ -458,7 +459,7 @@ export default function CandidateDashboard() {
       setProjectsDraft([emptyProjectDraft()]);
       setEducationDraft(emptyEducationDraft());
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Could not save changes.');
+      setError(getUserFacingError(saveError, 'We couldn’t save your changes. Please try again.'));
     } finally {
       setSavingSection(false);
     }
@@ -498,7 +499,7 @@ export default function CandidateDashboard() {
 
       setCropSourceFile(file);
     } catch (validationError) {
-      setError(validationError instanceof Error ? validationError.message : 'Could not read that image.');
+      setError(getUserFacingError(validationError, 'We couldn’t read that image. Please try again.'));
     } finally {
       if (avatarInputRef.current) avatarInputRef.current.value = '';
     }
@@ -523,7 +524,7 @@ export default function CandidateDashboard() {
       setCandidateProfile((prev) => (prev ? { ...prev, avatar_url: assetPath } : prev));
       setAvatarSignedUrl(signedUrl);
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : 'Could not upload profile picture.');
+      setError(getUserFacingError(uploadError, 'We couldn’t upload your profile picture. Please try again.'));
     } finally {
       setUploadingAvatar(false);
     }
@@ -548,7 +549,7 @@ export default function CandidateDashboard() {
       setCandidateProfile((prev) => (prev ? { ...prev, avatar_url: null } : prev));
       setAvatarSignedUrl(null);
     } catch (removeError) {
-      setError(removeError instanceof Error ? removeError.message : 'Could not remove profile picture.');
+      setError(getUserFacingError(removeError, 'We couldn’t remove your profile picture. Please try again.'));
     } finally {
       setUploadingAvatar(false);
     }
@@ -579,7 +580,7 @@ export default function CandidateDashboard() {
 
       setCandidateProfile((prev) => (prev ? { ...prev, resume_url: assetPath, resume_name: file.name } : prev));
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : 'Could not upload CV.');
+      setError(getUserFacingError(uploadError, 'We couldn’t upload your CV. Please try again.'));
     } finally {
       setUploadingResume(false);
       if (resumeInputRef.current) resumeInputRef.current.value = '';

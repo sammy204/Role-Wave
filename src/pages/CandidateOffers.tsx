@@ -6,6 +6,7 @@ import { fetchProfile } from '../lib/admin';
 import { formatDate } from '../lib/dateFormat';
 import type { Job, Offer, OfferDocument } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { getUserFacingError } from '../lib/userFacingError';
 
 function formatMoney(amount: number | null, currency: string, period: string) {
   if (amount == null) return 'Not specified';
@@ -88,7 +89,7 @@ export default function CandidateOffers() {
     let alive = true;
     void loadOffers()
       .catch((loadError) => {
-        if (alive) setError(loadError instanceof Error ? loadError.message : 'Could not load your offers.');
+        if (alive) setError(getUserFacingError(loadError, 'We couldn’t load your offers. Please try again.'));
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -132,7 +133,7 @@ export default function CandidateOffers() {
       setResponseAction(null);
       setResponseMessage('');
     } catch (responseError) {
-      setError(responseError instanceof Error ? responseError.message : 'Could not send your response.');
+      setError(getUserFacingError(responseError, 'We couldn’t send your response. Please try again.'));
     } finally {
       setRespondingBusy(false);
     }
@@ -162,7 +163,7 @@ export default function CandidateOffers() {
     setError('');
     const { data, error: signedUrlError } = await supabase.storage.from('offer-documents').createSignedUrl(document.storage_path, 60 * 10);
     if (signedUrlError || !data?.signedUrl) {
-      setError(signedUrlError?.message || 'Could not open this document.');
+      setError(getUserFacingError(signedUrlError, 'We couldn’t open this document. Please try again.'));
       return;
     }
     window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
@@ -208,7 +209,7 @@ export default function CandidateOffers() {
       setSignedMessage('');
       return true;
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : 'Could not send the signed document.');
+      setError(getUserFacingError(uploadError, 'We couldn’t send the signed document. Please try again.'));
       return false;
     } finally {
       setUploadingSignedOfferId(null);
