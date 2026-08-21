@@ -10,6 +10,7 @@ import CompanyLogo from '../components/CompanyLogo';
 import { getUserFacingError } from '../lib/userFacingError';
 
 const colorOptions: Company['avatar_color'][] = ['teal', 'blue', 'amber', 'purple', 'coral'];
+const companySizeOptions = ['1-10', '11-50', '51-200', '201-500', '501-1,000', '1,001-5,000', '5,001-10,000', '10,000+'];
 
 const emptyForm = {
   companyName: '',
@@ -18,7 +19,6 @@ const emptyForm = {
   companySize: '',
   roleTitle: '',
   phone: '',
-  officeLocation: '',
   description: '',
 };
 
@@ -88,31 +88,30 @@ export default function EmployerOnboarding() {
             company_size: string | null;
             role_title: string | null;
             phone: string | null;
-            office_location: string | null;
           };
 
           setCompanyId(existing.company_id);
           setForm({
             companyName: existing.company_name || '',
             companyWebsite: existing.company_website || '',
-            companyLocation: existing.office_location || '',
+            companyLocation: '',
             companySize: existing.company_size || '',
             roleTitle: existing.role_title || '',
             phone: existing.phone || '',
-            officeLocation: existing.office_location || '',
             description: '',
           });
 
           if (existing.company_id) {
             const { data: companyRow } = await supabase
               .from('companies')
-              .select('logo_url, description')
+              .select('logo_url, description, location')
               .eq('id', existing.company_id)
               .maybeSingle();
             if (alive && companyRow) {
               setLogoUrl((companyRow as { logo_url: string | null }).logo_url);
               const desc = (companyRow as { description: string | null }).description;
-              if (desc) setForm((prev) => ({ ...prev, description: desc }));
+              const location = (companyRow as { location: string | null }).location;
+              setForm((prev) => ({ ...prev, companyLocation: location || '', description: desc || '' }));
             }
           }
         }
@@ -228,7 +227,6 @@ export default function EmployerOnboarding() {
         company_size: form.companySize || null,
         role_title: form.roleTitle || null,
         phone: form.phone || null,
-        office_location: form.officeLocation || null,
       });
       if (employerError) throw employerError;
 
@@ -257,21 +255,26 @@ export default function EmployerOnboarding() {
   }
 
   const previewInitials = initials(form.companyName) || 'CO';
+  const isEditing = Boolean(companyId);
 
   return (
     <div className="page-shell px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto grid w-full max-w-[1180px] gap-4 lg:grid-cols-[1fr_320px]">
         <div className="panel motion-safe:animate-fade-up rounded-[32px] p-5 sm:p-8">
           <Link
-            to="/start?role=employer"
+            to={isEditing ? '/employer/dashboard' : '/start?role=employer'}
             className="ghost-chip !rounded-full mb-5 !px-3 !py-2 !text-[13px]"
           >
             <ArrowLeft size={14} /> Back
           </Link>
 
-          <div className="mb-2 font-display text-2xl font-bold text-ink">Set up your company</div>
+          <div className="mb-2 font-display text-2xl font-bold text-ink">
+            {isEditing ? 'Edit your employer profile' : 'Create your employer profile'}
+          </div>
           <p className="mb-6 max-w-2xl text-sm leading-relaxed text-muted">
-            This creates your employer presence on RoleWave so you can post jobs and review applicants.
+            {isEditing
+              ? 'Update the company details candidates see on your job listings.'
+              : 'Add the details candidates will see when they view your jobs.'}
           </p>
 
           {error && (
@@ -283,7 +286,7 @@ export default function EmployerOnboarding() {
           <div className="space-y-6">
             <section>
               <div className="mb-3 text-[11px] font-bold uppercase tracking-[1.6px] text-faint">
-                Company identity
+                Public company profile
               </div>
 
               <div className="mb-5 flex items-center gap-4">
@@ -320,7 +323,7 @@ export default function EmployerOnboarding() {
                       </button>
                     )}
                   </div>
-                  <p className="mt-1.5 text-xs text-muted">PNG or JPG. Square logos look best.</p>
+                  <p className="mt-1.5 text-xs text-muted">Upload a square PNG or JPG logo. It will appear on your job listings.</p>
                   {logoError && <p className="mt-1.5 text-xs text-[#B3261E]">{logoError}</p>}
                 </div>
               </div>
@@ -347,27 +350,32 @@ export default function EmployerOnboarding() {
                   <input className="admin-input" value={form.companyLocation} onChange={(e) => updateField('companyLocation', e.target.value)} placeholder="Lagos, Nigeria" />
                 </Field>
                 <Field label="Company size">
-                  <input className="admin-input" value={form.companySize} onChange={(e) => updateField('companySize', e.target.value)} placeholder="11-50" />
+                  <select className="admin-input" value={form.companySize} onChange={(e) => updateField('companySize', e.target.value)}>
+                    <option value="">Select company size</option>
+                    {form.companySize && !companySizeOptions.includes(form.companySize) && (
+                      <option value={form.companySize}>{form.companySize}</option>
+                    )}
+                    {companySizeOptions.map((size) => (
+                      <option key={size} value={size}>{size} employees</option>
+                    ))}
+                  </select>
                 </Field>
               </div>
             </section>
 
             <section className="border-t border-line pt-6">
               <div className="mb-3 text-[11px] font-bold uppercase tracking-[1.6px] text-faint">
-                Account manager details
+                Your account details
               </div>
               <p className="mb-4 max-w-xl text-sm leading-relaxed text-muted">
-                These details belong to the person managing this employer account. They are kept separate from your public company profile.
+                These details are for managing your employer account and are not shown as your public company profile.
               </p>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Your role">
+                <Field label="Your job title or role">
                   <input className="admin-input" value={form.roleTitle} onChange={(e) => updateField('roleTitle', e.target.value)} placeholder="Founder / HR lead" />
                 </Field>
                 <Field label="Phone">
                   <input className="admin-input" value={form.phone} onChange={(e) => updateField('phone', e.target.value)} placeholder="+234..." />
-                </Field>
-                <Field label="Office location">
-                  <input className="admin-input" value={form.officeLocation} onChange={(e) => updateField('officeLocation', e.target.value)} placeholder="Victoria Island" />
                 </Field>
               </div>
             </section>
@@ -377,7 +385,7 @@ export default function EmployerOnboarding() {
                 About the company
               </div>
               <Field label="Company description">
-                <textarea className="admin-input min-h-[120px] resize-y" value={form.description} onChange={(e) => updateField('description', e.target.value)} placeholder="Tell candidates what your company does." />
+                <textarea className="admin-input min-h-[120px] resize-y" value={form.description} onChange={(e) => updateField('description', e.target.value)} placeholder="Describe your company, culture, and what you do." />
               </Field>
             </section>
           </div>
@@ -389,7 +397,7 @@ export default function EmployerOnboarding() {
             className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-[1px] hover:bg-accent-deep disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Save size={16} />
-            {saving ? 'Saving...' : 'Save company profile'}
+            {saving ? 'Saving...' : isEditing ? 'Save profile changes' : 'Create employer profile'}
           </button>
         </div>
 

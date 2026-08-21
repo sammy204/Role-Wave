@@ -148,12 +148,7 @@ export default function CandidateOffers() {
       if (removeError) throw removeError;
       setOffers((previous) => previous.filter((item) => item.id !== offer.id));
     } catch (removeError) {
-      const errorMessage = removeError && typeof removeError === 'object' && 'message' in removeError
-        ? String(removeError.message)
-        : removeError instanceof Error
-          ? removeError.message
-          : 'Could not remove this offer.';
-      setError(errorMessage);
+      setError(getUserFacingError(removeError, 'We couldn’t remove this offer. Please try again.'));
     } finally {
       setRemovingOfferId(null);
     }

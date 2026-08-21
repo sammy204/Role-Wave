@@ -14,6 +14,7 @@ import type { Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { TurnstileWidget } from '../components/TurnstileWidget';
 import { validatePassword } from '../lib/passwordPolicy';
+import { passkeysSupported, signInWithPasskey } from '../lib/passkeys';
 import { SignIn, ForgotPasswordForm } from './SignIn';
 import { SignUp } from './Signup';
 
@@ -254,6 +255,25 @@ export default function AuthLayout() {
     }
   };
 
+  const handlePasskeySignIn = async () => {
+    setLoading(true);
+    setError('');
+    setInfo('');
+    try {
+      const { error: passkeyError } = await signInWithPasskey();
+      if (passkeyError) throw passkeyError;
+      const { data } = await withTimeout(supabase.auth.getSession(), 6000, 'Session lookup');
+      if (!data.session) throw new Error('Sign-in could not be completed.');
+      const nextProfile = await fetchProfile(data.session.user.id);
+      const nextRole = nextProfile?.account_type === 'employer' ? 'employer' : 'candidate';
+      navigate(getPostAuthDestination(nextProfile, nextRole, nextPath), { replace: true });
+    } catch (passkeyError) {
+      setError(getUserFacingError(passkeyError, 'We couldn’t sign you in with your passkey. Please try again.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const perforationHorizontal: React.CSSProperties = {
     backgroundImage: 'radial-gradient(circle, #D3D1C7 1.6px, transparent 1.8px)',
     backgroundSize: '14px 100%',
@@ -359,6 +379,8 @@ export default function AuthLayout() {
         onSubmit={handleAuth}
         onForgotPassword={handleForgotPassword}
         onGoogle={handleGoogle}
+        onPasskey={handlePasskeySignIn}
+        passkeyAvailable={isPwa && passkeysSupported()}
         onBack={() => navigate('/welcome')}
         turnstileRef={turnstileRef}
         onCaptchaVerify={setCaptchaToken}
@@ -511,6 +533,8 @@ type PwaAuthCardProps = {
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   onForgotPassword: (event: React.FormEvent<HTMLFormElement>) => void;
   onGoogle: () => void;
+  onPasskey: () => void;
+  passkeyAvailable: boolean;
   onBack: () => void;
   turnstileRef: React.RefObject<TurnstileInstance>;
   onCaptchaVerify: (token: string) => void;
@@ -535,6 +559,8 @@ function PwaAuthCard({
   onSubmit,
   onForgotPassword,
   onGoogle,
+  onPasskey,
+  passkeyAvailable,
   onBack,
   turnstileRef,
   onCaptchaVerify,
@@ -719,6 +745,12 @@ function PwaAuthCard({
                 <button type="submit" disabled={loading || (isSignup && !acceptedTerms)} className="pwa-primary-button mt-5">
                   {loading ? 'Please wait…' : isSignup ? 'Create account' : 'Sign in'} <ArrowRight size={17} />
                 </button>
+
+                {!isSignup && passkeyAvailable && (
+                  <button type="button" onClick={onPasskey} disabled={loading} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[#1D9E75] bg-white px-4 py-3.5 text-sm font-bold text-[#0F6E56] disabled:opacity-50">
+                    Use fingerprint or face unlock
+                  </button>
+                )}
 
                 <div className="my-5 flex items-center gap-3">
                   <div className="h-px flex-1 bg-[#D3D1C7]" />

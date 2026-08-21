@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import type { Conversation, Message } from '../types';
+import type { Conversation, Message, MessageAttachment } from '../types';
 import { sendMessagePush } from './push';
 
 /**
@@ -87,6 +87,33 @@ export interface MessagesPage {
   hasMore: boolean;
 }
 
+export const MAX_MESSAGE_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+
+async function addAttachmentsToMessages(messages: Message[]): Promise<Message[]> {
+  if (messages.length === 0) return messages;
+  const { data, error } = await supabase
+    .from('message_attachments')
+    .select('*')
+    .in('message_id', messages.map((message) => message.id))
+    .order('created_at');
+  if (error) throw error;
+  const attachmentsByMessage = new Map<string, MessageAttachment[]>();
+  for (const attachment of (data || []) as MessageAttachment[]) {
+    attachmentsByMessage.set(attachment.message_id, [...(attachmentsByMessage.get(attachment.message_id) || []), attachment]);
+  }
+  return messages.map((message) => ({ ...message, attachments: attachmentsByMessage.get(message.id) || [] }));
+}
+
+export async function fetchMessageAttachments(messageId: string): Promise<MessageAttachment[]> {
+  const { data, error } = await supabase
+    .from('message_attachments')
+    .select('*')
+    .eq('message_id', messageId)
+    .order('created_at');
+  if (error) throw error;
+  return (data || []) as MessageAttachment[];
+}
+
 /**
  * Fetches one page of messages for a conversation, newest-first under the
  * hood but returned in ascending (chat) order. Pass `before` (an ISO
@@ -119,33 +146,83 @@ export async function fetchMessages(
   const hasMore = rows.length > limit;
   const page = hasMore ? rows.slice(0, limit) : rows;
 
-  return { messages: page.reverse(), hasMore };
+  return { messages: await addAttachmentsToMessages(page.reverse()), hasMore };
 }
 
-export async function sendMessage(conversationId: string, senderProfileId: string, body: string): Promise<Message> {
+export async function sendMessage(
+  conversationId: string,
+  senderProfileId: string,
+  body: string,
+  files: File[] = []
+): Promise<Message> {
   const trimmed = body.trim();
-  if (!trimmed) throw new Error('Message cannot be empty.');
+  if (!trimmed && files.length === 0) throw new Error('Message or attachment is required.');
   if (trimmed.length > 5000) throw new Error('Message is too long.');
 
-  const { data, error } = await supabase
-    .from('messages')
-    .insert({ conversation_id: conversationId, sender_profile_id: senderProfileId, body: trimmed })
-    .select('*')
-    .single();
+  for (const file of files) {
+    if (file.size <= 0 || file.size > MAX_MESSAGE_ATTACHMENT_BYTES) {
+      throw new Error(`${file.name} is too large. Attachments must be 10 MB or smaller.`);
+    }
+    if (!file.type) throw new Error(`${file.name} has an unsupported file type.`);
+  }
 
-  if (error) throw error;
-  const message = data as Message;
+  const messageId = crypto.randomUUID();
+  const uploadedPaths: string[] = [];
+  const attachmentRows: Omit<MessageAttachment, 'id' | 'created_at'>[] = [];
+  try {
+    for (const file of files) {
+      const attachmentId = crypto.randomUUID();
+      const extension = file.name.match(/\.[a-z0-9]{1,10}$/i)?.[0].toLowerCase() || '';
+      const storagePath = `${conversationId}/${senderProfileId}/${messageId}/${attachmentId}${extension}`;
+      const { error: uploadError } = await supabase.storage
+        .from('message-attachments')
+        .upload(storagePath, file, { contentType: file.type, upsert: false });
+      if (uploadError) throw uploadError;
+      uploadedPaths.push(storagePath);
+      attachmentRows.push({
+        message_id: messageId,
+        conversation_id: conversationId,
+        storage_path: storagePath,
+        file_name: file.name,
+        mime_type: file.type,
+        size_bytes: file.size,
+      });
+    }
 
-  // Push delivery is best-effort. The message is already saved successfully,
-  // so a missing subscription or temporary push-service failure must not make
-  // the sender think the message was lost.
-  void sendMessagePush({
-    conversationId,
-    messageId: message.id,
-    message: trimmed,
-  }).catch(() => undefined);
+    const { data, error } = await supabase
+      .from('messages')
+      .insert({ id: messageId, conversation_id: conversationId, sender_profile_id: senderProfileId, body: trimmed })
+      .select('*')
+      .single();
 
-  return message;
+    if (error) throw error;
+    let savedAttachments: MessageAttachment[] = [];
+    if (attachmentRows.length) {
+      const { data: insertedAttachments, error: attachmentError } = await supabase
+        .from('message_attachments')
+        .insert(attachmentRows)
+        .select('*');
+      if (attachmentError) throw attachmentError;
+      savedAttachments = (insertedAttachments || []) as MessageAttachment[];
+    }
+    const message = { ...(data as Message), attachments: savedAttachments };
+
+    // Push delivery is best-effort. The message is already saved successfully,
+    // so a missing subscription or temporary push-service failure must not make
+    // the sender think the message was lost.
+    void sendMessagePush({
+      conversationId,
+      messageId: message.id,
+      message: trimmed || 'Sent an attachment',
+    }).catch(() => undefined);
+
+    return message;
+  } catch (error) {
+    if (uploadedPaths.length) {
+      await supabase.storage.from('message-attachments').remove(uploadedPaths).catch(() => undefined);
+    }
+    throw error;
+  }
 }
 
 /**
@@ -170,22 +247,15 @@ export async function editMessage(messageId: string, senderProfileId: string, bo
   return data as Message;
 }
 
-/**
- * Soft-deletes a message (sets deleted_at) rather than removing the row,
- * so the thread keeps its shape and other participants see a "message
- * deleted" placeholder instead of a gap.
- */
-export async function deleteMessage(messageId: string, senderProfileId: string): Promise<Message> {
-  const { data, error } = await supabase
+/** Permanently deletes a message. Its attachments cascade-delete with it. */
+export async function deleteMessage(messageId: string, senderProfileId: string): Promise<void> {
+  const { error } = await supabase
     .from('messages')
-    .update({ deleted_at: new Date().toISOString() })
+    .delete()
     .eq('id', messageId)
-    .eq('sender_profile_id', senderProfileId)
-    .select('*')
-    .single();
+    .eq('sender_profile_id', senderProfileId);
 
   if (error) throw error;
-  return data as Message;
 }
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
@@ -205,11 +275,18 @@ export function subscribeToConversationMessages(
   handlers: {
     onInsert: (message: Message) => void;
     onUpdate: (message: Message) => void;
+    onDelete?: (messageId: string) => void;
     onStatusChange?: (status: ConnectionStatus) => void;
   }
 ): () => void {
+  // A page can have more than one message listener (active conversation,
+  // unread counts, and reconnects). Use a unique topic for each listener so
+  // Supabase cannot attach callbacks to a channel that has already subscribed.
+  const listenerId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
   const channel: RealtimeChannel = supabase
-    .channel(`messages:${conversationId}`)
+    .channel(`messages:${conversationId}:${listenerId}`)
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
@@ -219,6 +296,11 @@ export function subscribeToConversationMessages(
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
       (payload) => handlers.onUpdate(payload.new as Message)
+    )
+    .on(
+      'postgres_changes',
+      { event: 'DELETE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
+      (payload) => handlers.onDelete?.((payload.old as Message).id)
     )
     .subscribe((status) => {
       if (status === 'SUBSCRIBED') {
@@ -240,8 +322,11 @@ export function subscribeToInboxMessages(handlers: {
   onInsert: (message: Message) => void;
   onUpdate: (message: Message) => void;
 }): () => void {
+  const listenerId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
   const channel = supabase
-    .channel('messages:inbox')
+    .channel(`messages:inbox:${listenerId}`)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
       handlers.onInsert(payload.new as Message);
     })

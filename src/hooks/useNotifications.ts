@@ -54,7 +54,10 @@ export function useNotifications() {
   }, []);
 
   useEffect(() => {
-    load().then(() => resubscribe(userIdRef.current));
+    let active = true;
+    load().then(() => {
+      if (active) resubscribe(userIdRef.current);
+    });
 
     const interval = setInterval(load, POLL_INTERVAL_MS);
     const onFocus = () => load();
@@ -72,6 +75,7 @@ export function useNotifications() {
     });
 
     return () => {
+      active = false;
       clearInterval(interval);
       window.removeEventListener('focus', onFocus);
       subscription.unsubscribe();

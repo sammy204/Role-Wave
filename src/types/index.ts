@@ -213,6 +213,18 @@ export interface Message {
   deleted_at: string | null;
   delivered_at: string | null;
   read_at: string | null;
+  attachments?: MessageAttachment[];
+}
+
+export interface MessageAttachment {
+  id: string;
+  message_id: string;
+  conversation_id: string;
+  storage_path: string;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  created_at: string;
 }
 
 export type NotificationType =

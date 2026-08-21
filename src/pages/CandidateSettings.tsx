@@ -8,6 +8,7 @@ import { Capacitor } from '@capacitor/core';
 import { disableNativePushNotifications, enableNativePushNotifications, getNativePushEnabled, nativePushNotificationsAvailable } from '../lib/nativePushNotifications';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { getUserFacingError } from '../lib/userFacingError';
+import PasskeySettings from '../components/PasskeySettings';
 import { resetTutorial } from '../lib/tutorial';
 import { openCookieSettings } from '../components/CookieConsent';
 
@@ -557,6 +558,7 @@ export default function CandidateSettings() {
             <button type="button" onClick={sendPasswordReset} className="rounded-xl border border-[#D3D1C7] bg-white px-4 py-2.5 text-sm font-semibold text-[#1A1A1A]">Send password reset email</button>
             <span className="inline-flex items-center rounded-xl bg-[#E1F5EE] px-3 py-2.5 text-xs font-semibold text-[#085041]">Email sign-in protected</span>
           </div>
+          <PasskeySettings />
         </details>
 
         <details className="order-7 rounded-[28px] border border-[#F0D080] bg-[#FFF8E6] p-5 sm:p-6">

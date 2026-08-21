@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type UIEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, CheckCheck, MessageSquareText, Pencil, Send, Trash2, User, X } from 'lucide-react';
+import { ArrowLeft, Check, CheckCheck, MessageSquareText, Paperclip, Pencil, Send, Trash2, User, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import {
@@ -15,9 +15,12 @@ import {
   subscribeToInboxMessages,
   isConversationUnread,
   MESSAGES_PAGE_SIZE,
+  MAX_MESSAGE_ATTACHMENT_BYTES,
   type ConnectionStatus,
 } from '../lib/messages';
 import type { Conversation, EmployerProfile, Message } from '../types';
+import MessageBody from '../components/MessageBody';
+import MessageAttachments from '../components/MessageAttachments';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { getUserFacingError } from '../lib/userFacingError';
 import { formatDate, formatDateLong, formatTime } from '../lib/dateFormat';
@@ -69,6 +72,7 @@ export default function EmployerMessages() {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
   const wasDisconnectedRef = useRef(false);
   const [draft, setDraft] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState('');
@@ -247,6 +251,9 @@ export default function EmployerMessages() {
       onUpdate: (message) => {
         setMessages((prev) => prev.map((m) => (m.id === message.id ? message : m)));
       },
+      onDelete: (messageId) => {
+        setMessages((prev) => prev.filter((message) => message.id !== messageId));
+      },
       onStatusChange: (status) => {
         setConnectionStatus(status);
 
@@ -329,18 +336,19 @@ export default function EmployerMessages() {
   );
 
   const handleSend = async () => {
-    if (!activeId || !userId || !draft.trim() || sending) return;
+    if (!activeId || !userId || (!draft.trim() && selectedFiles.length === 0) || sending) return;
 
     setSending(true);
     setError('');
     try {
-      const message = await sendMessage(activeId, userId, draft);
+      const message = await sendMessage(activeId, userId, draft, selectedFiles);
       pendingScrollRef.current = { type: 'bottom' };
       setMessages((prev) => [...prev, message]);
       setConversations((prev) =>
         prev.map((c) => (c.id === activeId ? { ...c, last_message_at: message.created_at } : c))
       );
       setDraft('');
+      setSelectedFiles([]);
     } catch (sendError) {
       setError(getUserFacingError(sendError, 'We couldn’t send your message. Please try again.'));
     } finally {
@@ -381,8 +389,8 @@ export default function EmployerMessages() {
     setDeletingId(messageId);
     setError('');
     try {
-      const updated = await deleteMessage(messageId, userId);
-      setMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+      await deleteMessage(messageId, userId);
+      setMessages((prev) => prev.filter((message) => message.id !== messageId));
     } catch (deleteError) {
       setError(getUserFacingError(deleteError, 'We couldn’t delete the message. Please try again.'));
     } finally {
@@ -546,18 +554,7 @@ export default function EmployerMessages() {
                         </div>
                       ) : null;
 
-                      if (isDeleted) {
-                        return (
-                          <div key={message.id}>
-                            {dateDivider}
-                            <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                              <div className="max-w-[75%] rounded-2xl border border-line bg-transparent px-4 py-2.5 text-sm italic text-faint">
-                                Message deleted
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      }
+                      if (isDeleted) return null;
 
                       return (
                         <div key={message.id}>
@@ -635,7 +632,8 @@ export default function EmployerMessages() {
                               </div>
                             ) : (
                               <>
-                                <div className="whitespace-pre-wrap break-words">{message.body}</div>
+                                {message.body && <MessageBody body={message.body} linkClassName={isMine ? 'text-white' : 'text-accent-text'} />}
+                                <MessageAttachments messageId={message.id} attachments={message.attachments} isMine={isMine} />
                                 <div className={`mt-1 flex items-center gap-1 text-[11px] ${isMine ? 'text-white/70' : 'text-faint'}`}>
                                   {formatTime(message.created_at)}
                                   {isMine && (
@@ -654,7 +652,33 @@ export default function EmployerMessages() {
                     })}
                 </div>
 
+                {selectedFiles.length > 0 && (
+                  <div className="flex flex-wrap gap-2 border-t border-line px-4 pt-3">
+                    {selectedFiles.map((file, index) => (
+                      <button key={`${file.name}-${index}`} type="button" onClick={() => setSelectedFiles((files) => files.filter((_, fileIndex) => fileIndex !== index))} className="rounded-full border border-line bg-[#F8F7F4] px-3 py-1 text-xs text-muted hover:text-ink">
+                        {file.name} ×
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div className="flex items-end gap-2 border-t border-line px-4 py-3">
+                  <label className="flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded-full border border-line text-muted transition-colors hover:border-accent hover:text-accent">
+                    <Paperclip size={16} />
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*,audio/*,video/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.zip"
+                      className="hidden"
+                      onChange={(event) => {
+                        const incoming = Array.from(event.target.files || []);
+                        const valid = incoming.filter((file) => file.size <= MAX_MESSAGE_ATTACHMENT_BYTES);
+                        if (valid.length !== incoming.length) setError('Each attachment must be 10 MB or smaller.');
+                        setSelectedFiles((files) => [...files, ...valid].slice(0, 10));
+                        event.target.value = '';
+                      }}
+                      disabled={sending}
+                    />
+                  </label>
                   <textarea
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
@@ -671,7 +695,7 @@ export default function EmployerMessages() {
                   />
                   <button
                     onClick={handleSend}
-                    disabled={!draft.trim() || sending}
+                    disabled={(!draft.trim() && selectedFiles.length === 0) || sending}
                     className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#1D9E75] text-white transition-all duration-200 hover:bg-accent-deep disabled:cursor-not-allowed disabled:opacity-50"
                     aria-label="Send message"
                   >

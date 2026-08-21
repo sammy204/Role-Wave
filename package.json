@@ -18,7 +18,7 @@
     "@capawesome/capacitor-android-edge-to-edge-support": "^8.0.8",
     "@marsidev/react-turnstile": "^1.5.5",
     "@sentry/react": "^10.70.0",
-    "@supabase/supabase-js": "^2.57.4",
+    "@supabase/supabase-js": "^2.112.3",
     "dompurify": "^3.4.13",
     "dotenv": "^17.4.2",
     "isomorphic-dompurify": "^3.3.0",

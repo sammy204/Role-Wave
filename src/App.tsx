@@ -40,6 +40,7 @@ import TermsOfService from './pages/TermsOfService';
 import InstallPrompt from './components/InstallPrompt';
 import PushNotificationPrompt from './components/PushNotificationPrompt';
 import ResumeViewer from './pages/ResumeViewer';
+import MessageAttachmentViewer from './pages/MessageAttachmentViewer';
 import CandidateSettings from './pages/CandidateSettings';
 import AccountDeletionScheduled from './pages/AccountDeletionScheduled';
 import PwaOnboarding from './pages/PwaOnboarding';
@@ -346,6 +347,7 @@ function AppShell() {
       <Route path="/confirmed" element={<Confirmed />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/resume/view" element={<ResumeViewer />} />
+      <Route path="/message-attachment/view" element={<MessageAttachmentViewer />} />
       <Route path="/candidate" element={<CandidateDashboard />} />
       <Route path="/candidate/onboarding" element={<CandidateOnboarding />} />
       <Route path="/candidate/dashboard" element={<CandidateDashboard />} />

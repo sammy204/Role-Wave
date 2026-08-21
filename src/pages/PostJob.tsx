@@ -279,14 +279,7 @@ export default function PostJob() {
         .eq('id', company.id);
       if (companyError) throw companyError;
     } catch (saveError) {
-      console.error('Could not create job:', saveError);
-      const errorMessage =
-        typeof saveError === 'object' && saveError !== null && 'message' in saveError && typeof saveError.message === 'string'
-          ? saveError.message
-          : saveError instanceof Error
-            ? saveError.message
-            : 'Could not create job.';
-      setError(errorMessage);
+      setError(getUserFacingError(saveError, 'We couldn’t create the job. Please try again.'));
     } finally {
       setSaving(false);
     }

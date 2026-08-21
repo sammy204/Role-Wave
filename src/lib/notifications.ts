@@ -55,8 +55,14 @@ export function subscribeToNotifications(
     onStatusChange?: (status: ConnectionStatus) => void;
   }
 ): () => void {
+  // Multiple parts of the app can listen to notifications at the same time
+  // (the notification bell and message toasts). Give each listener its own
+  // topic so a previously subscribed channel can never receive handlers late.
+  const listenerId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
   const channel: RealtimeChannel = supabase
-    .channel(`notifications:${userId}`)
+    .channel(`notifications:${userId}:${listenerId}`)
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
