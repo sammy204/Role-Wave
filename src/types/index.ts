@@ -6,6 +6,7 @@ export interface Company {
   logo_url: string | null;
   avatar_color: 'teal' | 'blue' | 'amber' | 'purple' | 'coral';
   location: string | null;
+  timezone?: string | null;
   website: string | null;
   description: string | null;
   verified: boolean;
@@ -101,6 +102,7 @@ export interface CandidateProfile {
   visibility_to_employers: 'open' | 'not_open' | 'hidden';
   created_at: string;
   updated_at: string;
+  timezone?: string | null;
 }
 
 export interface EmployerProfile {
@@ -131,6 +133,25 @@ export interface JobApplication {
   rejection_reason: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface InterviewSchedule {
+  id: string;
+  application_id: string;
+  meeting_link: string;
+  employer_timezone: string;
+  status: 'proposed' | 'confirmed' | 'cancelled';
+  selected_slot_id: string | null;
+  selected_at: string | null;
+  proposed_at: string;
+}
+
+export interface InterviewSlot {
+  id: string;
+  schedule_id: string;
+  starts_at: string;
+  duration_minutes: number;
+  slot_order: number;
 }
 
 export interface Offer {

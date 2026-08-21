@@ -138,6 +138,10 @@ export default function CandidateDashboard() {
           .maybeSingle();
         if (!alive) return;
         const typedCandidate = (candidateRow || null) as CandidateProfile | null;
+        const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+        if (typedCandidate && typedCandidate.timezone !== browserTimezone) {
+          void supabase.from('candidate_profiles').update({ timezone: browserTimezone }).eq('id', session.user.id);
+        }
         setCandidateProfile(typedCandidate);
 
         const { data: companiesData } = await supabase

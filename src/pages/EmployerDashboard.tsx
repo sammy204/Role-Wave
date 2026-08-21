@@ -4,6 +4,7 @@ import {
   ArrowRight,
   BadgeCheck,
   Briefcase,
+  CalendarDays,
   Building2,
   Clock3,
   Eye,
@@ -33,6 +34,7 @@ import ApplicantModal from '../components/ApplicantModal';
 import MakeOfferModal from '../components/MakeOfferModal';
 import SendOfferDocumentsModal from '../components/SendOfferDocumentsModal';
 import OfferActionModal from '../components/OfferActionModal';
+import InterviewProposalModal from '../components/InterviewProposalModal';
 
 type JobStatus = 'active' | 'filled' | 'closed' | 'archived';
 type ApplicationStatus = JobApplication['status'];
@@ -111,6 +113,7 @@ export default function EmployerDashboard() {
   const [offerApplicationId, setOfferApplicationId] = useState<string | null>(null);
   const [offerActionApplicationId, setOfferActionApplicationId] = useState<string | null>(null);
   const [documentOfferApplicationId, setDocumentOfferApplicationId] = useState<string | null>(null);
+  const [interviewProposalApplicationId, setInterviewProposalApplicationId] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -350,6 +353,22 @@ const updateApplicationStatus = async (
       prev.map((item) => (item.id === applicationId ? { ...item, status: 'offer' } : item))
     );
     setNotice(message);
+  };
+
+  const cancelInterview = async (applicationId: string) => {
+    setSaving(true);
+    setError('');
+    try {
+      const { error: cancelError } = await supabase.functions.invoke('cancel-interview', {
+        body: { application_id: applicationId },
+      });
+      if (cancelError) throw cancelError;
+      setNotice('Interview cancelled. You can now propose new days and times.');
+    } catch (cancelError) {
+      setError(cancelError instanceof Error ? cancelError.message : 'Could not cancel the interview.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const rejectApplication = async (applicationId: string) => {
@@ -861,10 +880,35 @@ const updateApplicationStatus = async (
                             </button>
                           )}
 
+                          {application.status === 'interview' && (
+                            <>
+                              <button
+                                onClick={() => setInterviewProposalApplicationId(application.id)}
+                                className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#C9AEEA] bg-[#F1E9FB] px-4 py-2 text-sm font-semibold text-[#4B2E83] transition-colors duration-200 hover:border-[#4B2E83]"
+                              >
+                                <CalendarDays size={14} /> Propose days and times
+                              </button>
+                              <button
+                                onClick={() => cancelInterview(application.id)}
+                                disabled={saving}
+                                className="inline-flex items-center justify-center gap-2 rounded-lg border border-pill-red-border bg-white px-4 py-2 text-sm font-semibold text-pill-red-text transition-colors hover:bg-pill-red-bg disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                Cancel interview
+                              </button>
+                            </>
+                          )}
+
                           {application.status !== 'rejected' && application.status !== 'withdrawn' && application.status !== 'offer' && (
                             <select
                               value={application.status === 'reviewed' ? 'submitted' : application.status}
-                              onChange={(e) => updateApplicationStatus(application.id, e.target.value as ApplicationStatus)}
+                              onChange={(e) => {
+                                const nextStatus = e.target.value as ApplicationStatus;
+                                if (nextStatus === 'interview') {
+                                  setInterviewProposalApplicationId(application.id);
+                                  return;
+                                }
+                                updateApplicationStatus(application.id, nextStatus);
+                              }}
                               disabled={saving}
                               className="rounded-lg border border-line bg-white px-4 py-2 text-sm font-semibold text-ink outline-none transition-colors duration-200 focus:border-accent disabled:cursor-not-allowed disabled:opacity-60"
                             >
@@ -1015,6 +1059,21 @@ const updateApplicationStatus = async (
             onClose={() => setDocumentOfferApplicationId(null)}
             onOfferSent={(applicationId) => {
               handleOfferSent(applicationId, 'Offer documents sent. The candidate has been notified by email.');
+            }}
+          />
+        );
+      })()}
+      {interviewProposalApplicationId && (() => {
+        const interviewApplication = applications.find((item) => item.id === interviewProposalApplicationId);
+        if (!interviewApplication) return null;
+        return (
+          <InterviewProposalModal
+            application={interviewApplication}
+            onClose={() => setInterviewProposalApplicationId(null)}
+            onCreated={() => {
+              setApplications((prev) => prev.map((item) => item.id === interviewApplication.id ? { ...item, status: 'interview' } : item));
+              setInterviewProposalApplicationId(null);
+              setNotice('Interview days and times sent to the candidate.');
             }}
           />
         );

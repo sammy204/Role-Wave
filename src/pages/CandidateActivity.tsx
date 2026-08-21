@@ -10,13 +10,14 @@ import {
   Ban,
   MapPin,
   Clock3,
+  Link2,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import { getSavedJobIds } from '../lib/savedJobs';
 import { formatStatus, statusTone } from '../lib/applicationPipeline';
 import { formatDate } from '../lib/dateFormat';
-import type { CandidateProfile, Job, JobApplication, Offer } from '../types';
+import type { CandidateProfile, InterviewSchedule, InterviewSlot, Job, JobApplication, Offer } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 function formatRelative(date: string) {
@@ -52,6 +53,9 @@ export default function CandidateActivity() {
   const [responseAction, setResponseAction] = useState<'accepted' | 'declined' | null>(null);
   const [responseMessage, setResponseMessage] = useState('');
   const [respondingBusy, setRespondingBusy] = useState(false);
+  const [schedulesByApplication, setSchedulesByApplication] = useState<Map<string, InterviewSchedule>>(new Map());
+  const [slotsBySchedule, setSlotsBySchedule] = useState<Map<string, InterviewSlot[]>>(new Map());
+  const [selectingSlotId, setSelectingSlotId] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -96,6 +100,19 @@ export default function CandidateActivity() {
         if (!alive) return;
 
         const typedJobs = (jobRows || []) as Job[];
+        const typedApplications = (applicationRows || []) as JobApplication[];
+        const { data: scheduleRows } = typedApplications.length
+          ? await supabase.from('interview_schedules').select('*').in('application_id', typedApplications.map((application) => application.id))
+          : { data: [] as InterviewSchedule[] };
+        const typedSchedules = (scheduleRows || []) as InterviewSchedule[];
+        const { data: slotRows } = typedSchedules.length
+          ? await supabase.from('interview_slots').select('*').in('schedule_id', typedSchedules.map((schedule) => schedule.id)).order('slot_order')
+          : { data: [] as InterviewSlot[] };
+        const scheduleMap = new Map(typedSchedules.map((schedule) => [schedule.application_id, schedule]));
+        const slotMap = new Map<string, InterviewSlot[]>();
+        for (const slot of (slotRows || []) as InterviewSlot[]) {
+          slotMap.set(slot.schedule_id, [...(slotMap.get(slot.schedule_id) || []), slot]);
+        }
         const mappedJobs = new Map(typedJobs.map((job) => [job.id, job]));
         const savedIds = getSavedJobIds(session.user.id);
         const savedJobRows = savedIds
@@ -111,8 +128,15 @@ export default function CandidateActivity() {
         }
 
         setJobMap(mappedJobs);
-        setCandidateProfile((candidateRow || null) as CandidateProfile | null);
-        setApplications((applicationRows || []) as JobApplication[]);
+        const typedCandidate = (candidateRow || null) as CandidateProfile | null;
+        const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+        if (typedCandidate && typedCandidate.timezone !== browserTimezone) {
+          void supabase.from('candidate_profiles').update({ timezone: browserTimezone }).eq('id', session.user.id);
+        }
+        setCandidateProfile(typedCandidate);
+        setApplications(typedApplications);
+        setSchedulesByApplication(scheduleMap);
+        setSlotsBySchedule(slotMap);
         setSavedJobs(savedJobRows);
         setOffersByApplication(offerMap);
       } catch (loadError) {
@@ -190,6 +214,23 @@ if (error) throw error;
     setRespondingOfferId(null);
     setResponseAction(null);
     setResponseMessage('');
+  };
+
+  const selectInterviewSlot = async (slotId: string) => {
+    setSelectingSlotId(slotId);
+    setError('');
+    try {
+      const { data, error: selectError } = await supabase.functions.invoke('select-interview-slot', {
+        body: { slot_id: slotId, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' },
+      });
+      if (selectError) throw selectError;
+      const schedule = data?.schedule as InterviewSchedule | undefined;
+      if (schedule) setSchedulesByApplication((current) => new Map(current).set(schedule.application_id, schedule));
+    } catch (selectError) {
+      setError(selectError instanceof Error ? selectError.message : 'Could not confirm this interview day and time.');
+    } finally {
+      setSelectingSlotId(null);
+    }
   };
 
   const submitResponse = async (offer: Offer) => {
@@ -299,6 +340,9 @@ if (error) throw error;
             {appliedJobs.map(({ application, job }) => {
                 const isWithdrawn = application.status === 'withdrawn';
                 const offer = application.status === 'offer' ? offersByApplication.get(application.id) : undefined;
+                const interviewSchedule = schedulesByApplication.get(application.id);
+                const interviewSlots = interviewSchedule ? slotsBySchedule.get(interviewSchedule.id) || [] : [];
+                const candidateTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
                 return (
                   <div key={application.id} className="rounded-2xl border border-[#D3D1C7] bg-white p-4">
@@ -324,6 +368,27 @@ if (error) throw error;
                         {application.rejection_reason}
                       </div>
                     )}
+
+                    {application.status === 'interview' && interviewSchedule?.status === 'proposed' && (
+                      <div className="mt-3 rounded-2xl border border-[#C9AEEA] bg-[#F8F3FD] p-4">
+                        <div className="text-sm font-semibold text-[#4B2E83]">Choose a day and time</div>
+                        <div className="mt-1 text-xs text-[#6F5B88]">Times shown in {candidateTimezone}.</div>
+                        <div className="mt-3 space-y-2">
+                          {interviewSlots.map((slot) => (
+                            <button key={slot.id} type="button" onClick={() => selectInterviewSlot(slot.id)} disabled={selectingSlotId !== null} className="flex w-full items-center justify-between gap-3 rounded-xl border border-[#C9AEEA] bg-white px-3 py-2.5 text-left text-sm font-semibold text-[#4B2E83] transition-colors hover:border-[#4B2E83] disabled:cursor-not-allowed disabled:opacity-60">
+                              <span>{new Intl.DateTimeFormat('en-US', { timeZone: candidateTimezone, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(slot.starts_at))}</span>
+                              <span className="shrink-0 text-xs">{selectingSlotId === slot.id ? 'Confirming...' : 'Choose'}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {application.status === 'interview' && interviewSchedule?.status === 'confirmed' && interviewSchedule.selected_slot_id && (() => {
+                      const selectedSlot = interviewSlots.find((slot) => slot.id === interviewSchedule.selected_slot_id);
+                      if (!selectedSlot) return null;
+                      return <div className="mt-3 rounded-2xl border border-[#5DCAA5] bg-[#E1F5EE] p-4 text-sm text-[#085041]"><div className="flex items-center gap-2 font-semibold"><CalendarClock size={14} /> Interview confirmed</div><div className="mt-2">{new Intl.DateTimeFormat('en-US', { timeZone: candidateTimezone, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(new Date(selectedSlot.starts_at))}</div><a href={interviewSchedule.meeting_link} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 font-semibold hover:underline"><Link2 size={13} /> Join meeting</a></div>;
+                    })()}
 
                     {offer && (
                       <div className="mt-3 rounded-2xl border border-[#8FD3E8] bg-[#E3F5FB] p-4">
