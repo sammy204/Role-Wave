@@ -4,6 +4,7 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  AlertTriangle,
   BadgeCheck,
   Briefcase,
   Building2,
@@ -22,6 +23,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import AnalyticsOverview from '../components/AnalyticsOverview';
 import { getUserFacingError } from '../lib/userFacingError';
 import { withTimeout } from '../lib/withTimeout';
 import { fetchProfile, slugify } from '../lib/admin';
@@ -30,8 +32,9 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import CompanyLogo from '../components/CompanyLogo';
 
 type SubmissionTab = 'pending' | 'reviewed';
+type ReportFilter = 'pending' | 'resolved' | 'all';
 type JobTab = 'all' | 'pending_review' | 'active' | 'filled' | 'closed' | 'archived';
-type AdminView = 'overview' | 'profile' | 'tasks' | 'activity' | 'submissions' | 'jobs' | 'companies' | 'users' | 'analytics' | 'newsletter' | 'team' | 'create';
+type AdminView = 'overview' | 'profile' | 'tasks' | 'activity' | 'submissions' | 'reports' | 'jobs' | 'companies' | 'users' | 'analytics' | 'newsletter' | 'team' | 'create';
 type UserType = 'candidate' | 'employer' | 'unassigned';
 type JobStatus = 'active' | 'filled' | 'closed' | 'archived';
 type JobSortKey = 'created_at' | 'title' | 'company' | 'status';
@@ -100,6 +103,10 @@ function statusTone(status: string) {
 function formatStatus(status: string) {
   if (status === 'pending_review') return 'Pending review';
   return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+function formatReportReason(reason: AdminReport['reason']) {
+  return reason.charAt(0).toUpperCase() + reason.slice(1);
 }
 
 function getWelcomeName(adminProfile: AdminProfile | null, profile: Profile | null, email: string) {
@@ -194,6 +201,19 @@ type AdminActivity = {
   created_at: string;
 };
 
+type AdminReport = {
+  id: string;
+  reporter_profile_id: string;
+  target_type: 'message' | 'job' | 'company';
+  target_id: string;
+  reason: 'spam' | 'scam' | 'harassment' | 'inappropriate' | 'other';
+  details: string | null;
+  status: 'pending' | 'dismissed' | 'actioned';
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+};
+
 type TaskStatus = 'todo' | 'in_progress' | 'done';
 type TaskPriority = 'low' | 'medium' | 'high';
 
@@ -226,10 +246,12 @@ export default function AdminDashboard() {
   const [profiles, setProfiles] = useState<AdminUser[]>([]);
   const [teamMembers, setTeamMembers] = useState<AdminTeamMember[]>([]);
   const [activityLog, setActivityLog] = useState<AdminActivity[]>([]);
+  const [reports, setReports] = useState<AdminReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedView, setSelectedView] = useState<AdminView>('overview');
   const [selectedUserType, setSelectedUserType] = useState<UserType>('candidate');
   const [selectedSubmissionTab, setSelectedSubmissionTab] = useState<SubmissionTab>('pending');
+  const [reportFilter, setReportFilter] = useState<ReportFilter>('pending');
   const [selectedJobTab, setSelectedJobTab] = useState<JobTab>('all');
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
@@ -316,7 +338,7 @@ export default function AdminDashboard() {
           return;
         }
 
-        const [submissionResult, jobResult, companyResult, profileResult, adminProfileResult] = await Promise.all([
+        const [submissionResult, jobResult, companyResult, profileResult, adminProfileResult, reportResult] = await Promise.all([
           withTimeout(
             supabase.from('job_submissions').select('*').order('created_at', { ascending: false }),
             FETCH_TIMEOUT_MS,
@@ -342,6 +364,11 @@ export default function AdminDashboard() {
             FETCH_TIMEOUT_MS,
             'Admin profile query'
           ),
+          withTimeout(
+            supabase.from('reports').select('*').order('created_at', { ascending: false }),
+            FETCH_TIMEOUT_MS,
+            'Reports query'
+          ),
         ]);
 
         const teamResult = nextProfile.is_founder
@@ -359,6 +386,7 @@ export default function AdminDashboard() {
         const companyError = companyResult.error as { message?: string } | null;
         const profileError = profileResult.error as { message?: string } | null;
         const adminProfileError = adminProfileResult.error as { message?: string } | null;
+        const reportError = reportResult.error as { message?: string } | null;
         const teamError = teamResult.error as { message?: string } | null;
         const activityError = activityResult.error as { message?: string } | null;
         const taskError = taskResult.error as { message?: string } | null;
@@ -368,6 +396,7 @@ export default function AdminDashboard() {
         if (companyError) throw new Error(companyError.message || 'Failed to load companies.');
         if (profileError) throw new Error(profileError.message || 'Failed to load users.');
         if (adminProfileError) throw new Error(adminProfileError.message || 'Failed to load admin profile.');
+        if (reportError) throw new Error(reportError.message || 'Failed to load reports.');
         if (teamError) throw new Error(teamError.message || 'Failed to load admin team.');
         if (activityError) throw new Error(activityError.message || 'Failed to load admin activity.');
         if (taskError) throw new Error(taskError.message || 'Failed to load admin tasks.');
@@ -391,6 +420,7 @@ export default function AdminDashboard() {
         setTeamMembers((teamResult.data || []) as AdminTeamMember[]);
         setActivityLog((activityResult.data || []) as AdminActivity[]);
         setTasks((taskResult.data || []) as AdminTask[]);
+        setReports((reportResult.data || []) as AdminReport[]);
       } catch (loadError) {
         if (!mountedRef.current) return;
         setError(getUserFacingError(loadError, 'We couldn’t load the admin dashboard. Please try again.'));
@@ -472,6 +502,7 @@ export default function AdminDashboard() {
       'admin_profiles',
       'admin_tasks',
       'admin_activity_log',
+      'reports',
       'profiles',
     ] as const;
 
@@ -796,6 +827,26 @@ export default function AdminDashboard() {
     }
   };
 
+  const updateReportStatus = async (reportId: string, status: 'dismissed' | 'actioned') => {
+    if (!profile) return;
+    setProcessingId(reportId);
+    setNotice('');
+    setError('');
+    try {
+      const { error: updateError } = await supabase
+        .from('reports')
+        .update({ status, reviewed_by: profile.id, reviewed_at: new Date().toISOString() })
+        .eq('id', reportId);
+      if (updateError) throw updateError;
+      setReports((current) => current.map((report) => report.id === reportId ? { ...report, status, reviewed_by: profile.id, reviewed_at: new Date().toISOString() } : report));
+      setNotice(`Report ${status === 'actioned' ? 'marked as actioned' : 'dismissed'}.`);
+    } catch (updateError) {
+      setError(getUserFacingError(updateError, 'We couldnâ€™t update this report. Please try again.'));
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   const companyMap = useMemo(() => new Map(companies.map((company) => [company.id, company])), [companies]);
   const adminRoster = useMemo(() => teamMembers, [teamMembers]);
 
@@ -804,6 +855,7 @@ export default function AdminDashboard() {
       pendingSubmissions: submissions.filter((item) => item.status === 'pending').length,
       reviewedSubmissions: submissions.filter((item) => item.status !== 'pending').length,
       pendingReviewJobs: jobs.filter((item) => item.status === 'pending_review').length,
+      pendingReports: reports.filter((item) => item.status === 'pending').length,
       activeJobs: jobs.filter((item) => item.status === 'active').length,
       filledJobs: jobs.filter((item) => item.status === 'filled').length,
       closedJobs: jobs.filter((item) => item.status === 'closed').length,
@@ -815,7 +867,7 @@ export default function AdminDashboard() {
       unassignedUsers: profiles.filter((item) => !item.account_type).length,
       scheduledDeletions: profiles.filter((item) => item.account_status === 'deletion_scheduled').length,
     }),
-    [submissions, jobs, companies, profiles]
+    [submissions, jobs, companies, profiles, reports]
   );
 
   const filteredSubmissions = useMemo(() => {
@@ -836,6 +888,12 @@ export default function AdminDashboard() {
 
     return result;
   }, [searchQuery, selectedSubmissionTab, submissions]);
+
+  const filteredReports = useMemo(() => {
+    if (reportFilter === 'pending') return reports.filter((report) => report.status === 'pending');
+    if (reportFilter === 'resolved') return reports.filter((report) => report.status !== 'pending');
+    return reports;
+  }, [reportFilter, reports]);
 
   const filteredJobs = useMemo(() => {
     let result =
@@ -1476,7 +1534,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
           <button
             type="button"
             onClick={() => {
@@ -1489,6 +1547,14 @@ export default function AdminDashboard() {
               <Clock3 size={12} /> Submissions pending
             </div>
             <div className="text-3xl font-bold tracking-[-0.04em] text-[#633806]">{counts.pendingSubmissions}</div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedView('reports')}
+            className="rounded-2xl border border-[#F0D080] bg-[#FFF8E6] p-4 text-left shadow-[0_10px_24px_rgba(217,164,65,0.08)] transition-transform hover:-translate-y-0.5"
+          >
+            <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[1px] text-[#5F5E5A]"><AlertTriangle size={12} /> Reports pending</div>
+            <div className="text-3xl font-bold tracking-[-0.04em] text-[#633806]">{counts.pendingReports}</div>
           </button>
           <button
             type="button"
@@ -1532,6 +1598,7 @@ export default function AdminDashboard() {
               'tasks',
               ...(profile?.is_founder ? (['activity'] as AdminView[]) : []),
               'submissions',
+              'reports',
               'jobs',
               'companies',
               'users',
@@ -1560,6 +1627,8 @@ export default function AdminDashboard() {
                 ? 'Tasks'
                 : view === 'submissions'
                 ? 'Moderation'
+                : view === 'reports'
+                ? 'Reports'
                 : view === 'jobs'
                 ? 'Jobs'
                 : view === 'companies'
@@ -2003,6 +2072,8 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
+
+            <AnalyticsOverview />
           </div>
         )}
 
@@ -2269,6 +2340,67 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {selectedView === 'reports' && (
+          <div className="space-y-5">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[1.5px] text-[#B3261E]">Safety moderation</p>
+              <h2 className="mt-1 text-2xl font-bold tracking-[-0.03em] text-[#1A1A1A]">User reports</h2>
+              <p className="mt-2 text-sm text-[#6B6960]">Review reports submitted by users and record the moderation outcome.</p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {(['pending', 'resolved', 'all'] as ReportFilter[]).map((filter) => (
+                <button
+                  key={filter}
+                  type="button"
+                  onClick={() => setReportFilter(filter)}
+                  className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${reportFilter === filter ? 'border-[#5DCAA5] bg-[#E1F5EE] text-[#085041]' : 'border-[#D3D1C7] bg-white text-[#5F5E5A] hover:bg-[#F1EFE8]'}`}
+                >
+                  {filter === 'pending' ? `Pending (${counts.pendingReports})` : filter === 'resolved' ? `Resolved (${reports.filter((report) => report.status !== 'pending').length})` : `All (${reports.length})`}
+                </button>
+              ))}
+            </div>
+
+            {filteredReports.length === 0 ? (
+              <div className="rounded-2xl border border-[#D3D1C7] bg-white p-8 text-center text-[#5F5E5A]">No {reportFilter === 'pending' ? 'pending' : reportFilter === 'resolved' ? 'resolved' : ''} reports.</div>
+            ) : (
+              <div className="space-y-3">
+                {filteredReports.map((report) => {
+                  const reportedJob = report.target_type === 'job' ? jobs.find((job) => job.id === report.target_id) : null;
+                  const reportedCompany = report.target_type === 'company' ? companies.find((company) => company.id === report.target_id) : null;
+                  const reporter = profiles.find((user) => user.id === report.reporter_profile_id);
+                  const targetLabel = reportedJob?.title || reportedCompany?.name || `${report.target_type} ${report.target_id.slice(0, 8)}`;
+                  const pending = report.status === 'pending';
+
+                  return (
+                    <article key={report.id} className={`rounded-2xl border bg-white p-5 ${pending ? 'border-[#F0D080]' : 'border-[#D3D1C7]'}`}>
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${pending ? 'border-[#F0D080] bg-[#FFF8E6] text-[#7A5000]' : report.status === 'actioned' ? 'border-[#5DCAA5] bg-[#E1F5EE] text-[#085041]' : 'border-[#D3D1C7] bg-[#F1EFE8] text-[#5F5E5A]'}`}>{report.status}</span>
+                            <span className="rounded-full bg-[#F1EFE8] px-2.5 py-1 text-[11px] font-semibold text-[#5F5E5A]">{formatReportReason(report.reason)}</span>
+                            <span className="text-xs text-[#8A867E]">{formatRelative(report.created_at)}</span>
+                          </div>
+                          <h3 className="mt-3 text-lg font-semibold text-[#1A1A1A]">{targetLabel}</h3>
+                          <p className="mt-1 text-sm text-[#6B6960]">Reported {report.target_type} · by {reporter?.full_name || reporter?.email || 'an account'}</p>
+                          {report.details && <p className="mt-3 rounded-xl bg-[#FBFAF7] p-3 text-sm leading-6 text-[#5F5E5A]">{report.details}</p>}
+                        </div>
+                        {pending && (
+                          <div className="flex shrink-0 gap-2">
+                            {reportedJob && <Link to={`/jobs/${reportedJob.slug}`} target="_blank" className="inline-flex items-center gap-1 rounded-xl border border-[#D3D1C7] bg-white px-3 py-2 text-xs font-semibold text-[#5F5E5A] hover:bg-[#F1EFE8]"><ExternalLink size={13} /> View job</Link>}
+                            <button type="button" onClick={() => void updateReportStatus(report.id, 'dismissed')} disabled={processingId === report.id} className="rounded-xl border border-[#D3D1C7] bg-white px-3 py-2 text-xs font-semibold text-[#5F5E5A] hover:bg-[#F1EFE8] disabled:opacity-50">Dismiss</button>
+                            <button type="button" onClick={() => void updateReportStatus(report.id, 'actioned')} disabled={processingId === report.id} className="rounded-xl bg-[#B3261E] px-3 py-2 text-xs font-semibold text-white hover:bg-[#922018] disabled:opacity-50">{processingId === report.id ? 'Saving...' : 'Actioned'}</button>
+                          </div>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

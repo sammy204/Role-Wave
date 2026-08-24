@@ -3,6 +3,7 @@ import { Fingerprint, Trash2 } from 'lucide-react';
 import { getUserFacingError } from '../lib/userFacingError';
 import { listPasskeys, passkeysSupported, registerPasskey, setPasskeyDeviceStatus } from '../lib/passkeys';
 import { supabase } from '../lib/supabase';
+import { trackEvent } from '../lib/analytics';
 
 export default function PasskeySettings() {
   const [passkeys, setPasskeys] = useState<Array<{ id: string; friendly_name?: string | null; created_at: string }>>([]);
@@ -31,6 +32,7 @@ export default function PasskeySettings() {
       const { error: registerError } = await registerPasskey();
       if (registerError) throw registerError;
       setPasskeyDeviceStatus('enabled');
+      void trackEvent('passkey_enabled', {});
       await loadPasskeys();
     } catch (registerError) {
       setError(getUserFacingError(registerError, 'We couldn’t set up passkey sign-in. Please try again.'));

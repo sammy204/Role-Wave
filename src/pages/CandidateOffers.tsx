@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import { formatDate } from '../lib/dateFormat';
 import type { Job, Offer, OfferDocument } from '../types';
+import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { getUserFacingError } from '../lib/userFacingError';
 
@@ -245,12 +246,7 @@ export default function CandidateOffers() {
         </div>
 
         {visibleOffers.length === 0 ? (
-          <div className="panel rounded-[28px] p-8 text-center">
-            <Gift className="mx-auto text-[#1D9E75]" size={28} />
-            <h2 className="mt-3 font-semibold text-[#1A1A1A]">{activeTab === 'pending' ? 'No pending offers' : 'No offer history yet'}</h2>
-            <p className="mt-1 text-sm text-[#5F5E5A]">{activeTab === 'pending' ? 'New offers from employers will appear here when they are ready for your response.' : 'Accepted, declined, withdrawn, and expired offers will appear here.'}</p>
-            {activeTab === 'pending' && offers.length === 0 && <Link to="/jobs" className="mt-4 inline-flex rounded-lg bg-[#1D9E75] px-4 py-2 text-sm font-semibold text-white">Browse jobs</Link>}
-          </div>
+          <div className="panel rounded-[28px]"><EmptyState icon={Gift} title={activeTab === 'pending' ? 'No pending offers' : 'No offer history yet'} description={activeTab === 'pending' ? 'New offers from employers will appear here when they are ready for your response.' : 'Accepted, declined, withdrawn, and expired offers will appear here.'} action={activeTab === 'pending' && offers.length === 0 ? <Link to="/jobs" className="inline-flex rounded-full bg-[#1D9E75] px-4 py-2.5 text-sm font-semibold text-white">Browse jobs</Link> : undefined} /></div>
         ) : (
           visibleOffers.map((offer) => {
             const job = jobs.get(offer.job_id);

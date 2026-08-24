@@ -20,15 +20,13 @@ export default function PrivacyPolicy() {
   return (
     <div className={isPwa ? 'min-h-screen bg-[#F1EFE8]' : 'page-shell'}>
       <div className="mx-auto w-full max-w-[820px] px-4 pb-16 pt-6 sm:px-6 lg:px-8">
-        {isPwa && (
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="mb-5 inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/75 px-3.5 py-2 text-sm font-semibold text-[#1A1A1A] shadow-sm backdrop-blur-xl"
-          >
-            <ChevronLeft size={16} /> Back
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => navigate('/help')}
+          className="mb-5 inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/75 px-3.5 py-2 text-sm font-semibold text-[#1A1A1A] shadow-sm backdrop-blur-xl"
+        >
+          <ChevronLeft size={16} /> Back 
+        </button>
         <div className="panel rounded-panel p-5 sm:p-10">
           <div className="mb-8">
             <h1 className="font-display text-[26px] font-bold text-ink sm:text-[34px]">Privacy Policy</h1>
@@ -75,9 +73,12 @@ export default function PrivacyPolicy() {
               platform.
             </p>
             <p>
-              <span className="font-semibold text-ink">Usage data.</span> We automatically log basic
-              technical information (such as browser type, device type, and general access times)
-              needed to operate and secure the platform.
+              <span className="font-semibold text-ink">Usage and analytics data.</span> When you
+              choose optional analytics, we collect privacy-limited events such as pages viewed,
+              job searches and views, saved jobs, application progress, signups, PWA installs,
+              passkey activation, job posts, and reports submitted. We store event names, limited
+              event properties, route, platform, and a pseudonymous session identifier. We do not
+              store message contents, resumes, passwords, or form contents as analytics data.
             </p>
           </Section>
 
@@ -87,7 +88,8 @@ export default function PrivacyPolicy() {
               is <span className="font-semibold text-ink">strictly necessary</span> and cannot be
               turned off without logging you out. We do not currently use third party advertising or
               tracking cookies. We may use analytics and diagnostic tools to monitor errors,
-              performance, and platform reliability when you allow them. See our{' '}
+              performance, and platform reliability when you allow them. Optional product analytics
+              is also used to understand aggregate usage and improve the platform. See our{' '}
               <Link
                 to="/cookie-policy"
                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
@@ -107,7 +109,7 @@ export default function PrivacyPolicy() {
               <li>To manually review and verify employer accounts and job postings before they go live</li>
               <li>To send you service related notices (e.g. application updates, verification status)</li>
               <li>To detect fraud, abuse, and violations of our Terms of Service</li>
-              <li>To improve the platform based on aggregate, non-identifying usage patterns</li>
+              <li>To improve the platform based on aggregate, non-identifying usage patterns when optional analytics is enabled</li>
             </ul>
             <p>
               We do not sell your personal data, and we do not use your resume, profile, or messages
@@ -146,6 +148,12 @@ export default function PrivacyPolicy() {
               deletion by signing back in. After the grace period ends, your account and associated
               personal data are permanently deleted, except where we're required to retain records
               for legal, security, or resolving disputes purposes.
+            </p>
+            <p>
+              Optional analytics events are retained for up to 24 months, then deleted or
+              irreversibly aggregated. You can withdraw analytics consent at any time through the
+              cookie settings link, although previously collected events may remain until the
+              retention period ends.
             </p>
           </Section>
 

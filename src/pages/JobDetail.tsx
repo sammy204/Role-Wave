@@ -1,7 +1,7 @@
 import { useEffect, useState, type MouseEvent } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DOMPurify from 'dompurify';
-import { ArrowLeft, MapPin, Home, Briefcase, Clock, CheckCircle, Share2, Send, Bookmark } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, MapPin, Home, Briefcase, Clock, CheckCircle, Share2, Send, Bookmark } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getUserFacingError } from '../lib/userFacingError';
 import { withTimeout } from '../lib/withTimeout';
@@ -11,6 +11,9 @@ import { isJobSaved, toggleSavedJob } from '../lib/savedJobs';
 import type { Job, Company } from '../types';
 import { formatApplicationMethod, formatExperienceLevel, formatJobSalary, formatWorkAuthorization } from '../lib/jobMetadata';
 import CompanyLogo from '../components/CompanyLogo';
+import ReportJobModal from '../components/ReportJobModal';
+import UnverifiedEmployerBadge from '../components/UnverifiedEmployerBadge';
+import { trackEvent } from '../lib/analytics';
 
 const colorMap: Record<string, { bg: string; text: string }> = {
   teal: { bg: 'bg-[#E1F5EE]', text: 'text-[#085041]' },
@@ -41,6 +44,7 @@ export default function JobDetail() {
   const [candidateId, setCandidateId] = useState('');
   const [saved, setSaved] = useState(false);
   const [showApplyPrompt, setShowApplyPrompt] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const FETCH_TIMEOUT_MS = 10000;
   const { session, loading: authLoading } = useAuth();
 
@@ -73,6 +77,7 @@ export default function JobDetail() {
         if (companyError) throw companyError;
 
         setJob({ ...(data as Job), company: companyData || undefined });
+        void trackEvent('job_view', { job_id: data.id });
       } catch (fetchError) {
         setError(getUserFacingError(fetchError, 'We couldn’t load this job. Please try again.'));
       } finally {
@@ -236,6 +241,7 @@ export default function JobDetail() {
     if (!candidateId || !job) return;
     const nextIds = toggleSavedJob(candidateId, job.id);
     setSaved(nextIds.includes(job.id));
+    void trackEvent('job_saved', { job_id: job.id, saved: nextIds.includes(job.id) });
   };
 
   return (
@@ -268,6 +274,11 @@ export default function JobDetail() {
           {company?.verified && (
             <div className="mb-4 inline-flex items-center gap-[5px] rounded-full border border-[#5DCAA5] bg-[#E1F5EE] px-3 py-[5px] text-xs font-semibold text-[#085041] sm:mb-5">
               <CheckCircle size={12} /> Verified by RoleWave
+            </div>
+          )}
+          {company && !company.verified && (
+            <div className="mb-4">
+              <UnverifiedEmployerBadge verified={company.verified} />
             </div>
           )}
 
@@ -469,6 +480,7 @@ export default function JobDetail() {
             <span className="text-[13px] text-[#B4B2A9]">Verified</span>
             <span className="text-[13px] font-medium text-[#1D9E75]">Yes</span>
           </div>
+          <button type="button" onClick={() => setReportOpen(true)} className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-[#8A867E] transition-colors hover:text-[#B3261E]"><AlertTriangle size={14} /> Report this job</button>
         </div>
       </div>
       {showApplyPrompt && (
@@ -518,6 +530,7 @@ export default function JobDetail() {
           </div>
         </div>
       )}
+      <ReportJobModal jobId={job.id} isOpen={reportOpen} onClose={() => setReportOpen(false)} />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { Fingerprint } from 'lucide-react';
 import { useAuth } from '../lib/useAuth';
 import { useIsPwa } from '../lib/usePwaDisplayMode';
 import { listPasskeys, passkeyEnabledOnDevice, passkeysSupported, registerPasskey, setPasskeyDeviceStatus } from '../lib/passkeys';
+import { trackEvent } from '../lib/analytics';
 import { getUserFacingError } from '../lib/userFacingError';
 
 export default function BiometricPrompt() {
@@ -39,6 +40,7 @@ export default function BiometricPrompt() {
       const { error: registerError } = await registerPasskey();
       if (registerError) throw registerError;
       setPasskeyDeviceStatus('enabled');
+      void trackEvent('passkey_enabled', {});
       setVisible(false);
     } catch (registerError) {
       setError(getUserFacingError(registerError, 'We couldn’t set up passkey sign-in. Please try again.'));

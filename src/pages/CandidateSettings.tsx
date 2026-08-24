@@ -474,12 +474,6 @@ export default function CandidateSettings() {
             </div>
           </summary>
           <div className="mt-5 grid gap-2 sm:grid-cols-2">
-            <Link to="/privacy" className="rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-4 py-3 text-sm font-semibold text-[#0F6E56] hover:border-[#5DCAA5]">
-              Read Privacy Policy
-            </Link>
-            <Link to="/terms" className="rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-4 py-3 text-sm font-semibold text-[#0F6E56] hover:border-[#5DCAA5]">
-              Read Terms of Service
-            </Link>
             <button type="button" onClick={openCookieSettings} className="rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-4 py-3 text-left text-sm font-semibold text-[#0F6E56] hover:border-[#5DCAA5]">
               Manage Cookie Settings
             </button>

@@ -6,6 +6,7 @@ import { fetchProfile } from '../lib/admin';
 import { withTimeout } from '../lib/withTimeout';
 import type { CandidateProfile, Company, Job, Profile } from '../types';
 import JobCard from '../components/JobCard';
+import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { getUserFacingError } from '../lib/userFacingError';
 
@@ -124,11 +125,7 @@ export default function CandidateHome() {
 
   if (loading) {
     return (
-      <div className="page-shell px-4 py-6 sm:px-6 lg:px-8">
-        <div className="panel rounded-[24px] px-5 py-5">
-          <LoadingSpinner className="text-[#1D9E75]" />
-        </div>
-      </div>
+      <div className="page-shell items-center justify-center px-4"><div className="panel rounded-[24px] px-5 py-5"><LoadingSpinner className="text-[#1D9E75]" /></div></div>
     );
   }
 
@@ -163,9 +160,7 @@ export default function CandidateHome() {
 
         <div className="space-y-3">
           {matchedJobs.length === 0 ? (
-            <div className="panel rounded-[24px] py-20 text-center text-[#5F5E5A]">
-              No matched jobs yet.
-            </div>
+            <div className="panel rounded-[24px]"><EmptyState title="No matched jobs yet" description="Complete more of your profile and check back as new opportunities are added." /></div>
           ) : (
             matchedJobs.map((job) => <JobCard key={job.id} job={job} />)
           )}

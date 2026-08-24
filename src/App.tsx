@@ -52,11 +52,13 @@ import BlogPost from './pages/BlogPost';
 import CookiePolicy from './pages/CookiePolicy';
 import Unsubscribe from './pages/Unsubscribe';
 import MessageToastHost from './components/MessageToastHost';
+import SectionErrorBoundary from './components/SectionErrorBoundary';
 import InAppTutorial from './components/InAppTutorial';
 import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat';
 import { useIsPwa } from './lib/usePwaDisplayMode';
 import { setNativeSystemBarAppearance } from './lib/nativeInit';
 import { syncNativePushToken } from './lib/nativePushNotifications';
+import { trackEvent } from './lib/analytics';
 
 function App() {
   return (
@@ -94,6 +96,10 @@ function AppShell() {
     return () => {
       window.history.scrollRestoration = previousScrollRestoration;
     };
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    void trackEvent('page_view', { route: location.pathname });
   }, [location.pathname, location.search]);
 
   useEffect(() => {
@@ -182,6 +188,7 @@ function AppShell() {
   const isCandidateOnlyRoute = path.startsWith('/candidate');
   const isSharedBrowseRoute = path === '/jobs' || (/^\/jobs\/[^/]+$/.test(path) && !isApplyRoute);
   const isSidebarUtilityRoute = path === '/about' || path === '/contact' || path === '/faq' || path === '/help';
+  const isLegalRoute = path === '/privacy' || path === '/terms' || path === '/cookie-policy';
 
   const isSignedIn = !!session;
   const isCandidate = profile?.account_type === 'candidate';
@@ -195,7 +202,7 @@ function AppShell() {
     !isApplyRoute &&
     !isEmployerRoute &&
     isSignedIn &&
-    (isCandidateOnlyRoute || (isSharedBrowseRoute && isCandidate) || isSidebarUtilityRoute);
+    (isCandidateOnlyRoute || (isSharedBrowseRoute && isCandidate) || isSidebarUtilityRoute || (isLegalRoute && isCandidate));
 
   const showPublicChrome =
     !isAdminRoute &&
@@ -359,7 +366,7 @@ function AppShell() {
       <Route path="/candidate/offers" element={<CandidateOffers />} />
       <Route path="/candidate/role-pilot" element={<RolePilot />} />
       <Route path="/candidate/pro" element={<RoleWavePro />} />
-      <Route path="/candidate/messages" element={<CandidateMessages />} />
+      <Route path="/candidate/messages" element={<SectionErrorBoundary title="Messages could not load" description="We couldn’t display your messages right now. Your other RoleWave pages are still available."><CandidateMessages /></SectionErrorBoundary>} />
       <Route path="/employer/onboarding" element={<EmployerOnboarding />} />
       <Route path="/employer/settings" element={<EmployerSettings />} />
       <Route path="/employer" element={<EmployerDashboard />} />
@@ -384,7 +391,7 @@ function AppShell() {
     </Routes>
   );
 
-  if (isPwaLegalRoute) {
+  if (isPwaLegalRoute && !showCandidateSidebar) {
     return <>{routes}</>;
   }
 

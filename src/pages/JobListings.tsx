@@ -7,6 +7,7 @@ import { withTimeout } from '../lib/withTimeout';
 import { PAGE_SIZE, getPaginatedJobs, getPaginationItems } from '../lib/pagination';
 import type { Job, Company } from '../types';
 import JobCard from '../components/JobCard';
+import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const FETCH_TIMEOUT_MS = 25000;
@@ -218,6 +219,16 @@ export default function JobListings() {
     setter((prev) => (prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]));
   };
 
+  const clearAllFilters = () => {
+    setSelectedWorkTypes([]);
+    setSelectedCities([]);
+    setSelectedJobTypes([]);
+    setSelectedExperienceLevels([]);
+    setSelectedAuthorizations([]);
+    setSelectedApplicationMethods([]);
+    setSearchQuery('');
+  };
+
   const FilterSection = () => (
     <div className="p-5 sm:p-6">
       <div className="mb-7">
@@ -386,16 +397,21 @@ export default function JobListings() {
 
         <div className="min-w-0">
           {loading ? (
-            <div className="panel rounded-[24px] py-20">
-              <LoadingSpinner className="mx-auto text-[#1D9E75]" />
-            </div>
+            <div className="panel rounded-[24px] py-20"><LoadingSpinner className="mx-auto text-[#1D9E75]" /></div>
           ) : error ? (
             <div className="panel mx-auto max-w-xl rounded-[24px] py-20 text-center">
               <div className="text-lg font-semibold text-[#1A1A1A] mb-2">Could not load jobs</div>
               <div className="text-sm text-[#5F5E5A]">{error}</div>
             </div>
           ) : filteredJobs.length === 0 ? (
-            <div className="panel rounded-[24px] py-20 text-center text-[#5F5E5A]">No jobs found matching your criteria.</div>
+            <div className="panel rounded-[24px]">
+              <EmptyState
+                icon={Search}
+                title={jobs.length === 0 ? 'No jobs available yet' : 'No jobs match your filters'}
+                description={jobs.length === 0 ? 'New opportunities will appear here as employers publish them.' : 'Try clearing a filter or searching for a different role, skill, or company.'}
+                action={jobs.length > 0 ? <button type="button" onClick={clearAllFilters} className="rounded-full bg-[#1D9E75] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#168a63]">Clear filters</button> : undefined}
+              />
+            </div>
           ) : (
             <>
               <div className="space-y-3 sm:space-y-3.5">

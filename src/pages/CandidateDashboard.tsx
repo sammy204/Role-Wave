@@ -326,11 +326,7 @@ export default function CandidateDashboard() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-4">
-        <div className="rounded-panel border border-line bg-surface px-5 py-5 shadow-card">
-          <LoadingSpinner className="text-[#1D9E75]" />
-        </div>
-      </div>
+      <div className="flex min-h-screen items-center justify-center px-4"><div className="rounded-panel border border-line bg-surface px-5 py-5 shadow-card"><LoadingSpinner className="text-[#1D9E75]" /></div></div>
     );
   }
 

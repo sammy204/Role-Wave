@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Bell, Camera, ChevronDown, Download, Fingerprint } from 'lucide-react';
+import { Bell, Camera, ChevronDown, Download, Fingerprint, FileText, ShieldCheck } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useIsPwa } from '../lib/usePwaDisplayMode';
 import { FAQ_QUESTIONS } from '../data/faq';
 
@@ -96,6 +97,18 @@ export default function AppHelp() {
                   </div>
                 );
               })}
+            </div>
+          </section>
+
+          <section className="rounded-[28px] border border-[#D3D1C7] bg-white p-5 sm:p-6">
+            <div className="mb-3">
+              <h2 className="font-semibold text-[#1A1A1A]">Policies and data choices</h2>
+              <p className="mt-1 text-sm leading-relaxed text-[#5F5E5A]">Read how RoleWave handles your information and platform use.</p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <Link to="/privacy" className="inline-flex items-center gap-2 rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-4 py-3 text-sm font-semibold text-[#0F6E56] hover:border-[#5DCAA5]"><ShieldCheck size={16} /> Privacy Policy</Link>
+              <Link to="/terms" className="inline-flex items-center gap-2 rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-4 py-3 text-sm font-semibold text-[#0F6E56] hover:border-[#5DCAA5]"><FileText size={16} /> Terms of Service</Link>
+              <Link to="/cookie-policy" className="inline-flex items-center gap-2 rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] px-4 py-3 text-sm font-semibold text-[#0F6E56] hover:border-[#5DCAA5]"><FileText size={16} /> Cookie Policy</Link>
             </div>
           </section>
         </div>

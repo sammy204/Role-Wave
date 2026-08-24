@@ -3,6 +3,7 @@ import { Star, BadgeCheck } from 'lucide-react';
 import type { Job, Company } from '../types';
 import { formatApplicationMethod, formatExperienceLevel, formatJobSalary, formatWorkAuthorization } from '../lib/jobMetadata';
 import CompanyLogo from './CompanyLogo';
+import UnverifiedEmployerBadge from './UnverifiedEmployerBadge';
 
 interface JobCardProps {
   job: Job & { company?: Company };
@@ -74,6 +75,7 @@ export default function JobCard({ job }: JobCardProps) {
                 <BadgeCheck size={13} className="flex-shrink-0 text-[#1D9E75]" aria-label="Verified employer" />
               )}
             </div>
+            {company && !company.verified && <div className="mt-1.5"><UnverifiedEmployerBadge verified={company.verified} /></div>}
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             {isFeatured && (

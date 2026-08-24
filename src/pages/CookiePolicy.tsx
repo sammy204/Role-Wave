@@ -20,11 +20,9 @@ export default function CookiePolicy() {
   return (
     <div className={isPwa ? 'min-h-screen bg-[#F1EFE8]' : 'page-shell'}>
       <div className="mx-auto w-full max-w-[820px] px-4 pb-16 pt-6 sm:px-6 lg:px-8">
-        {isPwa && (
-          <button type="button" onClick={() => navigate(-1)} className="mb-5 inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/75 px-3.5 py-2 text-sm font-semibold text-[#1A1A1A] shadow-sm backdrop-blur-xl">
-            <ChevronLeft size={16} /> Back
-          </button>
-        )}
+        <button type="button" onClick={() => navigate('/help')} className="mb-5 inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/75 px-3.5 py-2 text-sm font-semibold text-[#1A1A1A] shadow-sm backdrop-blur-xl">
+          <ChevronLeft size={16} /> Back
+        </button>
         <div className="panel rounded-panel p-5 sm:p-10">
           <div className="mb-8">
             <h1 className="font-display text-[26px] font-bold text-ink sm:text-[34px]">Cookie Policy</h1>
@@ -55,7 +53,9 @@ export default function CookiePolicy() {
           </Section>
 
           <Section title="3. Analytics">
-            <p>Analytics and diagnostics are optional. You can choose whether to allow them in the cookie banner. This currently includes error and performance monitoring. We will update this policy if the tools or purposes change.</p>
+            <p>Analytics and diagnostics are optional. You can choose whether to allow them in the cookie banner. With permission, RoleWave records privacy-limited events such as page views, job searches and views, saves, application progress, signups, PWA installs, passkey activation, job posts, and reports.</p>
+            <p>Events contain limited operational properties such as an event name, route, platform, and pseudonymous session identifier. We do not record message contents, resumes, passwords, or form contents for analytics. Analytics events are retained for up to 24 months, then deleted or irreversibly aggregated.</p>
+            <p>Error and performance monitoring through Sentry is also optional and is used to diagnose crashes and platform reliability. You can withdraw consent at any time using cookie settings.</p>
           </Section>
 
           <Section title="4. Managing cookies and local storage">

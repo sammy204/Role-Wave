@@ -6,6 +6,7 @@ import { getUserFacingError } from '../lib/userFacingError';
 import { fetchProfile } from '../lib/admin';
 import type { Company, Job } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { trackEvent } from '../lib/analytics';
 import { candidateResumeViewerHref } from '../lib/candidateAssets';
 
 const emptyForm = {
@@ -66,6 +67,7 @@ export default function JobApplication() {
         if (!alive) return;
 
         setJob({ ...(data as Job), company: companyData || undefined });
+        void trackEvent('application_started', { job_id: data.id });
 
         const session = sessionProfile.data.session;
         if (data.apply_method !== 'internal') {
@@ -180,6 +182,7 @@ export default function JobApplication() {
         }
         throw submitError;
       }
+      void trackEvent('application_submitted', { job_id: job.id, source });
       setSuccess(true);
     } catch (submitError) {
       setError(getUserFacingError(submitError, 'We couldn’t submit your application. Please try again.'));

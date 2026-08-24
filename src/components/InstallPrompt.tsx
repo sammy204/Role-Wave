@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Download, X } from 'lucide-react';
 import { useIsPwa } from '../lib/usePwaDisplayMode';
+import { trackEvent } from '../lib/analytics';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -45,6 +46,7 @@ export default function InstallPrompt() {
     const handleInstalled = () => {
       setInstallEvent(null);
       setShowInstructions(false);
+      void trackEvent('pwa_installed', {});
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);

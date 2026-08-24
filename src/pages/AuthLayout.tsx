@@ -15,6 +15,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { TurnstileWidget } from '../components/TurnstileWidget';
 import { validatePassword } from '../lib/passwordPolicy';
 import { passkeyEnabledOnDevice, passkeysSupported, signInWithPasskey } from '../lib/passkeys';
+import { trackEvent } from '../lib/analytics';
 import { SignIn, ForgotPasswordForm } from './SignIn';
 import { SignUp } from './Signup';
 
@@ -190,6 +191,7 @@ export default function AuthLayout() {
         });
 
         if (signUpError) throw signUpError;
+        void trackEvent('signup_completed', { account_type: role });
 
         const { data: postSignUpSession } = await withTimeout(
           supabase.auth.getSession(),

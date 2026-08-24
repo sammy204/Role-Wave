@@ -6,7 +6,9 @@ import { getUserFacingError } from '../lib/userFacingError';
 import { withTimeout } from '../lib/withTimeout';
 import type { Job, Company } from '../types';
 import JobCard from '../components/JobCard';
+import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { trackEvent } from '../lib/analytics';
 
 const FETCH_TIMEOUT_MS = 25000;
 const FEATURED_JOBS_LIMIT = 8;
@@ -60,6 +62,11 @@ export default function Home() {
   }, []);
 
   const handleSearch = () => {
+    void trackEvent('job_search', {
+      has_query: Boolean(searchQuery.trim()),
+      city: cityFilter === 'All cities' ? null : cityFilter,
+      work_type: typeFilter === 'All types' ? null : typeFilter,
+    });
     const params = new URLSearchParams();
     if (searchQuery) params.set('q', searchQuery);
     if (cityFilter !== 'All cities') params.set('city', cityFilter);
@@ -228,17 +235,15 @@ export default function Home() {
           </div>
 
           {loading ? (
-            <div className="rounded-[24px] border border-[#E8E4DA] bg-[#FBFAF7] py-20">
-              <LoadingSpinner className="mx-auto text-[#1D9E75]" />
-            </div>
+            <div className="rounded-[24px] border border-[#E8E4DA] bg-[#FBFAF7] py-20"><LoadingSpinner className="mx-auto text-[#1D9E75]" /></div>
           ) : error ? (
             <div className="mx-auto max-w-xl rounded-[24px] border border-[#E8E4DA] bg-[#FBFAF7] py-20 text-center">
               <div className="mb-2 text-lg font-semibold text-[#1A1A1A]">Could not load jobs</div>
               <div className="text-sm text-[#5F5E5A]">{error}</div>
             </div>
           ) : jobs.length === 0 ? (
-            <div className="rounded-[24px] border border-[#E8E4DA] bg-[#FBFAF7] py-20 text-center text-[#5F5E5A]">
-              No jobs posted yet — check back soon.
+            <div className="rounded-[24px] border border-[#E8E4DA] bg-[#FBFAF7]">
+              <EmptyState title="No featured jobs yet" description="Check back soon for new opportunities from employers on RoleWave." />
             </div>
           ) : (
             <div className="space-y-3 sm:space-y-3.5">

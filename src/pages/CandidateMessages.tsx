@@ -22,6 +22,7 @@ import {
 import type { Conversation, Message } from '../types';
 import MessageBody from '../components/MessageBody';
 import MessageAttachments from '../components/MessageAttachments';
+import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { getUserFacingError } from '../lib/userFacingError';
 import { formatDate, formatDateLong, formatTime } from '../lib/dateFormat';
@@ -380,11 +381,7 @@ export default function CandidateMessages() {
 
   if (loading) {
     return (
-      <div className="page-shell items-center justify-center px-4">
-        <div className="panel motion-safe:animate-fade-up rounded-[24px] px-5 py-5">
-          <LoadingSpinner className="text-[#1D9E75]" />
-        </div>
-      </div>
+      <div className="page-shell items-center justify-center px-4"><div className="panel rounded-[24px] px-5 py-5"><LoadingSpinner className="text-[#1D9E75]" /></div></div>
     );
   }
 
@@ -406,9 +403,7 @@ export default function CandidateMessages() {
           {/* Thread list */}
           <div className={`${mobileView === 'list' ? 'block' : 'hidden'} border-b border-line lg:block lg:border-b-0 lg:border-r`}>
             {conversations.length === 0 ? (
-              <div className="p-6 text-center text-sm text-muted">
-                No conversations yet. When an employer messages you about an application, it'll show up here.
-              </div>
+              <EmptyState icon={MessageSquareText} title="No conversations yet" description="When an employer messages you about an application, it will appear here." />
             ) : (
               <div className="max-h-[65vh] overflow-y-auto">
                 {conversations.map((conversation) => {

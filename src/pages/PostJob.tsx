@@ -7,6 +7,7 @@ import { fetchProfile, slugify } from '../lib/admin';
 import type { Company, EmployerProfile, Job, Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 import CompanyLogo from '../components/CompanyLogo';
+import { trackEvent } from '../lib/analytics';
 
 type ApplyMethod = 'external' | 'email' | 'internal';
 type JobStatus = 'active' | 'filled' | 'closed' | 'archived';
@@ -73,6 +74,14 @@ function formatSalaryRange(form: typeof emptyForm) {
   const format = (value: number) => `${currency}${value.toLocaleString()}`;
   const range = min && max ? `${format(min)} – ${format(max)}` : min ? `${format(min)}+` : `Up to ${format(max)}`;
   return `${range}/${form.salaryPeriod}`;
+}
+
+function postingLimitErrorMessage(error: unknown) {
+  const message = typeof error === 'object' && error !== null && 'message' in error
+    ? String((error as { message?: unknown }).message || '')
+    : '';
+  const match = message.match(/POSTING_RATE_LIMIT_REACHED:.*?(\d+)/);
+  return match ? `You have reached the ${match[1]}-job posting limit for the last 24 hours. Please try again later.` : null;
 }
 
 export default function PostJob() {
@@ -270,6 +279,8 @@ export default function PostJob() {
         .single();
       if (jobError || !jobData) throw jobError || new Error('Could not save the job.');
 
+      void trackEvent('job_posted', { job_id: jobData.id, status: form.status, apply_method: form.applyMethod });
+
       setSuccessSlug(jobSlug);
       setForm(emptyForm);
 
@@ -279,7 +290,7 @@ export default function PostJob() {
         .eq('id', company.id);
       if (companyError) throw companyError;
     } catch (saveError) {
-      setError(getUserFacingError(saveError, 'We couldn’t create the job. Please try again.'));
+      setError(postingLimitErrorMessage(saveError) || getUserFacingError(saveError, 'We couldn’t create the job. Please try again.'));
     } finally {
       setSaving(false);
     }

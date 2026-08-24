@@ -18,6 +18,7 @@ import { getSavedJobIds } from '../lib/savedJobs';
 import { formatStatus, statusTone } from '../lib/applicationPipeline';
 import { formatDate } from '../lib/dateFormat';
 import type { CandidateProfile, InterviewSchedule, InterviewSlot, Job, JobApplication, Offer } from '../types';
+import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { getUserFacingError } from '../lib/userFacingError';
 
@@ -266,11 +267,7 @@ if (error) throw error;
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-4">
-        <div className="rounded-panel border border-line bg-surface px-5 py-5 shadow-card">
-          <LoadingSpinner className="text-[#1D9E75]" />
-        </div>
-      </div>
+      <div className="page-shell items-center justify-center px-4"><div className="panel rounded-[24px] px-5 py-5"><LoadingSpinner className="text-[#1D9E75]" /></div></div>
     );
   }
 
@@ -300,9 +297,7 @@ if (error) throw error;
           </div>
 
           {savedJobs.length === 0 ? (
-            <div className="rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] p-6 text-center text-sm text-[#5F5E5A]">
-              No saved jobs yet.
-            </div>
+            <EmptyState title="No saved jobs yet" description="Save jobs you want to revisit and they will appear here." action={<Link to="/jobs" className="inline-flex rounded-full bg-[#1D9E75] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#168a63]">Browse jobs</Link>} />
           ) : (
             <div className="space-y-3">
               {savedJobs.map((job) => (
@@ -333,9 +328,7 @@ if (error) throw error;
           </div>
 
           {appliedJobs.length === 0 ? (
-            <div className="rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] p-6 text-center text-sm text-[#5F5E5A]">
-              No applications yet.
-            </div>
+            <EmptyState title="No applications yet" description="When you apply for a job, you can track its progress here." action={<Link to="/jobs" className="inline-flex rounded-full border border-[#D3D1C7] bg-white px-4 py-2.5 text-sm font-semibold text-[#085041] hover:border-[#5DCAA5]">Find a job</Link>} />
           ) : (
             <div className="space-y-3">
             {appliedJobs.map(({ application, job }) => {
