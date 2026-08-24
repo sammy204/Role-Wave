@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Bookmark, Briefcase, Crown, Gift, HelpCircle, Info, LayoutDashboard, LogOut, Mail, MessageSquareText, Menu, Settings, Sparkles, User, X } from 'lucide-react';
+import { Bookmark, Briefcase, ChevronLeft, ChevronRight, Crown, Gift, HelpCircle, Info, LayoutDashboard, LogOut, Mail, MessageSquareText, Menu, Settings, Sparkles, User, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useUnreadMessagesCount } from '../hooks/useUnreadMessages';
 import NotificationBell from './NotificationBell';
@@ -20,7 +20,7 @@ const links = [
 const utilityLinks = [
   { to: '/about', label: 'About', icon: Info },
   { to: '/contact', label: 'Contact us', icon: Mail },
-  { to: '/faq', label: 'FAQ', icon: HelpCircle },
+  { to: '/help', label: 'Help & support', icon: HelpCircle },
 ];
 
 function UnreadDot() {
@@ -36,10 +36,29 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
   const location = useLocation();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return window.localStorage.getItem('candidate-sidebar-collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
   const edgeSwipeStart = useRef<{ x: number; y: number } | null>(null);
   const drawerSwipeStart = useRef<{ x: number; y: number } | null>(null);
   const path = location.pathname;
   const unreadCount = useUnreadMessagesCount('candidate');
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((collapsed) => {
+      const next = !collapsed;
+      try {
+        window.localStorage.setItem('candidate-sidebar-collapsed', String(next));
+      } catch {
+        // Sidebar state is still useful when storage is unavailable.
+      }
+      return next;
+    });
+  };
 
   const isActive = (route: string) => {
     if (route === '/candidate/dashboard') {
@@ -94,7 +113,7 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
     if (deltaX < -48 && Math.abs(deltaX) > deltaY * 1.25) setDrawerOpen(false);
   };
 
-  const NavLinks = ({ onNavigate }: { onNavigate?: () => void }) => (
+  const NavLinks = ({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) => (
     <nav className="flex flex-1 flex-col gap-1" data-tour="candidate-navigation">
       {links.map((item) => {
         const Icon = item.icon;
@@ -105,13 +124,16 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
             key={item.to}
             to={item.to}
             onClick={onNavigate}
-            className={`flex items-center gap-3 rounded-panel px-4 py-3 text-[14px] font-semibold transition-colors duration-200 ${
+            title={collapsed ? item.label : undefined}
+            className={`flex items-center gap-3 rounded-panel py-3 text-[14px] font-semibold transition-colors duration-200 ${
+              collapsed ? 'justify-center px-2' : 'px-4'
+            } ${
               active ? 'bg-sidebar-active text-white' : 'text-white/85 hover:bg-white/10 hover:text-white'
             }`}
             >
               <Icon size={17} />
-              {item.label}
-              {item.soon && <span className="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white/60">Soon</span>}
+              {!collapsed && item.label}
+              {!collapsed && item.soon && <span className="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white/60">Soon</span>}
               {showUnread && <UnreadDot />}
           </Link>
         );
@@ -119,7 +141,7 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
     </nav>
   );
 
-  const UtilityLinks = ({ onNavigate }: { onNavigate?: () => void }) => (
+  const UtilityLinks = ({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) => (
     <nav className="flex flex-col gap-1 border-t border-white/10 pt-3">
       {utilityLinks.map((item) => {
         const Icon = item.icon;
@@ -129,12 +151,15 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
             key={item.to}
             to={item.to}
             onClick={onNavigate}
-            className={`flex items-center gap-3 rounded-panel px-4 py-2.5 text-[13px] font-semibold transition-colors duration-200 ${
+            title={collapsed ? item.label : undefined}
+            className={`flex items-center gap-3 rounded-panel py-2.5 text-[13px] font-semibold transition-colors duration-200 ${
+              collapsed ? 'justify-center px-2' : 'px-4'
+            } ${
               active ? 'bg-sidebar-active text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'
             }`}
           >
             <Icon size={16} />
-            {item.label}
+            {!collapsed && item.label}
           </Link>
         );
       })}
@@ -148,28 +173,37 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
       onTouchEnd={handleEdgeSwipeEnd}
     >
       {/* Desktop fixed sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[260px] flex-col bg-sidebar px-4 py-6 shadow-sidebar lg:flex">
-        <div className="mb-8 flex items-center justify-between px-1">
+      <aside className={`fixed inset-y-0 left-0 z-40 hidden flex-col bg-sidebar px-4 py-6 shadow-sidebar transition-[width] duration-300 lg:flex ${sidebarCollapsed ? 'w-[76px]' : 'w-[260px]'}`}>
+        <div className={`mb-8 flex items-center px-1 ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
           <Link to="/candidate/dashboard" className="flex items-center gap-3">
             <img src="/rolewave-icon.png" alt="RoleWave" className="h-[34px] w-[34px] object-contain" />
-            <div className="leading-tight">
+            {!sidebarCollapsed && <div className="leading-tight">
               <span className="block text-[16px] font-bold text-white">RoleWave</span>
               <span className="block text-[11px] uppercase tracking-[0.18em] text-white/70">Workspace</span>
-            </div>
+            </div>}
           </Link>
-          <NotificationBell role="candidate" variant="dark" />
+          {!sidebarCollapsed && <NotificationBell role="candidate" variant="dark" />}
         </div>
 
-        <NavLinks />
+        <NavLinks collapsed={sidebarCollapsed} />
 
-        <UtilityLinks />
+        <UtilityLinks collapsed={sidebarCollapsed} />
 
         <button
           onClick={handleSignOut}
-          className="mt-3 flex items-center gap-3 rounded-panel px-4 py-3 text-[14px] font-semibold text-white/85 transition-colors duration-200 hover:bg-white/10 hover:text-white"
+          title={sidebarCollapsed ? 'Sign out' : undefined}
+          className={`mt-3 flex items-center gap-3 rounded-panel py-3 text-[14px] font-semibold text-white/85 transition-colors duration-200 hover:bg-white/10 hover:text-white ${sidebarCollapsed ? 'justify-center px-2' : 'px-4'}`}
         >
           <LogOut size={17} />
-          Sign out
+          {!sidebarCollapsed && 'Sign out'}
+        </button>
+        <button
+          onClick={toggleSidebar}
+          aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          className="mt-3 flex items-center justify-center rounded-panel border border-white/10 py-2.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          {sidebarCollapsed ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}
         </button>
       </aside>
 
@@ -248,7 +282,7 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
       </>
 
       {/* Page content */}
-      <div className="flex-1 lg:pl-[260px]">{children}</div>
+      <div className={`flex-1 transition-[padding] duration-300 ${sidebarCollapsed ? 'lg:pl-[76px]' : 'lg:pl-[260px]'}`}>{children}</div>
     </div>
   );
 }

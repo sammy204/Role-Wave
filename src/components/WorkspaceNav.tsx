@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Briefcase, Building2, LayoutDashboard, LogOut, Menu, MessageSquareText, PencilLine, Settings, X } from 'lucide-react';
+import { Briefcase, Building2, HelpCircle, LayoutDashboard, LogOut, Menu, MessageSquareText, PencilLine, Settings, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useUnreadMessagesCount } from '../hooks/useUnreadMessages';
 import { useAuth } from '../lib/useAuth';
@@ -81,12 +81,14 @@ export default function WorkspaceNav({ role }: { role: WorkspaceRole }) {
           { to: '/post', label: 'Post job', icon: Briefcase },
           { to: '/employer/messages', label: 'Messages', icon: MessageSquareText },
           { to: '/employer/settings', label: 'Settings', icon: Settings },
+          { to: '/help', label: 'Help & support', icon: HelpCircle },
         ]
       : [
           { to: '/candidate/dashboard', label: 'Dashboard', icon: LayoutDashboard },
           { to: '/candidate/profile', label: 'Edit profile', icon: PencilLine },
           { to: '/jobs', label: 'Browse jobs', icon: Briefcase },
           { to: '/candidate/messages', label: 'Messages', icon: MessageSquareText },
+          { to: '/help', label: 'Help & support', icon: HelpCircle },
         ];
 
   return (

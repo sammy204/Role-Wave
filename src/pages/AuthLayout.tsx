@@ -14,7 +14,7 @@ import type { Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { TurnstileWidget } from '../components/TurnstileWidget';
 import { validatePassword } from '../lib/passwordPolicy';
-import { passkeysSupported, signInWithPasskey } from '../lib/passkeys';
+import { passkeyEnabledOnDevice, passkeysSupported, signInWithPasskey } from '../lib/passkeys';
 import { SignIn, ForgotPasswordForm } from './SignIn';
 import { SignUp } from './Signup';
 
@@ -63,6 +63,7 @@ export default function AuthLayout() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const { session, loading: authLoading } = useAuth();
   const isPwa = useIsPwa();
+  const [passkeyEnabled] = useState(passkeyEnabledOnDevice);
   const isSignup = mode === 'signup';
 
   // Cloudflare Turnstile — single token shared across the sign-in/sign-up/forgot
@@ -380,7 +381,7 @@ export default function AuthLayout() {
         onForgotPassword={handleForgotPassword}
         onGoogle={handleGoogle}
         onPasskey={handlePasskeySignIn}
-        passkeyAvailable={isPwa && passkeysSupported()}
+        passkeyAvailable={isPwa && passkeysSupported() && passkeyEnabled}
         onBack={() => navigate('/welcome')}
         turnstileRef={turnstileRef}
         onCaptchaVerify={setCaptchaToken}

@@ -4,6 +4,7 @@ import { formatMonthDay } from './dateFormat';
 import type { AppNotification } from '../types';
 
 export type ConnectionStatus = 'SUBSCRIBED' | 'CLOSED' | 'CHANNEL_ERROR' | 'TIMED_OUT';
+export type NotificationCategory = 'all' | 'unread' | 'messages' | 'applications' | 'account';
 
 export async function fetchNotifications(userId: string, limit = 30): Promise<AppNotification[]> {
   const { data, error } = await supabase
@@ -135,5 +136,32 @@ export function describeNotification(n: AppNotification): string {
       return 'Your job post is now live';
     default:
       return 'New notification';
+  }
+}
+
+export function notificationCategory(n: AppNotification): Exclude<NotificationCategory, 'all' | 'unread'> {
+  switch (n.type) {
+    case 'message_received':
+      return 'messages';
+    case 'application_submitted':
+    case 'application_status_changed':
+      return 'applications';
+    default:
+      return 'account';
+  }
+}
+
+export function notificationCategoryLabel(category: NotificationCategory): string {
+  switch (category) {
+    case 'unread':
+      return 'Unread';
+    case 'messages':
+      return 'Messages';
+    case 'applications':
+      return 'Applications';
+    case 'account':
+      return 'Account';
+    default:
+      return 'All';
   }
 }

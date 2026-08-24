@@ -38,6 +38,7 @@ import CookieConsent from './components/CookieConsent';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import InstallPrompt from './components/InstallPrompt';
+import BiometricPrompt from './components/BiometricPrompt';
 import PushNotificationPrompt from './components/PushNotificationPrompt';
 import ResumeViewer from './pages/ResumeViewer';
 import MessageAttachmentViewer from './pages/MessageAttachmentViewer';
@@ -45,7 +46,7 @@ import CandidateSettings from './pages/CandidateSettings';
 import AccountDeletionScheduled from './pages/AccountDeletionScheduled';
 import PwaOnboarding from './pages/PwaOnboarding';
 import NotFound from './pages/NotFound';
-import Faq from './pages/Faq';
+import AppHelp from './pages/AppHelp';
 import Blog from './pages/Blog';
 import BlogPost from './pages/BlogPost';
 import CookiePolicy from './pages/CookiePolicy';
@@ -177,10 +178,10 @@ function AppShell() {
   const isAdminRoute = path.startsWith('/admin');
   const isPwaLegalRoute = isPwa && (path === '/privacy' || path === '/terms' || path === '/cookie-policy');
   const isApplyRoute = /^\/jobs\/[^/]+\/apply$/.test(path);
-  const isEmployerRoute = path.startsWith('/employer') || path === '/post';
+  const isEmployerRoute = path.startsWith('/employer') || path === '/post' || (path === '/help' && profile?.account_type === 'employer');
   const isCandidateOnlyRoute = path.startsWith('/candidate');
   const isSharedBrowseRoute = path === '/jobs' || (/^\/jobs\/[^/]+$/.test(path) && !isApplyRoute);
-  const isSidebarUtilityRoute = path === '/about' || path === '/contact' || path === '/faq';
+  const isSidebarUtilityRoute = path === '/about' || path === '/contact' || path === '/faq' || path === '/help';
 
   const isSignedIn = !!session;
   const isCandidate = profile?.account_type === 'candidate';
@@ -367,7 +368,8 @@ function AppShell() {
       <Route path="/post" element={<PostJob />} />
       <Route path="/about" element={<About />} />
       <Route path="/contact" element={<Contact />} />
-      <Route path="/faq" element={<Faq />} />
+      <Route path="/faq" element={<Navigate to="/help#faq" replace />} />
+      <Route path="/help" element={<AppHelp />} />
       <Route path="/blog" element={<Blog />} />
       <Route path="/blog/:slug" element={<BlogPost />} />
       <Route path="/cookie-policy" element={<CookiePolicy />} />
@@ -392,6 +394,7 @@ function AppShell() {
         <CandidateSidebar>{routes}</CandidateSidebar>
         <CookieConsent />
         <InstallPrompt />
+        <BiometricPrompt />
         <PushNotificationPrompt />
         <MessageToastHost />
         {tutorialRole && session && <InAppTutorial userId={session.user.id} role={tutorialRole} active={tutorialActive} autoStart={tutorialAutoStart} />}
@@ -407,6 +410,7 @@ function AppShell() {
       {showPublicChrome && <Footer />}
       <CookieConsent />
       <InstallPrompt />
+      <BiometricPrompt />
       <PushNotificationPrompt />
       <MessageToastHost />
       {tutorialRole && session && <InAppTutorial userId={session.user.id} role={tutorialRole} active={tutorialActive} autoStart={tutorialAutoStart} />}

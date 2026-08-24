@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, CheckCheck, Trash2 } from 'lucide-react';
 import { useNotifications } from '../hooks/useNotifications';
-import { describeNotification, notificationHref, timeAgo } from '../lib/notifications';
+import { describeNotification, notificationCategory, notificationCategoryLabel, notificationHref, timeAgo, type NotificationCategory } from '../lib/notifications';
 
 type Variant = 'light' | 'dark';
 
@@ -14,6 +14,7 @@ export default function NotificationBell({
   variant?: Variant;
 }) {
   const [open, setOpen] = useState(false);
+  const [category, setCategory] = useState<NotificationCategory>('all');
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -29,6 +30,11 @@ export default function NotificationBell({
   }, [open]);
 
   const { notifications, unreadCount, markRead, markAllRead, clearAll } = useNotifications();
+  const filteredNotifications = notifications.filter((notification) => {
+    if (category === 'unread') return !notification.read_at;
+    if (category === 'all') return true;
+    return notificationCategory(notification) === category;
+  });
 
   const buttonClass =
     variant === 'dark'
@@ -72,7 +78,10 @@ export default function NotificationBell({
           }`}
         >
           <div className="flex items-center justify-between border-b border-line px-4 py-3">
-            <span className="text-[13px] font-semibold text-ink">Notifications</span>
+            <div>
+              <span className="text-[13px] font-semibold text-ink">Notifications</span>
+              <span className="ml-2 text-[11px] text-faint">{unreadCount ? `${unreadCount} unread` : 'All caught up'}</span>
+            </div>
             <div className="flex items-center gap-3">
               {unreadCount > 0 && (
                 <button
@@ -95,13 +104,27 @@ export default function NotificationBell({
             </div>
           </div>
 
+          <div className="flex gap-1 overflow-x-auto border-b border-line/70 px-3 py-2">
+            {(['all', 'unread', 'messages', 'applications', 'account'] as NotificationCategory[]).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setCategory(option)}
+                className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors ${category === option ? 'bg-accent-light text-accent-text' : 'text-muted hover:bg-paper hover:text-ink'}`}
+              >
+                {notificationCategoryLabel(option)}
+                {option === 'unread' && unreadCount > 0 && <span className="ml-1">{unreadCount}</span>}
+              </button>
+            ))}
+          </div>
+
           <div className="max-h-[360px] overflow-y-auto">
-            {notifications.length === 0 ? (
+            {filteredNotifications.length === 0 ? (
               <div className="px-4 py-8 text-center text-[13px] text-faint">
-                You're all caught up.
+                {category === 'all' ? "You're all caught up." : `No ${notificationCategoryLabel(category).toLowerCase()} notifications.`}
               </div>
             ) : (
-              notifications.slice(0, 10).map((n) => (
+              filteredNotifications.slice(0, 10).map((n) => (
                 <button
                   key={n.id}
                   onClick={() => handleSelect(n.id, notificationHref(n, role))}
@@ -115,7 +138,8 @@ export default function NotificationBell({
                     }`}
                   />
                   <span className="flex-1">
-                    <span className="block text-[12.5px] leading-snug text-ink">
+                    <span className="block text-[10px] font-bold uppercase tracking-[0.8px] text-faint">{notificationCategoryLabel(notificationCategory(n))}</span>
+                    <span className="mt-0.5 block text-[12.5px] leading-snug text-ink">
                       {describeNotification(n)}
                     </span>
                     <span className="mt-0.5 block text-[11px] text-faint">{timeAgo(n.created_at)} ago</span>
