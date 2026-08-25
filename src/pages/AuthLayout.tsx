@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
-import { ArrowRight, Check, ChevronLeft, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, Check, ChevronLeft, Eye, EyeOff, ScanFace } from 'lucide-react';
 import type { TurnstileInstance } from '@marsidev/react-turnstile';
 import { supabase } from '../lib/supabase';
 import { getUserFacingError } from '../lib/userFacingError';
@@ -750,12 +750,6 @@ function PwaAuthCard({
                   {loading ? 'Please wait…' : isSignup ? 'Create account' : 'Sign in'} <ArrowRight size={17} />
                 </button>
 
-                {!isSignup && passkeyAvailable && (
-                  <button type="button" onClick={onPasskey} disabled={loading} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[#1D9E75] bg-white px-4 py-3.5 text-sm font-bold text-[#0F6E56] disabled:opacity-50">
-                    Use fingerprint or face unlock
-                  </button>
-                )}
-
                 <div className="my-5 flex items-center gap-3">
                   <div className="h-px flex-1 bg-[#D3D1C7]" />
                   <span className="text-[10px] font-semibold uppercase tracking-[1px] text-[#B4B2A9]">or continue with</span>
@@ -768,12 +762,24 @@ function PwaAuthCard({
                   </button>
                 </div>
 
-                <p className="mt-5 text-center text-sm text-[#5F5E5A]">
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-center text-sm text-[#5F5E5A]">
                   {isSignup ? 'Already have an account?' : 'New to RoleWave?'}{' '}
                   <button type="button" onClick={() => switchMode(isSignup ? 'login' : 'signup')} className="font-bold text-[#0F6E56]">
                     {isSignup ? 'Sign in' : 'Sign up'}
                   </button>
-                </p>
+                  {!isSignup && passkeyAvailable && (
+                    <button
+                      type="button"
+                      onClick={onPasskey}
+                      disabled={loading}
+                      title="Sign in with Face ID or fingerprint"
+                      aria-label="Sign in with Face ID or fingerprint"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[#1D9E75] bg-white px-3 py-1.5 text-xs font-bold text-[#0F6E56] transition-colors hover:bg-[#E1F5EE] disabled:opacity-50"
+                    >
+                      <ScanFace size={15} /> Face ID
+                    </button>
+                  )}
+                </div>
               </form>
             )}
           </div>

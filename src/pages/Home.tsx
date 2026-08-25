@@ -19,7 +19,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [cityFilter, setCityFilter] = useState('All cities');
+  const [cityFilter, setCityFilter] = useState('Any location');
   const [typeFilter, setTypeFilter] = useState('All types');
   useEffect(() => {
     async function fetchData() {
@@ -64,12 +64,12 @@ export default function Home() {
   const handleSearch = () => {
     void trackEvent('job_search', {
       has_query: Boolean(searchQuery.trim()),
-      city: cityFilter === 'All cities' ? null : cityFilter,
+      city: cityFilter === 'Any location' ? null : cityFilter,
       work_type: typeFilter === 'All types' ? null : typeFilter,
     });
     const params = new URLSearchParams();
     if (searchQuery) params.set('q', searchQuery);
-    if (cityFilter !== 'All cities') params.set('city', cityFilter);
+    if (cityFilter !== 'Any location') params.set('city', cityFilter);
     if (typeFilter !== 'All types') params.set('type', typeFilter);
     navigate(`/jobs?${params.toString()}`);
   };
@@ -127,10 +127,9 @@ export default function Home() {
                   value={cityFilter}
                   onChange={(e) => setCityFilter(e.target.value)}
                 >
-                  <option>All cities</option>
+                  <option>Any location</option>
                   <option>Lagos</option>
                   <option>Abuja</option>
-                  <option>Port Harcourt</option>
                 </select>
                 <div className="h-7 w-[0.5px] flex-shrink-0 bg-[#D3D1C7]" />
                 <select

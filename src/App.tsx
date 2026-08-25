@@ -58,7 +58,7 @@ import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat';
 import { useIsPwa } from './lib/usePwaDisplayMode';
 import { setNativeSystemBarAppearance } from './lib/nativeInit';
 import { syncNativePushToken } from './lib/nativePushNotifications';
-import { trackEvent } from './lib/analytics';
+import { trackEvent, trackPwaInstall } from './lib/analytics';
 
 function App() {
   return (
@@ -101,6 +101,12 @@ function AppShell() {
   useEffect(() => {
     void trackEvent('page_view', { route: location.pathname });
   }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    // iOS Safari does not reliably emit `appinstalled`; standalone launch is
+    // the cross-platform fallback and is deduplicated in the analytics layer.
+    if (isPwa) void trackPwaInstall();
+  }, [isPwa]);
 
   useEffect(() => {
     // Job detail pages set a more specific title once the job has loaded.

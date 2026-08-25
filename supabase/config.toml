@@ -15,6 +15,10 @@ entrypoint = "./functions/health/index.ts"
 enabled = true
 verify_jwt = false
 
+[functions.interview-reminders]
+enabled = true
+verify_jwt = false
+
 [auth.passkey]
 enabled = true
 

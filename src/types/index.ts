@@ -140,9 +140,10 @@ export interface InterviewSchedule {
   application_id: string;
   meeting_link: string;
   employer_timezone: string;
-  status: 'proposed' | 'confirmed' | 'cancelled';
+  status: 'proposed' | 'confirmed' | 'cancelled' | 'completed' | 'expired';
   selected_slot_id: string | null;
   selected_at: string | null;
+  completed_at?: string | null;
   proposed_at: string;
 }
 
@@ -233,7 +234,9 @@ export type NotificationType =
   | 'application_status_changed'
   | 'employer_verification_approved'
   | 'employer_verification_rejected'
-  | 'job_post_approved';
+  | 'job_post_approved'
+  | 'interview_reminder'
+  | 'interview_completed';
 
 export interface AppNotification {
   id: string;

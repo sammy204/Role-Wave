@@ -315,6 +315,23 @@
   color: #9CE4C7 !important;
 }
 
+[data-theme='dark'] .interview-card {
+  background: #1F2B25 !important;
+  border-color: #486252 !important;
+  color: #DCEDE3 !important;
+}
+
+[data-theme='dark'] .interview-card a,
+[data-theme='dark'] .interview-card button {
+  color: #A9E8CA !important;
+}
+
+[data-theme='dark'] .interview-slot-action {
+  background: #26352D !important;
+  border-color: #5B806A !important;
+  color: #DCEDE3 !important;
+}
+
 [data-theme='dark'] .ghost-chip:hover {
   color: #F5F5F4;
 }

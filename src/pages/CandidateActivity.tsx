@@ -336,6 +336,7 @@ if (error) throw error;
                 const offer = application.status === 'offer' ? offersByApplication.get(application.id) : undefined;
                 const interviewSchedule = schedulesByApplication.get(application.id);
                 const interviewSlots = interviewSchedule ? slotsBySchedule.get(interviewSchedule.id) || [] : [];
+                const availableInterviewSlots = interviewSlots.filter((slot) => new Date(slot.starts_at).getTime() > Date.now());
                 const candidateTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
                 return (
@@ -363,13 +364,13 @@ if (error) throw error;
                       </div>
                     )}
 
-                    {application.status === 'interview' && interviewSchedule?.status === 'proposed' && (
-                      <div className="mt-3 rounded-2xl border border-[#C9AEEA] bg-[#F8F3FD] p-4">
+                    {application.status === 'interview' && interviewSchedule?.status === 'proposed' && availableInterviewSlots.length > 0 && (
+                      <div className="interview-card mt-3 rounded-2xl border border-[#C9AEEA] bg-[#F8F3FD] p-4">
                         <div className="text-sm font-semibold text-[#4B2E83]">Choose a day and time</div>
                         <div className="mt-1 text-xs text-[#6F5B88]">Times shown in {candidateTimezone}.</div>
                         <div className="mt-3 space-y-2">
-                          {interviewSlots.map((slot) => (
-                            <button key={slot.id} type="button" onClick={() => selectInterviewSlot(slot.id)} disabled={selectingSlotId !== null} className="flex w-full items-center justify-between gap-3 rounded-xl border border-[#C9AEEA] bg-white px-3 py-2.5 text-left text-sm font-semibold text-[#4B2E83] transition-colors hover:border-[#4B2E83] disabled:cursor-not-allowed disabled:opacity-60">
+                          {availableInterviewSlots.map((slot) => (
+                            <button key={slot.id} type="button" onClick={() => selectInterviewSlot(slot.id)} disabled={selectingSlotId !== null} className="interview-slot-action flex w-full items-center justify-between gap-3 rounded-xl border border-[#C9AEEA] bg-white px-3 py-2.5 text-left text-sm font-semibold text-[#4B2E83] transition-colors hover:border-[#4B2E83] disabled:cursor-not-allowed disabled:opacity-60">
                               <span>{new Intl.DateTimeFormat('en-US', { timeZone: candidateTimezone, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(slot.starts_at))}</span>
                               <span className="shrink-0 text-xs">{selectingSlotId === slot.id ? 'Confirming...' : 'Choose'}</span>
                             </button>
@@ -378,10 +379,20 @@ if (error) throw error;
                       </div>
                     )}
 
-                    {application.status === 'interview' && interviewSchedule?.status === 'confirmed' && interviewSchedule.selected_slot_id && (() => {
+                    {application.status === 'interview' && interviewSchedule?.status === 'proposed' && availableInterviewSlots.length === 0 && (
+                      <div className="interview-card mt-3 rounded-2xl border border-[#F0D080] bg-[#FFF8E6] p-4 text-sm text-[#7A5000]">
+                        <div className="font-semibold">Interview scheduling expired</div>
+                        <div className="mt-1 text-xs">Those proposed times have passed. The employer can send new times.</div>
+                      </div>
+                    )}
+
+                    {application.status === 'interview' && (interviewSchedule?.status === 'confirmed' || interviewSchedule?.status === 'completed') && interviewSchedule.selected_slot_id && (() => {
                       const selectedSlot = interviewSlots.find((slot) => slot.id === interviewSchedule.selected_slot_id);
                       if (!selectedSlot) return null;
-                      return <div className="mt-3 rounded-2xl border border-[#5DCAA5] bg-[#E1F5EE] p-4 text-sm text-[#085041]"><div className="flex items-center gap-2 font-semibold"><CalendarClock size={14} /> Interview confirmed</div><div className="mt-2">{new Intl.DateTimeFormat('en-US', { timeZone: candidateTimezone, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(new Date(selectedSlot.starts_at))}</div><a href={interviewSchedule.meeting_link} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 font-semibold hover:underline"><Link2 size={13} /> Join meeting</a></div>;
+                      const hasPassed = interviewSchedule.status === 'completed' || new Date(selectedSlot.starts_at).getTime() + selectedSlot.duration_minutes * 60_000 <= Date.now();
+                      return hasPassed
+                        ? <div className="interview-card mt-3 rounded-2xl border border-[#D3D1C7] bg-[#F5F4EF] p-4 text-sm text-[#5F5E5A]"><div className="flex items-center gap-2 font-semibold"><CalendarClock size={14} /> Interview completed</div><div className="mt-2">{new Intl.DateTimeFormat('en-US', { timeZone: candidateTimezone, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(new Date(selectedSlot.starts_at))}</div><div className="mt-2 text-xs">The employer can update your application after the interview.</div></div>
+                        : <div className="interview-card mt-3 rounded-2xl border border-[#5DCAA5] bg-[#E1F5EE] p-4 text-sm text-[#085041]"><div className="flex items-center gap-2 font-semibold"><CalendarClock size={14} /> Interview confirmed</div><div className="mt-2">{new Intl.DateTimeFormat('en-US', { timeZone: candidateTimezone, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(new Date(selectedSlot.starts_at))}</div><a href={interviewSchedule.meeting_link} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 font-semibold hover:underline"><Link2 size={13} /> Join meeting</a></div>;
                     })()}
 
                     {offer && (

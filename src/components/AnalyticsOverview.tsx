@@ -56,8 +56,8 @@ export default function AnalyticsOverview() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 text-xs text-[#6B6960]"><BarChart3 size={15} className="text-[#1D9E75]" /> Optional analytics events from the last 30 days.</div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {(['page_view', 'job_view', 'application_submitted', 'signup_completed'] as AnalyticsEventName[]).map((eventName) => (
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {(['page_view', 'job_view', 'application_submitted', 'signup_completed', 'pwa_installed'] as AnalyticsEventName[]).map((eventName) => (
           <div key={eventName} className="rounded-2xl border border-[#D3D1C7] bg-white p-4">
             <div className="text-[11px] font-semibold uppercase tracking-[1.2px] text-[#8A867E]">{EVENT_LABELS[eventName]}</div>
             <div className="mt-2 text-2xl font-bold text-[#1A1A1A]">{counts[eventName] || 0}</div>

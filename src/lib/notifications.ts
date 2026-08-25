@@ -97,6 +97,9 @@ export function notificationHref(n: AppNotification, role: 'candidate' | 'employ
       return '/employer/onboarding';
     case 'job_post_approved':
       return '/employer/dashboard';
+    case 'interview_reminder':
+    case 'interview_completed':
+      return role === 'employer' ? '/employer/dashboard' : '/candidate/activity';
     default:
       return role === 'employer' ? '/employer/dashboard' : '/candidate/dashboard';
   }
@@ -134,6 +137,12 @@ export function describeNotification(n: AppNotification): string {
       return 'Your employer verification needs attention';
     case 'job_post_approved':
       return 'Your job post is now live';
+    case 'interview_reminder':
+      return typeof n.payload.when === 'string'
+        ? `Interview reminder: ${n.payload.when}`
+        : 'Your interview is coming up';
+    case 'interview_completed':
+      return 'Your scheduled interview has ended';
     default:
       return 'New notification';
   }
@@ -145,6 +154,9 @@ export function notificationCategory(n: AppNotification): Exclude<NotificationCa
       return 'messages';
     case 'application_submitted':
     case 'application_status_changed':
+      return 'applications';
+    case 'interview_reminder':
+    case 'interview_completed':
       return 'applications';
     default:
       return 'account';

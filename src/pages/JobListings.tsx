@@ -21,8 +21,7 @@ const workTypeFilters = [
 const cityFilters = [
   { label: 'Lagos' },
   { label: 'Abuja' },
-  { label: 'Port Harcourt' },
-  { label: 'Remote only' },
+  { label: 'Any location' },
 ];
 
 const jobTypeFilters = [
@@ -64,7 +63,9 @@ export default function JobListings() {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState(initialQ);
   const [selectedWorkTypes, setSelectedWorkTypes] = useState<string[]>([]);
-  const [selectedCities, setSelectedCities] = useState<string[]>(initialCity ? [initialCity] : []);
+  const [selectedCities, setSelectedCities] = useState<string[]>(
+    initialCity === 'Lagos' || initialCity === 'Abuja' ? [initialCity] : []
+  );
   const [selectedJobTypes, setSelectedJobTypes] = useState<string[]>([]);
   const [selectedExperienceLevels, setSelectedExperienceLevels] = useState<string[]>([]);
   const [selectedAuthorizations, setSelectedAuthorizations] = useState<string[]>([]);
@@ -132,12 +133,7 @@ export default function JobListings() {
     }
 
     if (selectedCities.length > 0) {
-      result = result.filter((j) => {
-        if (selectedCities.includes('Remote only')) {
-          return j.work_type === 'Remote' || selectedCities.includes(j.location);
-        }
-        return selectedCities.includes(j.location);
-      });
+      result = result.filter((j) => selectedCities.includes(j.location));
     }
 
     if (selectedJobTypes.length > 0) {
@@ -182,8 +178,8 @@ export default function JobListings() {
       if (key === 'work_type') {
         return jobs.filter((j) => j.work_type === label).length;
       }
-      if (label === 'Remote only') {
-        return jobs.filter((j) => j.work_type === 'Remote').length;
+      if (label === 'Any location') {
+        return jobs.length;
       }
       return jobs.filter((j) => j.location === label).length;
     });
@@ -210,8 +206,12 @@ export default function JobListings() {
   };
 
   const toggleCity = (label: string) => {
+    if (label === 'Any location') {
+      setSelectedCities([]);
+      return;
+    }
     setSelectedCities((prev) =>
-      prev.includes(label) ? prev.filter((x) => x !== label) : [...prev, label]
+      prev.includes(label) ? prev.filter((x) => x !== label) : [...prev.filter((x) => x !== 'Any location'), label]
     );
   };
 
@@ -271,12 +271,12 @@ export default function JobListings() {
             <div className="flex items-center gap-2 text-[13px] text-[#5F5E5A]">
               <div
                 className={`w-3.5 h-3.5 rounded flex items-center justify-center text-[9px] ${
-                  selectedCities.includes(item.label)
+                (item.label === 'Any location' ? selectedCities.length === 0 : selectedCities.includes(item.label))
                     ? 'bg-[#1D9E75] border-[#1D9E75] text-white'
                     : 'border-[1.5px] border-[#D3D1C7]'
                 }`}
               >
-                {selectedCities.includes(item.label) && '✓'}
+                {(item.label === 'Any location' ? selectedCities.length === 0 : selectedCities.includes(item.label)) && '✓'}
               </div>
               {item.label}
             </div>
