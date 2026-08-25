@@ -263,7 +263,7 @@ export default function AuthLayout() {
     setError('');
     setInfo('');
     try {
-      const { error: passkeyError } = await signInWithPasskey();
+      const { error: passkeyError } = await signInWithPasskey(captchaToken);
       if (passkeyError) throw passkeyError;
       const { data } = await withTimeout(supabase.auth.getSession(), 6000, 'Session lookup');
       if (!data.session) throw new Error('Sign-in could not be completed.');
@@ -274,6 +274,7 @@ export default function AuthLayout() {
       setError(getUserFacingError(passkeyError, 'We couldn’t sign you in with your passkey. Please try again.'));
     } finally {
       setLoading(false);
+      resetCaptcha();
     }
   };
 

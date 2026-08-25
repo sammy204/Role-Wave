@@ -28,8 +28,8 @@ export async function registerPasskey() {
   return supabase.auth.registerPasskey();
 }
 
-export async function signInWithPasskey() {
-  return supabase.auth.signInWithPasskey();
+export async function signInWithPasskey(captchaToken?: string) {
+  return supabase.auth.signInWithPasskey({ options: { captchaToken } });
 }
 
 export async function listPasskeys() {
