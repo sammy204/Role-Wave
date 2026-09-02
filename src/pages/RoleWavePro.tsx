@@ -15,6 +15,11 @@ const freeBenefits = [
   'Track your applications and messages',
 ];
 
+const proPlans = [
+  { name: 'Monthly', duration: '1 month', price: '₦3,000', value: '₦3,000 per month', featured: false },
+  { name: 'Three months', duration: '3 months', price: '₦7,000', value: 'Save ₦2,000', featured: true },
+];
+
 export default function RoleWavePro() {
   if (!roleWaveProEnabled) {
     return (
@@ -76,32 +81,40 @@ export default function RoleWavePro() {
         </div>
 
         <div className="rounded-panel border-2 border-accent bg-accent-light/40 p-6 shadow-card sm:p-7">
-          <div className="flex items-center justify-between gap-3">
-            <span className="rounded-full bg-accent px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white">Pro plan</span>
-            <span className="text-[12px] font-semibold text-accent-deep">5 months</span>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <span className="rounded-full bg-accent px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white">Pro plans</span>
+              <h2 className="mt-4 font-serif text-[24px] font-bold text-ink">Choose your access</h2>
+            </div>
+            <span className="text-right text-[11px] font-semibold text-accent-deep">Flexible plans<br />Renew when needed</span>
           </div>
-          <div className="mt-6 flex items-end gap-2">
-            <span className="font-serif text-[38px] font-bold leading-none text-ink">₦7,000</span>
-            <span className="pb-1 text-[13px] text-muted">one-time payment</span>
+          <div className="mt-6 space-y-3">
+            {proPlans.map((plan) => (
+              <div key={plan.duration} className={`rounded-2xl border p-4 ${plan.featured ? 'border-accent bg-white shadow-sm' : 'border-line bg-white/60'}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[13px] font-bold text-ink">{plan.name}</p>
+                    <p className="mt-1 text-[11px] text-muted">RoleWave Pro access for {plan.duration}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-serif text-[25px] font-bold leading-none text-ink">{plan.price}</p>
+                    <p className="mt-1 text-[10px] font-bold text-accent-deep">{plan.value}</p>
+                  </div>
+                </div>
+                <button type="button" disabled className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-accent px-4 py-3 text-[12px] font-bold text-white opacity-70">
+                  Choose {plan.name}
+                </button>
+              </div>
+            ))}
           </div>
-          <p className="mt-3 text-[13px] leading-relaxed text-muted">
-            Your plan lasts for five months. It will not renew automatically—you choose if and when to renew.
-          </p>
-          <button
-            type="button"
-            disabled
-            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3.5 text-sm font-bold text-white opacity-70"
-          >
-            Get RoleWave Pro
-          </button>
-          <p className="mt-3 text-center text-[11px] font-semibold text-muted">Payments will be available soon.</p>
+          <p className="mt-4 text-center text-[11px] font-semibold text-muted">Payments will be available soon. Choose monthly or 3-month access.</p>
         </div>
       </section>
 
       <section className="mt-6 grid gap-4 sm:grid-cols-3">
         <InfoCard icon={Target} title="Relevant matches" text="Be surfaced for jobs that align with your profile and preferences." />
         <InfoCard icon={Eye} title="Your choice" text="Control whether employers can discover your profile from your settings." />
-        <InfoCard icon={LockKeyhole} title="No surprises" text="One payment, a clear expiry date, and no automatic renewal." />
+        <InfoCard icon={LockKeyhole} title="No surprises" text="Clear access periods, transparent pricing, and renewal when you choose." />
       </section>
 
       <section className="mt-4 rounded-panel border border-line bg-white p-6 shadow-card sm:p-7">

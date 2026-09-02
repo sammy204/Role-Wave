@@ -1,7 +1,7 @@
 import { useEffect, useState, type MouseEvent } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DOMPurify from 'dompurify';
-import { AlertTriangle, ArrowLeft, MapPin, Home, Briefcase, Clock, CheckCircle, Share2, Send, Bookmark } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, MapPin, Home, Briefcase, Clock, CheckCircle, Share2, Send, Bookmark, Sparkles, LockKeyhole } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getUserFacingError } from '../lib/userFacingError';
 import { withTimeout } from '../lib/withTimeout';
@@ -45,6 +45,9 @@ export default function JobDetail() {
   const [saved, setSaved] = useState(false);
   const [showApplyPrompt, setShowApplyPrompt] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [matchLoading, setMatchLoading] = useState(false);
+  const [matchError, setMatchError] = useState('');
+  const [matchResult, setMatchResult] = useState<{ score: number; summary: string; matched_skills: string[]; strengths: string[]; gaps: string[] } | null>(null);
   const FETCH_TIMEOUT_MS = 10000;
   const { session, loading: authLoading } = useAuth();
 
@@ -244,6 +247,29 @@ export default function JobDetail() {
     void trackEvent('job_saved', { job_id: job.id, saved: nextIds.includes(job.id) });
   };
 
+  const handleMatchCheck = async () => {
+    if (!candidateId || !job || matchLoading) return;
+    setMatchLoading(true);
+    setMatchError('');
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke('match-job', { body: { job_id: job.id } });
+      if (invokeError) {
+        const status = (invokeError as { context?: { status?: number } }).context?.status;
+        if (status === 402) {
+          setMatchError('This is a RoleWave Pro feature. Upgrade to unlock your profile match score.');
+        } else {
+          throw invokeError;
+        }
+      } else {
+        setMatchResult(data);
+      }
+    } catch (matchInvokeError) {
+      setMatchError(getUserFacingError(matchInvokeError, 'We could not check your match right now. Please try again.'));
+    } finally {
+      setMatchLoading(false);
+    }
+  };
+
   return (
     <div className="page-shell">
       <div className="mx-auto grid w-full max-w-[1320px] flex-1 grid-cols-1 gap-4 px-4 pb-8 pt-6 sm:px-6 lg:grid-cols-[1fr_320px] lg:px-8">
@@ -433,6 +459,42 @@ export default function JobDetail() {
               <Bookmark size={14} /> {saved ? 'Saved' : 'Save job'}
             </button>
           </div>
+
+          {candidateId && (
+            <div className="mb-5 rounded-[24px] border border-[#BFE5D5] bg-[#EAF8F1] p-5">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#1D9E75]">
+                  <Sparkles size={17} />
+                </div>
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-[1.4px] text-[#176B52]">Profile match</div>
+                  <h2 className="mt-1 text-[16px] font-bold text-[#1A1A1A]">See how this role fits you</h2>
+                  <p className="mt-1 text-xs leading-5 text-[#4D7668]">Get a score based on your skills, experience, preferences, and this job’s requirements.</p>
+                </div>
+              </div>
+              {!matchResult && (
+                <button type="button" onClick={handleMatchCheck} disabled={matchLoading} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#1D9E75] py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#168a63] disabled:cursor-wait disabled:opacity-70">
+                  {matchLoading ? 'Checking your match...' : <><Sparkles size={14} /> Check my match</>}
+                </button>
+              )}
+              {matchError && (
+                <div className="mt-3 rounded-xl border border-[#E6C58A] bg-[#FFF8E8] p-3 text-xs leading-5 text-[#785116]">
+                  <div className="flex items-start gap-2"><LockKeyhole size={14} className="mt-0.5 shrink-0" /><span>{matchError}</span></div>
+                  {matchError.includes('RoleWave Pro') && <Link to="/candidate/pro" className="mt-2 inline-block font-bold text-[#176B52] hover:underline">View RoleWave Pro</Link>}
+                </div>
+              )}
+              {matchResult && (
+                <div className="mt-4 rounded-2xl border border-white bg-white p-4">
+                  <div className="flex items-end justify-between gap-3">
+                    <div><div className="text-xs font-semibold text-[#5F5E5A]">Your estimated fit</div><div className="mt-1 text-3xl font-bold text-[#176B52]">{matchResult.score}%</div></div>
+                    <div className="rounded-full bg-[#E1F5EE] px-3 py-1 text-xs font-bold text-[#176B52]">{matchResult.summary}</div>
+                  </div>
+                  {matchResult.matched_skills.length > 0 && <div className="mt-3 text-xs text-[#5F5E5A]"><span className="font-bold text-[#1A1A1A]">Matching skills:</span> {matchResult.matched_skills.join(', ')}</div>}
+                  {matchResult.gaps.length > 0 && <div className="mt-2 text-xs text-[#8A5A00]"><span className="font-bold">Worth checking:</span> {matchResult.gaps.join(' · ')}</div>}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="h-4" />
 

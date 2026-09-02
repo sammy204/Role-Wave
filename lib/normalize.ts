@@ -1,5 +1,5 @@
 export interface RawJobPosting {
-  source: "greenhouse" | "ashby" | "flutterwave" | "nextrium" | "iksf" | "techyx360";
+  source: "greenhouse" | "lever" | "ashby" | "smartrecruiters" | "workable" | "flutterwave" | "nextrium" | "iksf" | "techyx360";
   externalId: string;
   company: string;
   title: string;
@@ -35,10 +35,15 @@ export function isRoleWaveTechJob(title: string): boolean {
 }
 
 export function isNigeriaEligible(job: any): boolean {
+  const locations = Array.isArray(job.locations) ? job.locations : [];
   const location = [
     job.location?.name,
     typeof job.location === 'string' ? job.location : null,
+    job.location?.city,
+    job.location?.region,
+    job.location?.country,
     job.locationName,
+    ...locations.flatMap((item: any) => [item.name, item.city, item.region, item.country]),
     job.address?.postalAddress?.addressLocality,
     job.address?.postalAddress?.addressCountry,
   ]
@@ -114,6 +119,63 @@ export function normalizeAshbyJob(
     salaryMin: job.compensation?.minSalary,
     salaryMax: job.compensation?.maxSalary,
     salaryCurrency: job.compensation?.currency,
+  };
+}
+
+export function normalizeLeverJob(job: any, company: string): RawJobPosting {
+  const location = job.categories?.location ?? job.workplaceType ?? null;
+
+  return {
+    source: "lever",
+    externalId: String(job.id ?? job.hostedUrl),
+    company,
+    title: job.text ?? job.title,
+    location,
+    remote: job.workplaceType === 'remote' || detectRemote(location, job.text),
+    department: job.categories?.department ?? null,
+    descriptionHtml: normalizeDescription(job.description),
+    applyUrl: job.applyUrl ?? job.hostedUrl,
+    postedAt: job.createdAt ? new Date(job.createdAt).toISOString() : null,
+  };
+}
+
+export function normalizeSmartRecruitersJob(job: any, company: string): RawJobPosting {
+  const location = [job.location?.city, job.location?.region, job.location?.country, job.location?.countryCode]
+    .filter(Boolean)
+    .join(', ') || null;
+
+  return {
+    source: "smartrecruiters",
+    externalId: String(job.id),
+    company,
+    title: job.name ?? job.title,
+    location,
+    remote: detectRemote(location, job.name ?? job.title),
+    department: job.department?.label ?? job.department?.name ?? null,
+    descriptionHtml: normalizeDescription(job.descriptionHtml ?? job.description),
+    applyUrl: job.applyUrl ?? job.ref,
+    postedAt: job.releasedDate ?? null,
+  };
+}
+
+export function normalizeWorkableJob(job: any, company: string): RawJobPosting {
+  const location = typeof job.location === 'string'
+    ? job.location
+    : [job.location?.city, job.location?.region, job.location?.country]
+      .filter(Boolean)
+      .join(', ') || job.locations?.map((item: any) => item.city ?? item.country).join(', ') || null;
+
+  return {
+    source: "workable",
+    externalId: String(job.id ?? job.shortcode),
+    company,
+    title: job.title,
+    location,
+    remote: detectRemote(location, job.title),
+    department: job.department ?? null,
+    descriptionHtml: normalizeDescription(job.descriptionHtml ?? job.description),
+    applyUrl: job.applyUrl ?? job.url,
+    postedAt: job.published ?? job.created_at ?? null,
   };
 }
 

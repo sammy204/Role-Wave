@@ -19,6 +19,14 @@ verify_jwt = false
 enabled = true
 verify_jwt = false
 
+[functions.match-job]
+enabled = true
+verify_jwt = false
+
+[functions.role-pilot]
+enabled = true
+verify_jwt = false
+
 [auth.passkey]
 enabled = true
 

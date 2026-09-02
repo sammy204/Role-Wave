@@ -4,6 +4,10 @@ import { createClient } from '@supabase/supabase-js';
 
 import {
   fetchGreenhouseJobs,
+  fetchLeverJobs,
+  fetchAshbyJobs,
+  fetchSmartRecruitersJobs,
+  fetchWorkableJobs,
   fetchFlutterwaveJobs,
   fetchNexTriumJobs,
   fetchIKSFJobs,
@@ -11,7 +15,10 @@ import {
 } from '../lib/ats-fetchers';
 import {
   normalizeGreenhouseJob,
+  normalizeLeverJob,
   normalizeAshbyJob,
+  normalizeSmartRecruitersJob,
+  normalizeWorkableJob,
   normalizeDescription,
   isRoleWaveTechJob,
   isNigeriaEligible,
@@ -90,6 +97,18 @@ async function main() {
     if (source.source === 'greenhouse') {
       if (!source.slug) throw new Error(`Missing Greenhouse slug for ${source.company}`);
       fetchedJobs = (await fetchGreenhouseJobs(source.slug)).jobs;
+    } else if (source.source === 'lever') {
+      if (!source.slug) throw new Error(`Missing Lever slug for ${source.company}`);
+      fetchedJobs = await fetchLeverJobs(source.slug);
+    } else if (source.source === 'ashby') {
+      if (!source.slug) throw new Error(`Missing Ashby slug for ${source.company}`);
+      fetchedJobs = (await fetchAshbyJobs(source.slug)).jobs;
+    } else if (source.source === 'smartrecruiters') {
+      if (!source.slug) throw new Error(`Missing SmartRecruiters company ID for ${source.company}`);
+      fetchedJobs = (await fetchSmartRecruitersJobs(source.slug)).jobs;
+    } else if (source.source === 'workable') {
+      if (!source.slug) throw new Error(`Missing Workable subdomain for ${source.company}`);
+      fetchedJobs = (await fetchWorkableJobs(source.slug)).jobs;
     } else if (source.source === 'flutterwave') {
       fetchedJobs = (await fetchFlutterwaveJobs(source.url!)).jobs;
     } else if (source.source === 'nextrium') {
@@ -104,8 +123,11 @@ async function main() {
       (job: any) => isRoleWaveTechJob(job.title) && isNigeriaEligible(job)
     );
     const normalizedJobs = acceptedRawJobs.map((job: any) =>
-      source.source === 'greenhouse'
-        ? normalizeGreenhouseJob(job, source.company)
+      source.source === 'greenhouse' ? normalizeGreenhouseJob(job, source.company)
+        : source.source === 'lever' ? normalizeLeverJob(job, source.company)
+        : source.source === 'ashby' ? normalizeAshbyJob(job, source.company)
+        : source.source === 'smartrecruiters' ? normalizeSmartRecruitersJob(job, source.company)
+        : source.source === 'workable' ? normalizeWorkableJob(job, source.company)
         : normalizeDirectJob(job, source.source, source.company)
     );
     const uniqueJobs = Array.from(

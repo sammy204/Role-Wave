@@ -40,6 +40,70 @@ export async function fetchAshbyJobs(slug: string) {
   return response.json();
 }
 
+export async function fetchSmartRecruitersJobs(companyId: string) {
+  const response = await fetch(
+    `https://api.smartrecruiters.com/v1/companies/${encodeURIComponent(companyId)}/postings?limit=100`
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `SmartRecruiters request failed: ${response.status} ${response.statusText}`
+    );
+  }
+
+  const payload = await response.json();
+  const postings = payload.content ?? [];
+
+  // The list endpoint contains enough data for filtering. Fetching details
+  // supplies the full description used by the job board.
+  const jobs = await Promise.all(
+    postings.map(async (posting: any) => {
+      const detailResponse = await fetch(
+        `https://api.smartrecruiters.com/v1/companies/${encodeURIComponent(companyId)}/postings/${encodeURIComponent(posting.id)}`
+      );
+      const detail = detailResponse.ok ? await detailResponse.json() : posting;
+
+      return {
+        ...posting,
+        ...detail,
+        id: posting.id,
+        title: posting.name ?? posting.title,
+        location: posting.location ?? detail.location,
+        descriptionHtml: detail.jobAd?.sections?.map((section: any) => section.content ?? '').join('\n')
+          ?? detail.description
+          ?? '',
+        applyUrl: detail.ref ?? `https://jobs.smartrecruiters.com/${companyId}/${posting.id}`,
+      };
+    })
+  );
+
+  return { jobs };
+}
+
+export async function fetchWorkableJobs(subdomain: string) {
+  const response = await fetch(
+    `https://apply.workable.com/api/v3/accounts/${encodeURIComponent(subdomain)}/jobs`
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Workable request failed: ${response.status} ${response.statusText}`
+    );
+  }
+
+  const payload = await response.json();
+  const jobs = (payload.jobs ?? payload.results ?? []).map((job: any) => ({
+    ...job,
+    id: job.id ?? job.shortcode,
+    title: job.title,
+    location: job.location ?? job.locations?.map((location: any) => location.city ?? location.country).join(', '),
+    descriptionHtml: job.description ?? job.descriptionHtml ?? '',
+    applyUrl: job.url ?? job.application_url ?? `https://apply.workable.com/${subdomain}/j/${job.shortcode}/`,
+  }));
+
+  return { jobs };
+}
+
 function decodeHtml(value: string): string {
   return value
     .replace(/&amp;/g, '&')

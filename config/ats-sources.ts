@@ -1,5 +1,9 @@
 export type AtsSource =
   | "greenhouse"
+  | "lever"
+  | "ashby"
+  | "smartrecruiters"
+  | "workable"
   | "flutterwave"
   | "nextrium"
   | "iksf"
