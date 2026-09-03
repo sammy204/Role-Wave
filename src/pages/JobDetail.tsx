@@ -125,7 +125,13 @@ export default function JobDetail() {
     const shareDescription = `${job.title} · ${job.location} · Find and share this opportunity on RoleWave.`;
     const shareUrl = `${window.location.origin}/jobs/${job.slug}`;
     const previousTitle = document.title;
+    const descriptionMeta = document.head.querySelector('meta[name="description"]');
+    const previousDescription = descriptionMeta?.getAttribute('content');
+    const canonical = document.head.querySelector('link[rel="canonical"]');
+    const previousCanonical = canonical?.getAttribute('href');
     document.title = shareTitle;
+    descriptionMeta?.setAttribute('content', shareDescription);
+    canonical?.setAttribute('href', shareUrl);
 
     const tags = [
       ['og:title', shareTitle],
@@ -153,6 +159,8 @@ export default function JobDetail() {
 
     return () => {
       document.title = previousTitle;
+      if (previousDescription) descriptionMeta?.setAttribute('content', previousDescription);
+      if (previousCanonical) canonical?.setAttribute('href', previousCanonical);
       createdTags.forEach(({ meta, created }) => {
         if (created) meta.remove();
       });

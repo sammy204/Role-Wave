@@ -2,7 +2,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useIsPwa } from '../lib/usePwaDisplayMode';
 
-const LAST_UPDATED = 'August 10, 2026';
+const LAST_UPDATED = 'September 3, 2026';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -45,7 +45,7 @@ export default function PrivacyPolicy() {
               This policy is written to comply with the Nigeria Data Protection Act, 2023 ("NDPA")
               and the regulatory guidance of the Nigeria Data Protection Commission ("NDPC"). If you
               access RoleWave from outside Nigeria, your data may still be processed as described
-              here, and by using the platform you consent to that processing.
+              here. Where the law requires consent, we will ask for it separately.
             </p>
           </Section>
 
@@ -58,8 +58,10 @@ export default function PrivacyPolicy() {
             <p>
               <span className="font-semibold text-ink">Candidate profile data.</span> If you use
               RoleWave to look for work, we may collect your phone or WhatsApp number, location and
-              preferred work locations, skills, avatar image, and your resume/CV file along with its
-              file name. You choose what to include in your profile, most fields are optional.
+              preferred work locations, skills, preferred job titles, salary expectations, job type,
+              work preference, availability, avatar image, work authorization, portfolio and social
+              links, education, experience, projects, and your resume/CV file along with its file
+              name. You choose what to include in your profile, and most fields are optional.
             </p>
             <p>
               <span className="font-semibold text-ink">Employer & company data.</span> If you post
@@ -69,8 +71,26 @@ export default function PrivacyPolicy() {
             <p>
               <span className="font-semibold text-ink">Applications & messages.</span> When you apply
               to a job, we store your application, its status as it moves through an employer's
-              hiring pipeline, and any messages exchanged between candidates and employers on the
-              platform.
+              hiring pipeline, and any messages or attachments exchanged between candidates and
+              employers on the platform. We may also store interview, offer, and notification details
+              needed to operate those features.
+            </p>
+            <p>
+              <span className="font-semibold text-ink">Payments and Pro.</span> If you purchase
+              RoleWave Pro, we store payment and subscription records such as the plan selected,
+              payment status, transaction reference, and entitlement dates. Payments are processed
+              by Paystack; we do not store your full card details.
+            </p>
+            <p>
+              <span className="font-semibold text-ink">Notifications.</span> If you enable web or
+              mobile notifications, we may store the subscription or device information needed to
+              deliver alerts such as application updates, messages, and interview activity.
+            </p>
+            <p>
+              <span className="font-semibold text-ink">Imported job information.</span> RoleWave may
+              collect and display public job information from supported external job-board sources,
+              including the source name, job details, source URL, and import status. This information
+              is used to maintain job listings and is not candidate profile data.
             </p>
             <p>
               <span className="font-semibold text-ink">Usage and analytics data.</span> When you
@@ -105,9 +125,12 @@ export default function PrivacyPolicy() {
             <ul className="list-disc space-y-1.5 pl-5">
               <li>To create and maintain your account under your chosen role (candidate or employer)</li>
               <li>To show candidates relevant job listings and let employers evaluate applicants</li>
+              <li>To match candidates to active jobs using information supplied in job posts and profiles</li>
               <li>To operate messaging between candidates and employers</li>
               <li>To manually review and verify employer accounts and job postings before they go live</li>
               <li>To send you service related notices (e.g. application updates, verification status)</li>
+              <li>To process RoleWave Pro payments and manage access to paid features</li>
+              <li>To deliver notifications you have enabled</li>
               <li>To detect fraud, abuse, and violations of our Terms of Service</li>
               <li>To improve the platform based on aggregate, non-identifying usage patterns when optional analytics is enabled</li>
             </ul>
@@ -120,17 +143,20 @@ export default function PrivacyPolicy() {
           <Section title="5. Who we share it with">
             <p>
               <span className="font-semibold text-ink">Other users, as intended by the product.</span>{' '}
-              Your candidate profile is visible to employers you apply to (and, where you have enabled
-              it, to employers browsing candidates). Employer/company information is public to anyone
-              browsing job listings.
+              Your candidate profile is visible to employers you apply to and, where you have enabled
+              employer visibility, may be shown to verified employers when it matches one of their
+              active jobs. The profile information shown depends on the feature and may include your
+              name, photo, headline, skills, experience, links, and other details you supplied. Private
+              contact details and files are handled through the platform's access controls.
             </p>
             <p>
               <span className="font-semibold text-ink">Service providers.</span> We use a small number
               of trusted infrastructure providers to run RoleWave: a database and authentication
-              provider for account data, file storage, and realtime messaging; an email provider to
-              send account-related emails; a
-              bot-verification provider to confirm you're a real visitor on our sign-up and login
-              forms; and a hosting provider to serve the RoleWave website. These providers process
+              provider for account data, file storage, and realtime messaging; Paystack to process
+              payments; an email provider to send account-related emails; Cloudflare Turnstile to
+              confirm you're a real visitor on our sign-up and login forms; Sentry for error and
+              performance monitoring where enabled; push-notification services to deliver alerts you
+              request; and a hosting provider to serve the RoleWave website. These providers process
               data on our behalf under their own security commitments and only as needed to run
               RoleWave.
             </p>

@@ -2,7 +2,7 @@ import { ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useIsPwa } from '../lib/usePwaDisplayMode';
 
-const LAST_UPDATED = 'August 10, 2026';
+const LAST_UPDATED = 'September 3, 2026';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -55,7 +55,7 @@ export default function CookiePolicy() {
           <Section title="3. Analytics">
             <p>Analytics and diagnostics are optional. You can choose whether to allow them in the cookie banner. With permission, RoleWave records privacy-limited events such as page views, job searches and views, saves, application progress, signups, PWA installs, passkey activation, job posts, and reports.</p>
             <p>Events contain limited operational properties such as an event name, route, platform, and pseudonymous session identifier. We do not record message contents, resumes, passwords, or form contents for analytics. Analytics events are retained for up to 24 months, then deleted or irreversibly aggregated.</p>
-            <p>Error and performance monitoring through Sentry is also optional and is used to diagnose crashes and platform reliability. You can withdraw consent at any time using cookie settings.</p>
+            <p>Error and performance monitoring through Sentry may be enabled for the RoleWave deployment to diagnose crashes and improve platform reliability. Sentry is configured not to send default personally identifying information. Product analytics consent does not change strictly necessary sign-in storage.</p>
           </Section>
 
           <Section title="4. Managing cookies and local storage">

@@ -74,11 +74,13 @@ export default function Footer() {
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-4 lg:grid-cols-5">
           {/* Brand + newsletter */}
           <div className="col-span-2 lg:col-span-2">
+            <Link to="/" aria-label="RoleWave home" className="inline-flex">
             <img
               src="/rolewave-horizontal-tagline.png"
               alt="RoleWave — Your Career, Rising."
               className="h-12 w-auto object-contain object-left"
             />
+            </Link>
             <span className="mt-1 block max-w-[280px] text-xs text-[#B4B2A9]">
               Verified roles. Clean process. Less noise.
             </span>

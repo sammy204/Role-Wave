@@ -4,7 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import { ArrowRight, Check, ChevronLeft, Eye, EyeOff, ScanFace } from 'lucide-react';
 import type { TurnstileInstance } from '@marsidev/react-turnstile';
 import { supabase } from '../lib/supabase';
-import { getUserFacingError } from '../lib/userFacingError';
+import { getAuthErrorMessage, getUserFacingError } from '../lib/userFacingError';
 import { fetchProfile } from '../lib/admin';
 import { useAuth } from '../lib/useAuth';
 import { useIsPwa } from '../lib/usePwaDisplayMode';
@@ -227,7 +227,7 @@ export default function AuthLayout() {
 
       void signInData;
     } catch (authError) {
-      setError(getUserFacingError(authError, 'We couldn’t complete authentication. Please try again.'));
+      setError(getAuthErrorMessage(authError, 'We couldn’t complete authentication. Please try again.'));
     } finally {
       setLoading(false);
       resetCaptcha();

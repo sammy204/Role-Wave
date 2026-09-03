@@ -8,7 +8,7 @@ import type { Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { validatePassword } from '../lib/passwordPolicy';
 import { TurnstileWidget } from '../components/TurnstileWidget';
-import { getUserFacingError } from '../lib/userFacingError';
+import { getAuthErrorMessage, getUserFacingError } from '../lib/userFacingError';
 
 type AuthMode = 'signup' | 'login';
 interface AdminInvitePreview {
@@ -252,7 +252,7 @@ export default function AdminLogin() {
         options: { captchaToken },
       });
       if (signInError) {
-        setError(getUserFacingError(signInError, 'We couldn’t sign you in. Please try again.'));
+        setError(getAuthErrorMessage(signInError, 'We couldn’t sign you in. Please try again.'));
         setLoading(false);
         resetCaptcha();
         return;

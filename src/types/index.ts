@@ -105,6 +105,36 @@ export interface CandidateProfile {
   timezone?: string | null;
 }
 
+export interface DiscoverableCandidate {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  headline: string | null;
+  bio: string | null;
+  location: string | null;
+  years_experience: number | null;
+  skills: string[];
+  preferred_locations: string[];
+  preferred_job_titles: string[];
+  preferred_salary: string | null;
+  job_type: string | null;
+  work_preference: string | null;
+  availability: string | null;
+  resume_url: string | null;
+  resume_name: string | null;
+  work_authorization: string | null;
+  portfolio_url: string | null;
+  github_url: string | null;
+  linkedin_url: string | null;
+  education: string | null;
+  experience: string | null;
+  projects: string | null;
+  open_to_work: boolean;
+  match_score?: number;
+  match_reasons?: string[];
+  updated_at: string;
+}
+
 export interface EmployerProfile {
   id: string;
   company_id: string | null;

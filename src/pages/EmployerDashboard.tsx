@@ -20,6 +20,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { fetchProfile } from '../lib/admin';
 import { startConversation } from '../lib/messages';
+import { candidateResumeViewerHref, getCandidateAssetUrl } from '../lib/candidateAssets';
 import { useCountUp } from '../hooks/useCountUp';
 import {
   PIPELINE_STAGES,
@@ -28,7 +29,7 @@ import {
   statusTone as applicationStatusTone,
   type PipelineTab,
 } from '../lib/applicationPipeline';
-import type { CandidateProfile, Company, EmployerProfile, Job, JobApplication, Profile } from '../types';
+import type { CandidateProfile, Company, DiscoverableCandidate, EmployerProfile, Job, JobApplication, Profile } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ApplicantModal from '../components/ApplicantModal';
 import MakeOfferModal from '../components/MakeOfferModal';
@@ -100,6 +101,9 @@ export default function EmployerDashboard() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [applications, setApplications] = useState<(JobApplication & { job?: Job; candidate?: CandidateProfile | null })[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [matchingJob, setMatchingJob] = useState<Job | null>(null);
+  const [matchingCandidates, setMatchingCandidates] = useState<DiscoverableCandidate[]>([]);
+  const [matchingLoading, setMatchingLoading] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
   const [applicationPipelineTab, setApplicationPipelineTab] = useState<ApplicationPipelineTab>('applied');
@@ -461,6 +465,33 @@ const updateApplicationStatus = async (
     }
   };
 
+  const findCandidatesForJob = async (job: Job) => {
+    setMatchingJob(job);
+    setMatchingCandidates([]);
+    setMatchingLoading(true);
+    setError('');
+    try {
+      const { data, error: matchError } = await supabase.rpc('employer_discover_candidates', { p_job_id: job.id, p_search: null });
+      const matchedCandidates = matchError ? [] : (data || []) as DiscoverableCandidate[];
+      if (matchError) setError(getUserFacingError(matchError, 'We couldnâ€™t load scored matches, but we will still show applicants for this job.'));
+      const alreadyMatchedIds = new Set(matchedCandidates.map((candidate) => candidate.id));
+      const appliedCandidates = applications
+        .filter((application) => application.job_id === job.id && application.candidate_profile_id && application.candidate)
+        .map((application) => ({
+          ...(application.candidate as CandidateProfile),
+          full_name: application.applicant_name,
+          match_score: 10,
+          match_reasons: ['Applied to this job'],
+        } as DiscoverableCandidate))
+        .filter((candidate) => !alreadyMatchedIds.has(candidate.id));
+      setMatchingCandidates([...appliedCandidates, ...matchedCandidates]);
+    } catch (matchError) {
+      setError(getUserFacingError(matchError, 'We couldnâ€™t find candidates for this job. Please try again.'));
+    } finally {
+      setMatchingLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="page-shell items-center justify-center px-4">
@@ -705,6 +736,13 @@ const updateApplicationStatus = async (
                           >
                             <Eye size={14} /> View
                           </Link>
+                          <button
+                            type="button"
+                            onClick={() => void findCandidatesForJob(job)}
+                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-deep"
+                          >
+                            <Search size={14} /> Find matches
+                          </button>
                           {job.status === 'active' ? (
                             <button
                               onClick={() => updateJobStatus(job.id, 'closed')}
@@ -1022,6 +1060,16 @@ const updateApplicationStatus = async (
           />
         );
       })()}
+      {matchingJob && (
+        <CandidateMatchesModal
+          job={matchingJob}
+          candidates={matchingCandidates}
+          loading={matchingLoading}
+          messagingId={messagingId}
+          onClose={() => setMatchingJob(null)}
+          onMessage={(candidateId) => void handleMessageCandidate(candidateId, matchingJob.id)}
+        />
+      )}
       {offerApplicationId && employerProfile && (() => {
         const offerApplication = applications.find((item) => item.id === offerApplicationId);
         if (!offerApplication) return null;
@@ -1083,6 +1131,158 @@ const updateApplicationStatus = async (
         );
       })()}
     </div>
+  );
+}
+
+function CandidateMatchesModal({
+  job,
+  candidates,
+  loading,
+  messagingId,
+  onClose,
+  onMessage,
+}: {
+  job: Job;
+  candidates: DiscoverableCandidate[];
+  loading: boolean;
+  messagingId: string | null;
+  onClose: () => void;
+  onMessage: (candidateId: string) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button type="button" className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} aria-label="Close candidate matches" />
+      <section className="relative z-10 flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] bg-paper shadow-card-hover">
+        <header className="flex items-start justify-between gap-4 border-b border-line bg-white px-6 py-5">
+          <div><p className="text-[10px] font-bold uppercase tracking-[1.6px] text-accent-deep">Candidate matches</p><h2 className="mt-1 font-serif text-2xl font-bold text-ink">{job.title}</h2><p className="mt-1 text-sm text-muted">Only candidates related to this job are shown.</p></div>
+          <button type="button" onClick={onClose} className="rounded-full p-2 text-muted hover:bg-paper hover:text-ink" aria-label="Close"><XCircle size={19} /></button>
+        </header>
+        <div className="overflow-y-auto p-6">
+          {loading ? <div className="py-14 text-center text-sm text-muted">Finding relevant candidates...</div> : candidates.length === 0 ? <div className="rounded-2xl border border-line bg-white p-10 text-center text-sm text-muted">No candidates currently match this job’s criteria.</div> : <DiscoverableCandidateList candidates={candidates} query="" onMessage={onMessage} messagingId={messagingId} />}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function DiscoverableCandidateList({
+  candidates,
+  query,
+  onMessage,
+  messagingId,
+}: {
+  candidates: DiscoverableCandidate[];
+  query: string;
+  onMessage: (candidateId: string) => void;
+  messagingId: string | null;
+}) {
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredCandidates = normalizedQuery
+    ? candidates.filter((candidate) => [candidate.headline, candidate.bio, candidate.location, ...candidate.skills, ...candidate.preferred_job_titles]
+      .filter(Boolean)
+      .some((value) => value!.toLowerCase().includes(normalizedQuery)))
+    : candidates;
+
+  if (filteredCandidates.length === 0) {
+    return <div className="rounded-2xl border border-line bg-white p-8 text-center text-sm text-muted">No discoverable candidates match that search.</div>;
+  }
+
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      {filteredCandidates.map((candidate) => (
+        <DiscoverableCandidateCard
+          key={candidate.id}
+          candidate={candidate}
+          onMessage={() => onMessage(candidate.id)}
+          messaging={messagingId === candidate.id}
+        />
+      ))}
+    </div>
+  );
+}
+
+function DiscoverableCandidateCard({
+  candidate,
+  onMessage,
+  messaging,
+}: {
+  candidate: DiscoverableCandidate;
+  onMessage: () => void;
+  messaging: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    if (!candidate.avatar_url) return undefined;
+    void getCandidateAssetUrl(candidate.avatar_url).then((url) => {
+      if (alive) setAvatarUrl(url);
+    }).catch(() => {
+      if (alive) setAvatarUrl(null);
+    });
+    return () => { alive = false; };
+  }, [candidate.avatar_url]);
+
+  const displayName = candidate.full_name || 'RoleWave candidate';
+  const initials = displayName.split(/\s+/).map((part) => part[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
+
+  return (
+    <article className="overflow-hidden rounded-[24px] border border-line bg-white transition-shadow hover:shadow-card">
+      <div className="flex items-start gap-4 p-5">
+        {avatarUrl ? (
+          <img src={avatarUrl} alt="" className="h-16 w-16 shrink-0 rounded-2xl object-cover" />
+        ) : (
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-accent-light text-lg font-bold text-accent-deep">{initials}</div>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-bold text-ink">{displayName}</h3>
+              <p className="mt-1 truncate text-sm font-semibold text-accent-deep">{candidate.headline || 'Professional candidate'}</p>
+            </div>
+            <span className="shrink-0 rounded-full border border-[#5DCAA5] bg-accent-light px-2.5 py-1 text-[10px] font-semibold text-accent-text">
+              {candidate.open_to_work ? 'Open to work' : 'Visible'}
+            </span>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+            <span className="inline-flex items-center gap-1"><MapPin size={12} /> {candidate.location || 'Location not specified'}</span>
+            {candidate.years_experience !== null && <span>{candidate.years_experience} years experience</span>}
+            {candidate.work_preference && <span>{candidate.work_preference}</span>}
+          </div>
+        </div>
+      </div>
+      <div className="border-t border-line px-5 py-4">
+        <div className="flex flex-wrap gap-1.5">
+          {candidate.skills.slice(0, 5).map((skill) => <span key={skill} className="rounded-full bg-paper px-2.5 py-1 text-[10px] font-semibold text-muted">{skill}</span>)}
+          {candidate.skills.length > 5 && <span className="rounded-full bg-paper px-2.5 py-1 text-[10px] font-semibold text-faint">+{candidate.skills.length - 5} more</span>}
+        </div>
+        {candidate.match_reasons && candidate.match_reasons.length > 0 && <p className="mt-3 text-[11px] font-semibold text-accent-deep">Matched on {candidate.match_reasons.join(' · ')}</p>}
+        {expanded && (
+          <div className="mt-4 space-y-4 rounded-2xl bg-paper p-4 text-sm text-muted">
+            {candidate.bio && <p className="leading-6">{candidate.bio}</p>}
+            {candidate.preferred_job_titles.length > 0 && <div><p className="text-[10px] font-bold uppercase tracking-[1.4px] text-faint">Interested in</p><p className="mt-1">{candidate.preferred_job_titles.join(' · ')}</p></div>}
+            {candidate.preferred_locations.length > 0 && <div><p className="text-[10px] font-bold uppercase tracking-[1.4px] text-faint">Preferred locations</p><p className="mt-1">{candidate.preferred_locations.join(' · ')}</p></div>}
+            {candidate.availability && <div><p className="text-[10px] font-bold uppercase tracking-[1.4px] text-faint">Availability</p><p className="mt-1">{candidate.availability}</p></div>}
+            {candidate.preferred_salary && <div><p className="text-[10px] font-bold uppercase tracking-[1.4px] text-faint">Salary expectation</p><p className="mt-1">{candidate.preferred_salary}</p></div>}
+            {candidate.education && <div><p className="text-[10px] font-bold uppercase tracking-[1.4px] text-faint">Education</p><p className="mt-1 whitespace-pre-line leading-6">{candidate.education}</p></div>}
+            {candidate.experience && <div><p className="text-[10px] font-bold uppercase tracking-[1.4px] text-faint">Experience</p><p className="mt-1 whitespace-pre-line leading-6">{candidate.experience}</p></div>}
+            {candidate.projects && <div><p className="text-[10px] font-bold uppercase tracking-[1.4px] text-faint">Projects</p><p className="mt-1 whitespace-pre-line leading-6">{candidate.projects}</p></div>}
+            {candidate.work_authorization && <div><p className="text-[10px] font-bold uppercase tracking-[1.4px] text-faint">Work authorization</p><p className="mt-1">{candidate.work_authorization}</p></div>}
+            {(candidate.portfolio_url || candidate.github_url || candidate.linkedin_url) && <div><p className="text-[10px] font-bold uppercase tracking-[1.4px] text-faint">Links</p><div className="mt-2 flex flex-wrap gap-2">{candidate.portfolio_url && <a href={candidate.portfolio_url} target="_blank" rel="noreferrer" className="font-semibold text-accent-deep underline">Portfolio</a>}{candidate.github_url && <a href={candidate.github_url} target="_blank" rel="noreferrer" className="font-semibold text-accent-deep underline">GitHub</a>}{candidate.linkedin_url && <a href={candidate.linkedin_url} target="_blank" rel="noreferrer" className="font-semibold text-accent-deep underline">LinkedIn</a>}</div></div>}
+            {candidate.resume_url && candidateResumeViewerHref(candidate.resume_url, candidate.resume_name || 'candidate-resume.pdf') && <div><p className="text-[10px] font-bold uppercase tracking-[1.4px] text-faint">Resume</p><a href={candidateResumeViewerHref(candidate.resume_url, candidate.resume_name || 'candidate-resume.pdf') || '#'} className="mt-1 inline-flex font-semibold text-accent-deep underline">View resume{candidate.resume_name ? ` · ${candidate.resume_name}` : ''}</a></div>}
+          </div>
+        )}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button type="button" onClick={() => setExpanded((value) => !value)} className="inline-flex flex-1 items-center justify-center rounded-xl border border-line px-3 py-2.5 text-xs font-bold text-ink transition-colors hover:border-accent hover:bg-accent-light">
+            {expanded ? 'Hide profile' : 'View full profile'}
+          </button>
+          <button type="button" onClick={onMessage} disabled={messaging} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-3 py-2.5 text-xs font-bold text-white transition-colors hover:bg-accent-deep disabled:opacity-60">
+            <MessageSquareText size={14} /> {messaging ? 'Opening...' : 'Message'}
+          </button>
+        </div>
+      </div>
+    </article>
   );
 }
 

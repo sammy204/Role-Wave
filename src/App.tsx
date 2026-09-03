@@ -181,6 +181,22 @@ function AppShell() {
                                                     : 'Page Not Found | RoleWave';
 
     document.title = title;
+
+    const descriptions: Record<string, string> = {
+      '/': 'Find verified jobs and trusted companies across Nigeria with RoleWave.',
+      '/jobs': 'Browse verified tech and digital jobs in Nigeria on RoleWave.',
+      '/about': 'RoleWave connects skilled professionals with credible employers across Nigeria.',
+      '/contact': 'Contact the RoleWave team for help with jobs, applications, or your account.',
+      '/help': 'Get answers about using RoleWave as a candidate or employer.',
+      '/blog': 'Practical career and hiring resources from RoleWave.',
+      '/candidate/pro': 'Get more from your job search with RoleWave Pro.',
+      '/employer/dashboard': 'Manage your jobs, applications, and hiring pipeline on RoleWave.',
+      '/post': 'Publish a verified job opportunity on RoleWave.',
+    };
+    const description = document.head.querySelector('meta[name="description"]');
+    description?.setAttribute('content', descriptions[path] || 'RoleWave connects skilled professionals with credible employers across Nigeria.');
+    const canonical = document.head.querySelector('link[rel="canonical"]');
+    canonical?.setAttribute('href', `${window.location.origin}${path === '/' ? '/' : path}`);
   }, [path]);
 
   // Reflects "this tab is open and visible" server-side so send-message-push

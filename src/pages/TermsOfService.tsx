@@ -2,7 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useIsPwa } from '../lib/usePwaDisplayMode';
 
-const LAST_UPDATED = 'August 10, 2026';
+const LAST_UPDATED = 'September 3, 2026';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -60,14 +60,20 @@ export default function TermsOfService() {
 
           <Section title="3. For candidates">
             <p>
-              You may browse jobs, build a profile, upload a resume, and apply to listings free of
-              charge. Applying to a job does not guarantee any response, interview, or offer, hiring
+              You may browse jobs, build a profile, upload a resume, and apply to listings. Applying
+              to a job does not guarantee any response, interview, or offer, hiring
               decisions are made solely by the employer. RoleWave is not a party to and does not
               guarantee the outcome of any employment relationship formed through the platform.
             </p>
             <p>
               You can withdraw an application at any time; the employer will see it marked as
               withdrawn rather than deleted from their records.
+            </p>
+            <p>
+              If you make your profile visible to employers, RoleWave may show it to a verified
+              employer when it is relevant to one of that employer's active jobs. Candidate
+              visibility is intended to support hiring and is not a guarantee that an employer will
+              contact you.
             </p>
           </Section>
 
@@ -95,6 +101,11 @@ export default function TermsOfService() {
               and for keeping candidates' application data confidential and used only for your
               hiring purposes.
             </p>
+            <p>
+              Candidate matching is based on information in the job posting and candidate profiles.
+              It is a hiring aid, not a hiring decision. You remain responsible for reviewing profiles
+              fairly and complying with applicable employment and data-protection laws.
+            </p>
           </Section>
 
           <Section title="5. Prohibited conduct">
@@ -115,16 +126,30 @@ export default function TermsOfService() {
               You retain ownership of the content you upload (resumes, profile details, company
               information, job posts, messages). By submitting it, you grant RoleWave a license to
               store, display, and process that content as needed to operate the platform, for
-              example, showing your profile to employers you apply to, or your job post to candidates
+              example, showing your profile to employers you apply to or to verified employers whose
+              active jobs are relevant to your profile, or showing your job post to candidates
               browsing listings.
             </p>
           </Section>
 
           <Section title="7. Fees">
             <p>
-              RoleWave is currently free to use for both candidates and employers. If we introduce
-              paid plans or features in the future, we will communicate pricing clearly before you are
-              charged, and continued free use will not be affected retroactively.
+              Most RoleWave features are available without payment. RoleWave Pro is an optional paid
+              plan that may provide additional features, including access to candidate matching and
+              other features described in the app. The current price and plan duration are shown
+              before checkout.
+            </p>
+            <p>
+              Payments are processed by Paystack. RoleWave does not receive or store your full card
+              details. A Pro entitlement is activated after successful payment verification and is
+              available for the period shown at checkout. If a payment fails, is reversed, or is
+              refunded, Pro access may be suspended or removed.
+            </p>
+            <p>
+              Unless the checkout page says otherwise, plans do not renew automatically. Refunds,
+              cancellations, and payment disputes are handled in line with the terms shown at
+              checkout and applicable law. Contact us promptly if you believe a payment or entitlement
+              is incorrect.
             </p>
           </Section>
 

@@ -340,7 +340,7 @@ export default function JobListings() {
     <div className="page-shell">
       <div className="mx-auto grid w-full max-w-[1320px] grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
         <div data-tour="candidate-jobs-page" className="text-sm font-semibold text-[#1A1A1A]">All jobs</div>
-        <div className="mx-auto flex w-full max-w-[420px] items-center rounded-full border border-[#B8B5AA] bg-white px-3.5 py-2.5 shadow-[0_8px_22px_rgba(26,26,26,0.07)] transition-colors focus-within:border-[#5DCAA5]">
+        <div className="mx-auto flex min-w-0 w-full max-w-[420px] items-center rounded-full border border-[#B8B5AA] bg-white px-3.5 py-2.5 shadow-[0_8px_22px_rgba(26,26,26,0.07)] transition-colors focus-within:border-[#5DCAA5]">
           <Search size={15} className="mr-2 text-[#8A867E]" />
           <input
             type="text"

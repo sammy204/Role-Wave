@@ -13,7 +13,7 @@ const links = [
   { to: '/candidate/messages', label: 'Messages', icon: MessageSquareText },
   { to: '/candidate/offers', label: 'Offers', icon: Gift },
   { to: '/candidate/role-pilot', label: 'Role Pilot', icon: Sparkles, soon: true },
-  { to: '/candidate/pro', label: 'RoleWave Pro', icon: Crown, soon: true },
+  { to: '/candidate/pro', label: 'RoleWave Pro', icon: Crown },
   { to: '/candidate/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -254,10 +254,10 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
           }`}
         >
             <div className="mb-8 flex items-center justify-between px-1">
-              <div className="flex items-center gap-3">
+              <Link to="/candidate/dashboard" className="flex items-center gap-3">
                 <img src="/rolewave-icon.png" alt="RoleWave" className="h-[34px] w-[34px] object-contain" />
                 <span className="text-[16px] font-bold text-white">RoleWave</span>
-              </div>
+              </Link>
               <button
                 onClick={() => setDrawerOpen(false)}
                 aria-label="Close menu"
