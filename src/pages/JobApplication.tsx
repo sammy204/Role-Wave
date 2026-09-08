@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, FileText, Send } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -8,6 +8,8 @@ import type { Company, Job } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { trackEvent } from '../lib/analytics';
 import { candidateResumeViewerHref } from '../lib/candidateAssets';
+import { TurnstileWidget } from '../components/TurnstileWidget';
+import type { TurnstileInstance } from '@marsidev/react-turnstile';
 
 const emptyForm = {
   name: '',
@@ -29,6 +31,8 @@ export default function JobApplication() {
   const [requiresAccount, setRequiresAccount] = useState(false);
   const [job, setJob] = useState<(Job & { company?: Company }) | null>(null);
   const [existingApplication, setExistingApplication] = useState<{ id: string; status: string } | null>(null);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const turnstileRef = useRef<TurnstileInstance>(null);
   const [form, setForm] = useState(emptyForm);
 
   useEffect(() => {
@@ -164,30 +168,33 @@ export default function JobApplication() {
       const source = isSignedIn ? 'registered' : 'guest';
       const candidateProfileId = isSignedIn ? session!.user.id : null;
 
-      const { error: submitError } = await supabase.from('job_applications').insert({
-        job_id: job.id,
-        candidate_profile_id: candidateProfileId,
-        applicant_name: form.name,
-        applicant_email: form.email,
-        applicant_phone: form.phone || null,
-        cover_letter: form.coverLetter || null,
-        resume_url: form.resumeUrl || null,
-        portfolio_url: form.portfolioUrl || null,
-        source,
+      if (!captchaToken) throw new Error('Please wait for the security check to finish, then try again.');
+
+      const { data: applicationResult, error: functionError } = await supabase.functions.invoke('submit-job-application', {
+        body: {
+          jobId: job.id,
+          candidateProfileId,
+          applicantName: form.name,
+          applicantEmail: form.email,
+          applicantPhone: form.phone || null,
+          coverLetter: form.coverLetter || null,
+          resumeUrl: form.resumeUrl || null,
+          portfolioUrl: form.portfolioUrl || null,
+          source,
+          captchaToken,
+        },
       });
 
-      if (submitError) {
-        if (submitError.code === '23505') {
-          throw new Error('You have already applied to this job.');
-        }
-        throw submitError;
-      }
+      if (functionError) throw functionError;
+      if (applicationResult?.alreadyApplied) throw new Error('You have already applied to this job.');
       void trackEvent('application_submitted', { job_id: job.id, source });
       setSuccess(true);
     } catch (submitError) {
       setError(getUserFacingError(submitError, 'We couldn’t submit your application. Please try again.'));
     } finally {
       setSubmitting(false);
+      setCaptchaToken('');
+      turnstileRef.current?.reset();
     }
   };
 
@@ -351,6 +358,13 @@ export default function JobApplication() {
           >
             {submitting ? 'Sending...' : existingApplication ? 'Already applied' : 'Submit application'}
           </button>
+          <TurnstileWidget
+            ref={turnstileRef}
+            onVerify={setCaptchaToken}
+            onExpire={() => setCaptchaToken('')}
+            appearance="interaction-only"
+            action="job_application"
+          />
         </div>
 
         <div className="rounded-[28px] panel-soft px-4 py-6 sm:px-6 sm:py-7">

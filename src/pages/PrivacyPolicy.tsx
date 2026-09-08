@@ -154,7 +154,7 @@ export default function PrivacyPolicy() {
               of trusted infrastructure providers to run RoleWave: a database and authentication
               provider for account data, file storage, and realtime messaging; Paystack to process
               payments; an email provider to send account-related emails; Cloudflare Turnstile to
-              confirm you're a real visitor on our sign-up and login forms; Sentry for error and
+              confirm you're a real visitor on our support form; Sentry for error and
               performance monitoring where enabled; push-notification services to deliver alerts you
               request; and a hosting provider to serve the RoleWave website. These providers process
               data on our behalf under their own security commitments and only as needed to run

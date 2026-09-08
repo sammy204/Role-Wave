@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight, ArrowLeft, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { uploadCandidateAsset } from '../lib/candidateAssets';
 
 // A short, opinionated question flow shown once, right after signup, before a
 // candidate ever sees the general job board. The goal is to capture just
@@ -34,7 +35,7 @@ const EXPERIENCE_OPTIONS = [
   { label: '3+ years', years: 5 },
 ];
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 7;
 
 export default function CandidateOnboarding() {
   const navigate = useNavigate();
@@ -52,6 +53,11 @@ export default function CandidateOnboarding() {
   const [skills, setSkills] = useState<string[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
   const [experienceLabel, setExperienceLabel] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [country, setCountry] = useState('');
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -66,7 +72,7 @@ export default function CandidateOnboarding() {
 
       const { data: profileRow } = await supabase
         .from('profiles')
-        .select('account_type, onboarding_completed')
+        .select('account_type, onboarding_completed, full_name')
         .eq('id', session.user.id)
         .maybeSingle();
 
@@ -82,6 +88,18 @@ export default function CandidateOnboarding() {
         return;
       }
 
+      const { data: candidateRow } = await supabase
+        .from('candidate_profiles')
+        .select('phone, country, resume_url, resume_name')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      const nameParts = (profileRow?.full_name || '').trim().split(/\s+/).filter(Boolean);
+      setFirstName(nameParts[0] || '');
+      setLastName(nameParts.slice(1).join(' '));
+      setPhone(candidateRow?.phone || '');
+      setCountry(candidateRow?.country || '');
+      
       setUserId(session.user.id);
       setChecking(false);
     })();
@@ -123,11 +141,13 @@ export default function CandidateOnboarding() {
   };
 
   const canAdvance = () => {
-    if (step === 1) return Boolean(jobType);
-    if (step === 2) return jobTitles.length > 0;
-    if (step === 3) return skills.length > 0;
-    if (step === 4) return locations.length > 0;
-    if (step === 5) return Boolean(experienceLabel);
+    if (step === 1) return Boolean(firstName.trim() && lastName.trim() && phone.trim() && country.trim());
+    if (step === 2) return Boolean(resumeFile);
+    if (step === 3) return Boolean(jobType);
+    if (step === 4) return jobTitles.length > 0;
+    if (step === 5) return skills.length > 0;
+    if (step === 6) return locations.length > 0;
+    if (step === 7) return Boolean(experienceLabel);
     return false;
   };
 
@@ -151,9 +171,14 @@ export default function CandidateOnboarding() {
 
     try {
       const yearsExperience = EXPERIENCE_OPTIONS.find((o) => o.label === experienceLabel)?.years ?? 0;
+      const resumePath = resumeFile ? await uploadCandidateAsset(resumeFile, userId, 'resumes') : null;
 
       const { error: upsertError } = await supabase.from('candidate_profiles').upsert({
         id: userId,
+        phone: phone.trim(),
+        country: country.trim(),
+        resume_url: resumePath,
+        resume_name: resumeFile?.name || null,
         job_type: jobType,
         preferred_job_titles: jobTitles,
         skills,
@@ -164,7 +189,11 @@ export default function CandidateOnboarding() {
 
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ onboarding_completed: true, account_type: 'candidate' })
+        .update({
+          full_name: `${firstName.trim()} ${lastName.trim()}`,
+          onboarding_completed: true,
+          account_type: 'candidate',
+        })
         .eq('id', userId);
       if (profileError) throw profileError;
 
@@ -205,6 +234,34 @@ export default function CandidateOnboarding() {
 
         {step === 1 && (
           <div>
+            <h1 className="font-display text-[26px] font-semibold leading-tight tracking-[-0.02em] text-ink">Tell us about you</h1>
+            <p className="mt-2 text-sm leading-relaxed text-muted">These required details help employers know who they are speaking with.</p>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <label className="block"><span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">First name</span><input className="field-shell" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Samuel" required /></label>
+              <label className="block"><span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">Last name</span><input className="field-shell" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Ade" required /></label>
+              <label className="block"><span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">Phone number</span><input className="field-shell" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+234..." required /></label>
+              <label className="block"><span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">Country</span><input className="field-shell" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Nigeria" required /></label>
+            </div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div>
+            <h1 className="font-display text-[26px] font-semibold leading-tight tracking-[-0.02em] text-ink">Add your resume</h1>
+            <p className="mt-2 text-sm leading-relaxed text-muted">Upload a PDF or Word document so employers can understand your experience.</p>
+            <label className="mt-6 flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-[#5DCAA5] bg-[#E1F5EE] px-5 py-10 text-center">
+              <span className="text-sm font-semibold text-[#085041]">{resumeFile ? resumeFile.name : 'Choose your resume'}</span>
+              <span className="mt-1 text-xs text-[#4D7668]">PDF, DOC, or DOCX · max 10MB</span>
+              <input type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" onChange={(event) => {
+                const file = event.target.files?.[0] || null;
+                if (file && file.size <= 10 * 1024 * 1024) setResumeFile(file);
+              }} />
+            </label>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div>
             <h1 className="font-display text-[26px] font-semibold leading-tight tracking-[-0.02em] text-ink">
               What are you looking for?
             </h1>
@@ -231,7 +288,7 @@ export default function CandidateOnboarding() {
           </div>
         )}
 
-        {step === 2 && (
+        {step === 4 && (
           <div>
             <h1 className="font-display text-[26px] font-semibold leading-tight tracking-[-0.02em] text-ink">
               What's your field?
@@ -271,7 +328,7 @@ export default function CandidateOnboarding() {
           </div>
         )}
 
-        {step === 3 && (
+        {step === 5 && (
           <div>
             <h1 className="font-display text-[26px] font-semibold leading-tight tracking-[-0.02em] text-ink">
               What are your skills?
@@ -311,7 +368,7 @@ export default function CandidateOnboarding() {
           </div>
         )}
 
-        {step === 4 && (
+        {step === 6 && (
           <div>
             <h1 className="font-display text-[26px] font-semibold leading-tight tracking-[-0.02em] text-ink">
               Where do you want to work?
@@ -336,7 +393,7 @@ export default function CandidateOnboarding() {
           </div>
         )}
 
-        {step === 5 && (
+        {step === 7 && (
           <div>
             <h1 className="font-display text-[26px] font-semibold leading-tight tracking-[-0.02em] text-ink">
               What's your experience level?

@@ -16,7 +16,7 @@ Deno.serve(async (request) => {
   const plan = body.plan as keyof typeof plans;
   if (!plans[plan]) return json({ error: 'Invalid RoleWave Pro plan.' }, 400);
   const callbackUrl = typeof body.callback_url === 'string' ? body.callback_url : '';
-  if (!/^https?:\/\//i.test(callbackUrl)) return json({ error: 'A valid checkout return URL is required.' }, 400);
+  if (!isAllowedCallbackUrl(callbackUrl)) return json({ error: 'A valid RoleWave checkout return URL is required.' }, 400);
   const reference = `rwpro_${data.user.id.replaceAll('-', '')}_${crypto.randomUUID().replaceAll('-', '')}`;
   const admin = createClient(url, service);
   const { data: entitlement } = await admin.from('ai_entitlements').select('status, current_period_end').eq('user_id', data.user.id).eq('product', 'ai_features').maybeSingle();
@@ -35,3 +35,25 @@ Deno.serve(async (request) => {
 });
 
 function json(body: unknown, status = 200) { return new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } }); }
+
+function isAllowedCallbackUrl(value: string) {
+  try {
+    const callback = new URL(value);
+    const allowedOrigin = new Set([
+      'https://rolewave.cv',
+      'https://www.rolewave.cv',
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+    ]);
+
+    return (
+      allowedOrigin.has(callback.origin) &&
+      callback.pathname === '/candidate/pro' &&
+      callback.username === '' &&
+      callback.password === '' &&
+      callback.hash === ''
+    );
+  } catch {
+    return false;
+  }
+}

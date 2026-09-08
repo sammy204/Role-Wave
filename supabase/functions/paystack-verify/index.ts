@@ -23,15 +23,23 @@ Deno.serve(async (request) => {
   if (!paystackResponse.ok || !result?.status || transaction?.status !== 'success' || transaction.amount !== payment.amount || transaction.currency !== 'NGN') {
     return json({ error: 'Payment has not been confirmed by Paystack.' }, 402);
   }
-  const { data: current } = await admin.from('ai_entitlements').select('current_period_end').eq('user_id', userData.user.id).eq('product', 'ai_features').maybeSingle();
-  const now = new Date();
-  const base = current?.current_period_end && new Date(current.current_period_end) > now ? new Date(current.current_period_end) : now;
-  base.setUTCMonth(base.getUTCMonth() + (payment.plan === 'monthly' ? 1 : 3));
   const paidAt = new Date().toISOString();
-  const { error: entitlementError } = await admin.from('ai_entitlements').upsert({ user_id: userData.user.id, product: 'ai_features', status: 'active', provider: 'paystack', provider_customer_id: transaction.customer?.customer_code ?? null, provider_subscription_id: null, current_period_end: base.toISOString(), updated_at: paidAt }, { onConflict: 'user_id' });
-  if (entitlementError) return json({ error: 'Payment succeeded, but access activation needs attention.' }, 500);
-  await admin.from('rolewave_pro_payments').update({ status: 'success', paystack_transaction_id: String(transaction.id), paid_at: paidAt, updated_at: paidAt }).eq('reference', reference);
-  return json({ success: true, current_period_end: base.toISOString() });
+  const { data: completion, error: completionError } = await admin.rpc('complete_rolewave_pro_payment', {
+    p_reference: reference,
+    p_user_id: userData.user.id,
+    p_paystack_transaction_id: String(transaction.id),
+    p_customer_code: transaction.customer?.customer_code ?? null,
+    p_paid_at: paidAt,
+  });
+  if (completionError) return json({ error: 'Payment succeeded, but access activation needs attention.' }, 500);
+
+  const result = Array.isArray(completion) ? completion[0] : completion;
+  if (!result?.success) return json({ error: 'Payment could not be completed.' }, 409);
+  return json({
+    success: true,
+    already_processed: result.already_processed === true,
+    current_period_end: result.current_period_end,
+  });
 });
 
 function json(body: unknown, status = 200) { return new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } }); }

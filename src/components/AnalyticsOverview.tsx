@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import type { AnalyticsEventName } from '../lib/analytics';
 
 type AnalyticsRow = { event_name: AnalyticsEventName; created_at: string };
+type ProMetrics = { active_pro_users: number };
 
 const EVENT_LABELS: Record<AnalyticsEventName, string> = {
   page_view: 'Page views',
@@ -21,6 +22,7 @@ const EVENT_LABELS: Record<AnalyticsEventName, string> = {
 
 export default function AnalyticsOverview() {
   const [events, setEvents] = useState<AnalyticsRow[]>([]);
+  const [activeProUsers, setActiveProUsers] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -29,15 +31,23 @@ export default function AnalyticsOverview() {
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
     (async () => {
-      const { data, error: queryError } = await supabase
-        .from('analytics_events')
-        .select('event_name, created_at')
-        .gte('created_at', since)
-        .order('created_at', { ascending: false })
-        .limit(10000);
+      const [eventsResult, proMetricsResult] = await Promise.all([
+        supabase
+          .from('analytics_events')
+          .select('event_name, created_at')
+          .gte('created_at', since)
+          .order('created_at', { ascending: false })
+          .limit(10000),
+        supabase.rpc('admin_get_pro_metrics'),
+      ]);
       if (!active) return;
-      if (queryError) setError('Analytics data is not available yet. Apply the analytics migration first.');
-      else setEvents((data || []) as AnalyticsRow[]);
+      if (eventsResult.error || proMetricsResult.error) {
+        setError('Analytics data is not available yet. Apply the analytics migrations first.');
+      } else {
+        setEvents((eventsResult.data || []) as AnalyticsRow[]);
+        const metrics = (proMetricsResult.data?.[0] || null) as ProMetrics | null;
+        setActiveProUsers(Number(metrics?.active_pro_users || 0));
+      }
       setLoading(false);
     })();
 
@@ -56,7 +66,12 @@ export default function AnalyticsOverview() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 text-xs text-[#6B6960]"><BarChart3 size={15} className="text-[#1D9E75]" /> Optional analytics events from the last 30 days.</div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+        <div className="rounded-2xl border border-[#D3D1C7] bg-white p-4">
+          <div className="text-[11px] font-semibold uppercase tracking-[1.2px] text-[#8A867E]">Active Pro users</div>
+          <div className="mt-2 text-2xl font-bold text-[#1A1A1A]">{activeProUsers}</div>
+          <div className="mt-1 text-xs text-[#6B6960]">Current paid access</div>
+        </div>
         {(['page_view', 'job_view', 'application_submitted', 'signup_completed', 'pwa_installed'] as AnalyticsEventName[]).map((eventName) => (
           <div key={eventName} className="rounded-2xl border border-[#D3D1C7] bg-white p-4">
             <div className="text-[11px] font-semibold uppercase tracking-[1.2px] text-[#8A867E]">{EVENT_LABELS[eventName]}</div>

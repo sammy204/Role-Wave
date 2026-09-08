@@ -42,10 +42,10 @@ export default function CookiePolicy() {
           </Section>
 
           <Section title="2. Third party cookies">
-            <p>One third party service sets its own cookies when you use RoleWave:</p>
+            <p>One third party service may set its own cookies when you use RoleWave:</p>
             <ul className="list-disc space-y-1.5 pl-5">
               <li>
-                <span className="font-semibold text-ink">Cloudflare Turnstile</span>. This is used on our signup and login forms to confirm you are a real visitor and not a bot. See{' '}
+                <span className="font-semibold text-ink">Cloudflare Turnstile</span>. This is used on our support form to confirm you are a real visitor and not a bot. See{' '}
                 <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer" className="font-semibold text-accent-text underline underline-offset-2">Cloudflare's privacy policy</a>{' '}for details.
               </li>
             </ul>

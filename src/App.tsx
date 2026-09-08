@@ -209,7 +209,7 @@ function AppShell() {
   const isEmployerRoute = path.startsWith('/employer') || path === '/post' || (path === '/help' && profile?.account_type === 'employer');
   const isCandidateOnlyRoute = path.startsWith('/candidate');
   const isSharedBrowseRoute = path === '/jobs' || (/^\/jobs\/[^/]+$/.test(path) && !isApplyRoute);
-  const isSidebarUtilityRoute = path === '/about' || path === '/contact' || path === '/faq' || path === '/help';
+  const isSidebarUtilityRoute = path === '/about' || path === '/contact' || path === '/faq' || path === '/help' || path === '/blog' || path.startsWith('/blog/');
   const isLegalRoute = path === '/privacy' || path === '/terms' || path === '/cookie-policy';
 
   const isSignedIn = !!session;

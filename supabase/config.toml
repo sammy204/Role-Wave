@@ -15,6 +15,14 @@ entrypoint = "./functions/health/index.ts"
 enabled = true
 verify_jwt = false
 
+[functions.submit-job-application]
+enabled = true
+verify_jwt = false
+
+[functions.verify-turnstile]
+enabled = true
+verify_jwt = false
+
 [functions.interview-reminders]
 enabled = true
 verify_jwt = false

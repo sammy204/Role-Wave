@@ -53,9 +53,9 @@ export default function AuthLayout() {
   const requestedRole: MarketplaceRole = searchParams.get('role') === 'employer' ? 'employer' : 'candidate';
   const [mode, setMode] = useState<AuthMode>(searchParams.get('mode') === 'login' ? 'login' : 'signup');
   const [role, setRole] = useState<MarketplaceRole>(requestedRole);
-  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState('');
@@ -66,12 +66,10 @@ export default function AuthLayout() {
   const isPwa = useIsPwa();
   const [passkeyEnabled] = useState(passkeyEnabledOnDevice);
   const isSignup = mode === 'signup';
-
-  // Cloudflare Turnstile — single token shared across the sign-in/sign-up/forgot
-  // form (only one is ever visible at a time), cleared after every submit
-  // attempt and on mode switch since tokens are single-use.
   const [captchaToken, setCaptchaToken] = useState('');
   const turnstileRef = useRef<TurnstileInstance>(null);
+  const [loginCaptchaRequired, setLoginCaptchaRequired] = useState(false);
+
   const resetCaptcha = () => {
     setCaptchaToken('');
     turnstileRef.current?.reset();
@@ -133,6 +131,7 @@ export default function AuthLayout() {
     setError('');
     setInfo('');
     setResetSent(false);
+    setLoginCaptchaRequired(false);
     resetCaptcha();
   };
 
@@ -176,17 +175,19 @@ export default function AuthLayout() {
           setError(passwordError);
           return;
         }
+        if (password !== confirmPassword) {
+          setError('Passwords do not match.');
+          return;
+        }
 
         const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
-              full_name: fullName,
               account_type: role,
             },
             emailRedirectTo: `${window.location.origin}/confirmed${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ''}`,
-            captchaToken,
           },
         });
 
@@ -209,13 +210,35 @@ export default function AuthLayout() {
         return;
       }
 
+      const { data: captchaRequired, error: captchaRequirementError } = await supabase.rpc('should_require_login_captcha', {
+        p_email: email.trim().toLowerCase(),
+      });
+      if (captchaRequirementError) throw captchaRequirementError;
+
+      const requiresCaptcha = captchaRequired === true;
+      setLoginCaptchaRequired(requiresCaptcha);
+      if (requiresCaptcha) {
+        if (!captchaToken) throw new Error('Please complete the security check, then try again.');
+
+        const { data: verification, error: verificationError } = await supabase.functions.invoke('verify-turnstile', {
+          body: { token: captchaToken, action: 'login' },
+        });
+        if (verificationError || verification?.success !== true) {
+          throw new Error('Please complete the security check, then try again.');
+        }
+      }
+
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
-        options: { captchaToken },
       });
 
-      if (signInError) throw signInError;
+      if (signInError) {
+        await supabase.rpc('record_login_failure', { p_email: email.trim().toLowerCase() });
+        throw signInError;
+      }
+
+      void supabase.rpc('record_login_success', { p_email: email.trim().toLowerCase() });
 
       const { data } = await withTimeout(supabase.auth.getSession(), 6000, 'Session lookup');
       const activeSession = data.session;
@@ -243,7 +266,6 @@ export default function AuthLayout() {
     try {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
-        captchaToken,
       });
 
       if (resetError) throw resetError;
@@ -254,7 +276,6 @@ export default function AuthLayout() {
       setError(getUserFacingError(authError, 'We couldn’t send the reset email. Please try again.'));
     } finally {
       setLoading(false);
-      resetCaptcha();
     }
   };
 
@@ -263,7 +284,7 @@ export default function AuthLayout() {
     setError('');
     setInfo('');
     try {
-      const { error: passkeyError } = await signInWithPasskey(captchaToken);
+      const { error: passkeyError } = await signInWithPasskey();
       if (passkeyError) throw passkeyError;
       const { data } = await withTimeout(supabase.auth.getSession(), 6000, 'Session lookup');
       if (!data.session) throw new Error('Sign-in could not be completed.');
@@ -274,7 +295,6 @@ export default function AuthLayout() {
       setError(getUserFacingError(passkeyError, 'We couldn’t sign you in with your passkey. Please try again.'));
     } finally {
       setLoading(false);
-      resetCaptcha();
     }
   };
 
@@ -347,12 +367,12 @@ export default function AuthLayout() {
 
   const signUpPanel = (
     <SignUp
-      fullName={fullName}
-      setFullName={setFullName}
       email={email}
       setEmail={setEmail}
       password={password}
       setPassword={setPassword}
+      confirmPassword={confirmPassword}
+      setConfirmPassword={setConfirmPassword}
       role={role}
       setRole={setRole}
       loading={loading}
@@ -368,16 +388,16 @@ export default function AuthLayout() {
         isPwa={isPwa}
         mode={mode}
         role={role}
-        fullName={fullName}
         email={email}
         password={password}
+        confirmPassword={confirmPassword}
         loading={loading}
         resetSent={resetSent}
         info={info}
         error={error}
-        setFullName={setFullName}
         setEmail={setEmail}
         setPassword={setPassword}
+        setConfirmPassword={setConfirmPassword}
         setRole={setRole}
         switchMode={switchMode}
         onSubmit={handleAuth}
@@ -386,8 +406,10 @@ export default function AuthLayout() {
         onPasskey={handlePasskeySignIn}
         passkeyAvailable={isPwa && passkeysSupported() && passkeyEnabled}
         onBack={() => navigate('/welcome')}
+        loginCaptchaRequired={loginCaptchaRequired}
         turnstileRef={turnstileRef}
         onCaptchaVerify={setCaptchaToken}
+        onCaptchaExpire={() => setCaptchaToken('')}
       />
     );
   }
@@ -522,16 +544,16 @@ type PwaAuthCardProps = {
   isPwa: boolean;
   mode: AuthMode;
   role: MarketplaceRole;
-  fullName: string;
   email: string;
   password: string;
+  confirmPassword: string;
   loading: boolean;
   resetSent: boolean;
   info: string;
   error: string;
-  setFullName: (value: string) => void;
   setEmail: (value: string) => void;
   setPassword: (value: string) => void;
+  setConfirmPassword: (value: string) => void;
   setRole: (value: MarketplaceRole) => void;
   switchMode: (next: AuthMode) => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
@@ -540,24 +562,26 @@ type PwaAuthCardProps = {
   onPasskey: () => void;
   passkeyAvailable: boolean;
   onBack: () => void;
+  loginCaptchaRequired: boolean;
   turnstileRef: React.RefObject<TurnstileInstance>;
   onCaptchaVerify: (token: string) => void;
+  onCaptchaExpire: () => void;
 };
 
 function PwaAuthCard({
   isPwa,
   mode,
   role,
-  fullName,
   email,
   password,
+  confirmPassword,
   loading,
   resetSent,
   info,
   error,
-  setFullName,
   setEmail,
   setPassword,
+  setConfirmPassword,
   setRole,
   switchMode,
   onSubmit,
@@ -566,8 +590,10 @@ function PwaAuthCard({
   onPasskey,
   passkeyAvailable,
   onBack,
+  loginCaptchaRequired,
   turnstileRef,
   onCaptchaVerify,
+  onCaptchaExpire,
 }: PwaAuthCardProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -670,7 +696,6 @@ function PwaAuthCard({
                 <PwaField label="Email" value={email} onChange={setEmail} type="email" placeholder="you@email.com" />
                 {resetSent && <PwaNotice tone="success">{info || 'Check your email for a password reset link.'}</PwaNotice>}
                 {error && <PwaNotice tone="error">{error}</PwaNotice>}
-                {!resetSent && <TurnstileWidget ref={turnstileRef} onVerify={onCaptchaVerify} />}
                 <button type="submit" disabled={loading} className="pwa-primary-button mt-5">
                   {loading ? 'Sending reset link…' : 'Send reset link'} <ArrowRight size={17} />
                 </button>
@@ -690,7 +715,6 @@ function PwaAuthCard({
                   </div>
                 )}
 
-                {isSignup && <PwaField label="Full name" value={fullName} onChange={setFullName} placeholder="First Last" />}
                 <PwaField label="Email" value={email} onChange={setEmail} type="email" placeholder="you@email.com" />
                 <div className="mt-4">
                   <label className="mb-2 block text-[10px] font-bold uppercase tracking-[1.3px] text-[#5F5E5A]">Password</label>
@@ -711,6 +735,7 @@ function PwaAuthCard({
                     Must contain at least one lowercase letter, one uppercase letter, and one number.
                   </p>
                 </div>
+                {isSignup && <PwaField label="Confirm password" value={confirmPassword} onChange={setConfirmPassword} type={showPassword ? 'text' : 'password'} placeholder="Enter password again" />}
 
                 {!isSignup && (
                   <button type="button" onClick={() => switchMode('forgot')} className="mt-3 block w-full text-right text-xs font-semibold text-[#0F6E56]">
@@ -744,7 +769,18 @@ function PwaAuthCard({
                   </label>
                 )}
 
-                <TurnstileWidget ref={turnstileRef} onVerify={onCaptchaVerify} />
+                {!isSignup && loginCaptchaRequired && (
+                  <div className="mt-5 rounded-2xl border border-[#D3D1C7] bg-[#FBFAF7] p-3">
+                    <p className="mb-2 text-xs text-[#5F5E5A]">Please complete this quick security check to continue.</p>
+                    <TurnstileWidget
+                      ref={turnstileRef}
+                      onVerify={onCaptchaVerify}
+                      onExpire={onCaptchaExpire}
+                      appearance="interaction-only"
+                      action="login"
+                    />
+                  </div>
+                )}
 
                 <button type="submit" disabled={loading || (isSignup && !acceptedTerms)} className="pwa-primary-button mt-5">
                   {loading ? 'Please wait…' : isSignup ? 'Create account' : 'Sign in'} <ArrowRight size={17} />

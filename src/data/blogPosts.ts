@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Briefcase, FileText, MessageSquare } from 'lucide-react';
+import { Briefcase, FileText, Globe2, MessageSquare } from 'lucide-react';
 
 export type BlogSection =
   | { type: 'paragraph'; text: string }
@@ -290,6 +290,41 @@ export const blogPosts: BlogPost[] = [
       { type: 'paragraph', text: 'Compare the complete package. Research the companies. Think about the people you\'ll work with. Consider what you\'ll learn. And don\'t be afraid to negotiate or take a little time before making your decision.' },
       { type: 'paragraph', text: 'Getting multiple offers is a good position to be in.' },
       { type: 'paragraph', text: 'Take the time to make sure you choose the one that\'s actually right for you.' },
+    ],
+  },
+  {
+    slug: 'how-to-find-remote-jobs-from-nigeria',
+    title: 'How to Find Remote Jobs From Nigeria',
+    excerpt: 'How to find legitimate remote opportunities, check location requirements, and focus your applications on roles that fit.',
+    category: 'For candidates', icon: Globe2, publishedAt: '2026-09-03',
+    ctaLabel: 'Browse jobs on RoleWave', ctaHref: '/jobs',
+    content: [
+      { type: 'paragraph', text: 'Remote work has opened up opportunities for professionals in Nigeria, but finding the right positions can take time. Many companies advertise remote roles while limiting applications to particular countries or regions.' },
+      { type: 'paragraph', text: 'The good news is that legitimate international and regionally available opportunities exist across technology, business, customer support, operations, design, and many other fields.' },
+      { type: 'paragraph', text: 'The key is knowing where to search, how to evaluate a position, and how to avoid wasting time on roles you cannot realistically apply for.' },
+      { type: 'heading', text: 'Start with reputable employers' },
+      { type: 'paragraph', text: 'Look for companies with established careers pages and clear information about their hiring process. When possible, apply through the employer\'s official application system.' },
+      { type: 'heading', text: 'Search beyond local job boards' },
+      { type: 'paragraph', text: 'International companies frequently publish remote positions through their own careers pages and major hiring platforms. Searching across several sources can uncover opportunities that are not visible on traditional local job boards.' },
+      { type: 'heading', text: 'Read the location requirements' },
+      { type: 'paragraph', text: 'Do not stop at the word "remote." Read the complete job description and check the employer\'s requirements before applying.' },
+      { type: 'paragraph', text: 'A remote position may be available internationally, regionally, or only within a particular country. Check time zones, work authorization, contractor requirements, and how the company handles payments in Nigeria.' },
+      { type: 'heading', text: 'Focus on roles that match your experience' },
+      { type: 'paragraph', text: 'Remote opportunities exist across many fields, including:' },
+      { type: 'list', items: ['Software engineering and technology', 'Business analysis', 'Project management', 'Customer support', 'Operations', 'Marketing', 'Design', 'Data'] },
+      { type: 'paragraph', text: 'Your time is valuable. Applying for jobs that do not match your experience or eligibility is rarely productive.' },
+      { type: 'heading', text: 'Keep your CV ready' },
+      { type: 'paragraph', text: 'International employers often receive large numbers of applications. Make sure your CV clearly communicates your experience, skills, and achievements, and tailor it to the position whenever possible.' },
+      { type: 'heading', text: 'Watch out for scams' },
+      { type: 'paragraph', text: 'Be cautious of employers who ask you to pay to apply, buy equipment from a particular seller, or send sensitive information before the hiring process is clear. Check that the role exists on the company\'s official website and verify unusual requests before responding.' },
+      { type: 'heading', text: 'Use RoleWave' },
+      { type: 'paragraph', text: 'RoleWave brings job opportunities together in one place, making it easier to discover positions that may be relevant to your career and location.' },
+      { type: 'paragraph', text: 'Instead of spending hours checking multiple job boards every day, you can browse opportunities collected from different hiring sources in one place. Always review the individual listing and confirm its location and application requirements before applying.' },
+      { type: 'quote', text: 'Find your next opportunity on RoleWave.' },
+      { type: 'heading', text: 'Final thought' },
+      { type: 'paragraph', text: 'Finding a remote job from Nigeria takes more than searching for "remote jobs." It requires finding legitimate opportunities, understanding the employer\'s requirements, and applying for positions that genuinely fit your experience.' },
+      { type: 'paragraph', text: 'RoleWave can help you discover opportunities, but it does not guarantee that a job is available in Nigeria, that you will be selected, or that an employer will respond.' },
+      { type: 'paragraph', text: 'With the right approach, international remote work is much more accessible than it first appears.' },
     ],
   },
 ];

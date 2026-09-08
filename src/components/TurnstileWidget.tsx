@@ -6,17 +6,18 @@ const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | u
 interface TurnstileWidgetProps {
   onVerify: (token: string) => void;
   onExpire?: () => void;
+  appearance?: 'always' | 'execute' | 'interaction-only';
+  action?: string;
 }
 
 /**
- * Cloudflare Turnstile widget used to gate signup, login, and password reset.
- * Renders nothing (and auth forms fall back to no captchaToken) if the site key
+ * Cloudflare Turnstile widget used by protected public forms such as support
+ * requests and admin login. Renders nothing if the site key
  * env var isn't set, so local dev without a key configured doesn't hard-crash —
- * but Supabase will reject the request if Attack Protection is enabled there
- * and no token is supplied, so the key should always be set once CAPTCHA is on.
+ * callers remain responsible for handling the missing token.
  */
 export const TurnstileWidget = forwardRef<TurnstileInstance, TurnstileWidgetProps>(
-  ({ onVerify, onExpire }, ref) => {
+  ({ onVerify, onExpire, appearance = 'always', action }, ref) => {
     if (!TURNSTILE_SITE_KEY) {
       if (import.meta.env.DEV) {
         console.warn(
@@ -37,7 +38,7 @@ export const TurnstileWidget = forwardRef<TurnstileInstance, TurnstileWidgetProp
             onVerify('');
             onExpire?.();
           }}
-          options={{ size: 'flexible' }}
+          options={{ size: 'flexible', appearance, action }}
         />
       </div>
     );

@@ -4,12 +4,12 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { GoogleIcon, type MarketplaceRole } from './AuthLayout';
 
 interface SignUpProps {
-  fullName: string;
-  setFullName: (value: string) => void;
   email: string;
   setEmail: (value: string) => void;
   password: string;
   setPassword: (value: string) => void;
+  confirmPassword: string;
+  setConfirmPassword: (value: string) => void;
   role: MarketplaceRole;
   setRole: (role: MarketplaceRole) => void;
   loading: boolean;
@@ -19,12 +19,12 @@ interface SignUpProps {
 }
 
 export function SignUp({
-  fullName,
-  setFullName,
   email,
   setEmail,
   password,
   setPassword,
+  confirmPassword,
+  setConfirmPassword,
   role,
   setRole,
   loading,
@@ -78,20 +78,6 @@ export function SignUp({
       <form className="mt-4 space-y-3" onSubmit={onSubmit}>
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
-            Full name
-          </label>
-          <input
-            type="text"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className="field-shell"
-            placeholder="Samuel Ade"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
             Email
           </label>
           <input
@@ -100,6 +86,20 @@ export function SignUp({
             onChange={(e) => setEmail(e.target.value)}
             className="field-shell"
             placeholder="you@example.com"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">
+            Confirm password
+          </label>
+          <input
+            type={showPassword ? 'text' : 'password'}
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className="field-shell"
+            placeholder="Enter password again"
             required
           />
         </div>
