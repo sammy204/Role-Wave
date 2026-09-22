@@ -1,258 +1,63 @@
-import { useEffect, useState } from 'react';
+import { ArrowRight, Building2, Check, Compass, Sparkles, Target, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Search } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { getUserFacingError } from '../lib/userFacingError';
-import { withTimeout } from '../lib/withTimeout';
-import type { Job, Company } from '../types';
-import JobCard from '../components/JobCard';
-import EmptyState from '../components/EmptyState';
-import LoadingSpinner from '../components/LoadingSpinner';
-import { trackEvent } from '../lib/analytics';
 
-const FETCH_TIMEOUT_MS = 25000;
-const FEATURED_JOBS_LIMIT = 8;
+const principles = [
+  { number: '01', title: 'Nigerians first', description: 'Built around Nigerian talent — local jobs and international jobs, on one platform.' },
+  { number: '02', title: 'Know where you stand', description: 'See where your application stands at every stage, instead of applying into a black hole.' },
+  { number: '03', title: 'RolePilot match scoring', description: 'See how your profile lines up with a role before you apply, so you can focus your effort.' },
+];
 
 export default function Home() {
   const navigate = useNavigate();
-  const [jobs, setJobs] = useState<(Job & { company?: Company })[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [cityFilter, setCityFilter] = useState('Any location');
-  const [typeFilter, setTypeFilter] = useState('All types');
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      setError('');
-
-      try {
-        const { data: jobsData, error: jobsError } = await withTimeout(
-          supabase
-            .from('jobs')
-            .select('*')
-            .eq('status', 'active')
-            .order('featured', { ascending: false })
-            .order('created_at', { ascending: false })
-            .limit(FEATURED_JOBS_LIMIT),
-          FETCH_TIMEOUT_MS,
-          'Jobs query'
-        );
-
-        if (jobsError) throw jobsError;
-
-        const { data: companiesData, error: companiesError } = await withTimeout(
-          supabase.from('companies').select('*').order('job_count', { ascending: false }),
-          FETCH_TIMEOUT_MS,
-          'Companies query'
-        );
-        if (companiesError) throw companiesError;
-
-        const companyById = new Map((companiesData || []).map((company) => [company.id, company]));
-        setJobs((jobsData || []).map((job) => ({ ...job, company: companyById.get(job.company_id) })));
-
-      } catch (fetchError) {
-        setError(getUserFacingError(fetchError, 'We couldn’t load jobs. Please try again.'));
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchData();
-  }, []);
-
-  const handleSearch = () => {
-    void trackEvent('job_search', {
-      has_query: Boolean(searchQuery.trim()),
-      city: cityFilter === 'Any location' ? null : cityFilter,
-      work_type: typeFilter === 'All types' ? null : typeFilter,
-    });
-    const params = new URLSearchParams();
-    if (searchQuery) params.set('q', searchQuery);
-    if (cityFilter !== 'Any location') params.set('city', cityFilter);
-    if (typeFilter !== 'All types') params.set('type', typeFilter);
-    navigate(`/jobs?${params.toString()}`);
-  };
 
   return (
-    <div className="page-shell">
-      <div className="px-4 pt-5 pb-5 sm:px-6 sm:pt-8 sm:pb-7 lg:px-8">
-        <div className="mx-auto grid max-w-[1320px] gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-          <section className="relative overflow-hidden rounded-[34px] border border-white/70 bg-[linear-gradient(135deg,#16352f_0%,#1D9E75_52%,#2a7a67_100%)] px-4 py-6 shadow-[0_28px_80px_rgba(29,158,117,0.26)] ring-1 ring-white/10 sm:px-8 sm:py-10 lg:px-10">
-            <div className="pointer-events-none absolute -left-16 -top-20 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
-            <div className="pointer-events-none absolute -right-10 bottom-0 h-48 w-48 rounded-full bg-[#0F6E56]/30 blur-3xl" />
-
-            <div className="relative max-w-3xl pt-7 sm:pt-9">
-              <h1 className="font-display mb-3 max-w-2xl text-[30px] font-bold leading-[1.02] tracking-[-1.6px] text-white sm:text-[48px]">
-                Find your next role.
-                <br className="hidden sm:block" />
-                Get hired in Nigeria.
-              </h1>
-
-              <p className="mb-6 max-w-xl text-sm leading-relaxed text-white/76 sm:text-base">
-                Verified roles, laid out cleanly so you can focus on the jobs that fit your skills, location, and work style.
-              </p>
-
-              <div className="mb-4 flex items-center overflow-hidden rounded-[18px] border border-white/20 bg-white/95 shadow-[0_18px_44px_rgba(0,0,0,0.16)] ring-1 ring-black/5 sm:hidden">
-                <Search size={16} className="ml-3 flex-shrink-0 text-[#B4B2A9]" />
-                <input
-                  type="text"
-                  placeholder="Job title, skill or company..."
-                  className="flex-1 border-none bg-transparent px-2 py-3 text-sm text-[#1A1A1A] outline-none"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                />
-                <button
-                  onClick={handleSearch}
-                  className="bg-[#085041] px-4 py-3 text-xs font-semibold text-white transition-all duration-200 hover:bg-[#06362a] active:scale-[0.98]"
-                >
-                  Search
-                </button>
-              </div>
-
-              <div className="hidden max-w-[760px] items-center overflow-hidden rounded-[20px] border border-white/15 bg-white/92 shadow-[0_18px_44px_rgba(0,0,0,0.14)] ring-1 ring-black/5 sm:flex">
-                <Search size={18} className="ml-4 flex-shrink-0 text-[#B4B2A9]" />
-                <input
-                  type="text"
-                  placeholder="Job title, skill or company..."
-                  className="flex-1 border-none bg-transparent px-0 py-3.5 text-[15px] text-[#1A1A1A] outline-none"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                />
-                <div className="h-7 w-[0.5px] flex-shrink-0 bg-[#D3D1C7]" />
-                <select
-                  className="cursor-pointer border-none bg-transparent px-4 text-sm text-[#5F5E5A] outline-none"
-                  value={cityFilter}
-                  onChange={(e) => setCityFilter(e.target.value)}
-                >
-                  <option>Any location</option>
-                  <option>Lagos</option>
-                  <option>Abuja</option>
-                </select>
-                <div className="h-7 w-[0.5px] flex-shrink-0 bg-[#D3D1C7]" />
-                <select
-                  className="cursor-pointer border-none bg-transparent px-4 text-sm text-[#5F5E5A] outline-none"
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
-                >
-                  <option>All types</option>
-                  <option>Full-time</option>
-                  <option>Contract</option>
-                  <option>Internship</option>
-                </select>
-                <button
-                  onClick={handleSearch}
-                  className="flex-shrink-0 bg-[#085041] px-7 py-3.5 text-sm font-semibold text-white transition-all duration-200 hover:bg-[#06362a] active:scale-[0.98]"
-                >
-                  Search jobs
-                </button>
-              </div>
-
-              <div className="mt-6 flex flex-wrap gap-2">
-                {[
-                  { value: 'Curated opportunities', tone: 'bg-white/15 text-white' },
-                  { value: 'Direct applications', tone: 'bg-white/15 text-white' },
-                  { value: 'Built for Nigeria', tone: 'bg-white/15 text-white' },
-                  { value: 'For candidates & employers', tone: 'bg-[#E1F5EE] text-[#085041]' },
-                ].map((item) => (
-                  <span
-                    key={item.value}
-                    className={`rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] ${item.tone}`}
-                  >
-                    {item.value}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <aside className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/78 p-5 shadow-[0_24px_70px_rgba(26,26,26,0.08)] backdrop-blur-xl sm:p-6">
-            <div className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-[#1D9E75]/10 blur-3xl" />
-            <div className="pointer-events-none absolute -left-8 bottom-0 h-36 w-36 rounded-full bg-[#5B4088]/10 blur-3xl" />
-
-            <div className="relative">
-              <div className="mb-5 flex items-start justify-between gap-4">
-                <div>
-                  <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#B4B2A9]">
-                    Market pulse
-                  </div>
-                  <div className="mt-1 font-display text-[24px] font-bold leading-[1.06] text-[#1A1A1A]">
-                    A calmer way to browse and hire.
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                <div className="rounded-[24px] border border-[#E8E4DA] bg-[#FBFAF7] p-4 shadow-[0_10px_24px_rgba(26,26,26,0.04)]">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#B4B2A9]">Search focus</div>
-                  <div className="mt-2 text-sm leading-relaxed text-[#5F5E5A]">
-                    Use filters and search to jump straight into the roles that fit your skills, location, and work style.
-                  </div>
-                </div>
-                <div className="rounded-[24px] border border-[#E8E4DA] bg-white p-4 shadow-[0_10px_24px_rgba(26,26,26,0.04)]">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#B4B2A9]">Verified employers</div>
-                  <div className="mt-2 text-sm leading-relaxed text-[#5F5E5A]">
-                    Every listing is checked before it goes live, so the board stays sharp and trustworthy.
-                  </div>
-                </div>
-                <div className="rounded-[24px] border border-[#E8E4DA] bg-[#1A1A1A] p-4 text-white shadow-[0_14px_30px_rgba(26,26,26,0.14)] sm:col-span-2 lg:col-span-1">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/50">
-                    Start here
-                  </div>
-                  <div className="mt-2 text-lg font-semibold">Create your account when you're ready.</div>
-                  <p className="mt-2 text-sm leading-relaxed text-white/68">
-                    Build a profile once, then keep your applications, saved roles, and matching jobs in one place.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/start')}
-                    className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-[#1A1A1A] transition-transform duration-200 hover:-translate-y-[1px]"
-                  >
-                    Get started <ArrowRight size={14} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </aside>
-        </div>
-      </div>
-
-      <div className="mx-auto grid w-full max-w-[1320px] grid-cols-1 gap-4 px-4 pb-8 sm:px-6 lg:px-8">
-        <div className="min-w-0 rounded-[34px] border border-white/70 bg-white/72 p-4 shadow-[0_24px_70px_rgba(26,26,26,0.06)] backdrop-blur-xl sm:p-6">
-          <div className="mb-4 flex items-center justify-between gap-4">
+    <div className="page-shell bg-[#F7F5EF] text-[#1A1A1A]">
+      <section className="relative overflow-hidden px-5 pb-20 pt-12 sm:px-8 sm:pb-28 sm:pt-20 lg:px-12 lg:pt-24">
+        <div className="pointer-events-none absolute -right-32 -top-40 h-[34rem] w-[34rem] rounded-full bg-[#D8F2E8] blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-48 left-1/3 h-[30rem] w-[30rem] rounded-full bg-[#EAE2F5] blur-3xl" />
+        <div className="relative mx-auto max-w-[1240px]">
+          <div className="grid items-end gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:gap-20">
             <div>
-              <h2 className="font-display text-xl font-bold text-[#1A1A1A] sm:text-2xl">Featured jobs</h2>
+              <div className="mb-8 flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.2em] text-[#0F6E56]"><span className="h-px w-8 bg-[#1D9E75]" />The RoleWave story</div>
+              <h1 className="font-display max-w-4xl text-[clamp(3.6rem,9vw,8.5rem)] font-semibold leading-[0.86] tracking-[-0.065em] text-[#123D35]">A job platform built for Nigerians.</h1>
+              <p className="mt-8 max-w-xl text-base leading-8 text-[#5F5E5A] sm:text-lg">Local roles, international roles, one place — with real visibility from the moment you apply to the moment a decision is made.</p>
+              <div className="mt-9 flex flex-wrap items-center gap-3">
+                <button type="button" onClick={() => navigate('/jobs')} className="inline-flex items-center gap-2 rounded-full bg-[#123D35] px-5 py-3.5 text-sm font-bold text-white shadow-[0_14px_32px_rgba(18,61,53,0.2)] transition-transform hover:-translate-y-0.5">Explore opportunities <ArrowRight size={16} /></button>
+                <button type="button" onClick={() => navigate('/post')} className="inline-flex items-center gap-2 rounded-full border border-[#BFCAC3] bg-white/55 px-5 py-3.5 text-sm font-bold text-[#123D35] transition-colors hover:border-[#1D9E75] hover:bg-white">I&apos;m hiring</button>
+              </div>
             </div>
-            <button
-              onClick={() => navigate('/jobs')}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[#D3D1C7] bg-white px-4 py-2 text-sm font-semibold text-[#085041] shadow-[0_10px_24px_rgba(26,26,26,0.04)] transition-colors hover:border-[#5DCAA5]"
-            >
-              Browse all jobs <ArrowRight size={14} />
-            </button>
+            <div className="relative lg:pb-5">
+              <div className="absolute -left-5 -top-5 hidden h-24 w-24 rounded-full border border-[#1D9E75]/30 sm:block" />
+              <div className="relative rounded-[2rem] border border-white/80 bg-white/65 p-6 shadow-[0_24px_70px_rgba(26,26,26,0.08)] backdrop-blur-xl sm:p-8">
+                <div className="mb-12 flex items-center justify-between"><span className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#9A9992]">A working belief</span><Sparkles size={18} className="text-[#1D9E75]" /></div>
+                <p className="font-display text-[2.15rem] leading-[1.03] tracking-[-0.04em] text-[#123D35] sm:text-[2.8rem]">Most job platforms help you find roles. RoleWave helps you understand where you stand.</p>
+                <div className="mt-10 flex items-center gap-3 border-t border-[#E5E2D9] pt-5 text-sm text-[#5F5E5A]"><span className="h-2 w-2 rounded-full bg-[#1D9E75]" />Built for Nigerians. Built for visibility.</div>
+              </div>
+            </div>
           </div>
-
-          {loading ? (
-            <div className="rounded-[24px] border border-[#E8E4DA] bg-[#FBFAF7] py-20"><LoadingSpinner className="mx-auto text-[#1D9E75]" /></div>
-          ) : error ? (
-            <div className="mx-auto max-w-xl rounded-[24px] border border-[#E8E4DA] bg-[#FBFAF7] py-20 text-center">
-              <div className="mb-2 text-lg font-semibold text-[#1A1A1A]">Could not load jobs</div>
-              <div className="text-sm text-[#5F5E5A]">{error}</div>
-            </div>
-          ) : jobs.length === 0 ? (
-            <div className="rounded-[24px] border border-[#E8E4DA] bg-[#FBFAF7]">
-              <EmptyState title="No featured jobs yet" description="Check back soon for new opportunities from employers on RoleWave." />
-            </div>
-          ) : (
-            <div className="space-y-3 sm:space-y-3.5">
-              {jobs.map((job) => (
-                <JobCard key={job.id} job={job} />
-              ))}
-            </div>
-          )}
         </div>
-      </div>
+      </section>
+
+      <section className="border-y border-[#E4E0D6] bg-[#123D35] px-5 py-20 text-white sm:px-8 sm:py-28 lg:px-12">
+        <div className="mx-auto grid max-w-[1240px] gap-12 lg:grid-cols-[0.7fr_1.3fr] lg:gap-24">
+          <div><div className="mb-6 flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.2em] text-[#8AD7B8]"><Compass size={16} />Why RoleWave exists</div><h2 className="font-display max-w-md text-5xl leading-[0.94] tracking-[-0.05em] sm:text-6xl">Built around Nigerians.</h2></div>
+          <div className="max-w-2xl"><p className="text-xl leading-9 text-white/80 sm:text-2xl sm:leading-10">RoleWave exists for Nigerians. Whether the opportunity is here at home or with a company abroad, you should know where you stand.</p><p className="mt-8 max-w-xl text-base leading-8 text-white/58">From the application, through review, to a decision, RoleWave is built to make the process clearer — with visibility instead of guesswork.</p></div>
+        </div>
+      </section>
+
+      <section className="px-5 py-20 sm:px-8 sm:py-28 lg:px-12"><div className="mx-auto max-w-[1240px]">
+        <div className="mb-12 max-w-2xl"><div className="mb-5 text-[11px] font-bold uppercase tracking-[0.2em] text-[#0F6E56]">The RoleWave approach</div><h2 className="font-display text-5xl leading-[0.95] tracking-[-0.05em] text-[#123D35] sm:text-6xl">A clearer way to find work.</h2></div>
+        <div className="grid gap-px overflow-hidden rounded-[2rem] border border-[#DDD9CE] bg-[#DDD9CE] md:grid-cols-3">{principles.map((principle) => <article key={principle.number} className="bg-[#FBFAF7] p-7 sm:p-9"><div className="mb-16 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.18em] text-[#A4A198]"><span>{principle.number}</span><span className="h-px w-12 bg-[#C6C2B7]" /></div><h3 className="font-display text-3xl leading-none tracking-[-0.035em] text-[#123D35]">{principle.title}</h3><p className="mt-4 text-sm leading-7 text-[#6B6962]">{principle.description}</p></article>)}</div>
+      </div></section>
+
+      <section className="px-5 pb-20 sm:px-8 sm:pb-28 lg:px-12"><div className="mx-auto grid max-w-[1240px] gap-4 lg:grid-cols-2">
+        <article className="rounded-[2rem] bg-[#E3F4EC] p-7 sm:p-10"><div className="flex items-center justify-between"><span className="rounded-full bg-white/70 p-3 text-[#0F6E56]"><Users size={20} /></span><span className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#5A8C76]">For candidates</span></div><h2 className="font-display mt-20 max-w-md text-4xl leading-[0.95] tracking-[-0.045em] text-[#123D35] sm:text-5xl">For people with somewhere to go.</h2><p className="mt-5 max-w-md text-sm leading-7 text-[#4D7163]">Discover opportunities selected for quality, learn about companies before you apply, and keep your career moving with more intention.</p><button type="button" onClick={() => navigate('/jobs')} className="mt-8 inline-flex items-center gap-2 text-sm font-bold text-[#0F6E56] hover:gap-3">Explore opportunities <ArrowRight size={16} /></button></article>
+        <article className="rounded-[2rem] bg-[#EAE3F4] p-7 sm:p-10"><div className="flex items-center justify-between"><span className="rounded-full bg-white/70 p-3 text-[#5B4088]"><Building2 size={20} /></span><span className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#806BA0]">For employers</span></div><h2 className="font-display mt-20 max-w-md text-4xl leading-[0.95] tracking-[-0.045em] text-[#32204F] sm:text-5xl">For companies building what comes next.</h2><p className="mt-5 max-w-md text-sm leading-7 text-[#6E5C85]">Present your opportunity properly and meet candidates who are genuinely aligned with the work, the mission, and the road ahead.</p><button type="button" onClick={() => navigate('/post')} className="mt-8 inline-flex items-center gap-2 text-sm font-bold text-[#5B4088] hover:gap-3">Build your team on RoleWave <ArrowRight size={16} /></button></article>
+      </div></section>
+
+      <section className="px-5 pb-24 sm:px-8 sm:pb-32 lg:px-12"><div className="mx-auto flex max-w-[1240px] flex-col items-start justify-between gap-8 rounded-[2rem] bg-[#F0EDE4] p-7 sm:p-10 lg:flex-row lg:items-end lg:p-14"><div><div className="mb-5 flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.2em] text-[#0F6E56]"><Target size={16} />Find your fit</div><h2 className="font-display max-w-2xl text-5xl leading-[0.92] tracking-[-0.05em] text-[#123D35] sm:text-6xl">You do not need to have everything figured out.</h2><p className="mt-5 max-w-lg text-base leading-7 text-[#6B6962]">Not sure which roles are worth your time? RolePilot shows you where you actually stand, so you are not applying in the dark.</p></div><button type="button" onClick={() => navigate('/jobs')} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#123D35] px-5 py-3.5 text-sm font-bold text-white transition-transform hover:-translate-y-0.5">Find your next opportunity <ArrowRight size={16} /></button></div></section>
+
+      <section className="border-t border-[#E4E0D6] px-5 py-12 sm:px-8 lg:px-12"><div className="mx-auto flex max-w-[1240px] flex-col justify-between gap-3 text-sm text-[#8A887F] sm:flex-row"><span className="font-display text-xl font-semibold text-[#123D35]">RoleWave</span><span className="flex items-center gap-2"><Check size={15} className="text-[#1D9E75]" />Built for Nigerians. Transparent from application to hire.</span></div></section>
     </div>
   );
 }

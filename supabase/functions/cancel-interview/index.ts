@@ -26,7 +26,40 @@ Deno.serve(async (request) => {
     if (!applicationId) return json({ error: 'Missing application_id.' }, 400);
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
-    const { data: schedule, error: cancelError } = await userClient.rpc('cancel_interview', { p_application_id: applicationId });
+
+    // The RPC also enforces this check, but the fallback repair path below
+    // uses the service-role client and must never rely on the RPC having run.
+    // Resolve ownership explicitly before any privileged read or write.
+    const { data: applicationAccess, error: applicationAccessError } = await adminClient
+      .from('job_applications')
+      .select('job_id')
+      .eq('id', applicationId)
+      .maybeSingle();
+    if (applicationAccessError) throw applicationAccessError;
+    if (!applicationAccess) return json({ error: 'Application not found.' }, 404);
+
+    const { data: jobAccess, error: jobAccessError } = await adminClient
+      .from('jobs')
+      .select('company_id')
+      .eq('id', applicationAccess.job_id)
+      .maybeSingle();
+    if (jobAccessError) throw jobAccessError;
+
+    const { data: companyAccess, error: companyAccessError } = jobAccess?.company_id
+      ? await adminClient
+        .from('companies')
+        .select('owner_profile_id')
+        .eq('id', jobAccess.company_id)
+        .maybeSingle()
+      : { data: null, error: null };
+    if (companyAccessError) throw companyAccessError;
+    if (!companyAccess || companyAccess.owner_profile_id !== userData.user.id) {
+      return json({ error: 'You are not authorized to cancel this interview.' }, 403);
+    }
+
+    let schedule;
+    const { data: cancelledSchedule, error: cancelError } = await userClient.rpc('cancel_interview', { p_application_id: applicationId });
+    schedule = cancelledSchedule;
     if (cancelError) {
       const { data: existingSchedule } = await adminClient
         .from('interview_schedules')
@@ -35,13 +68,12 @@ Deno.serve(async (request) => {
         .eq('status', 'cancelled')
         .maybeSingle();
       if (!existingSchedule) return json({ error: cancelError.message }, 400);
-      const { error: repairError } = await adminClient
-        .from('job_applications')
-        .update({ status: 'shortlisted', updated_at: new Date().toISOString() })
-        .eq('id', applicationId);
-      if (repairError) throw repairError;
-      return json({ schedule: existingSchedule, repaired: true });
+      // The cancellation already committed. Continue through the notification
+      // path so a retry can deliver any email that failed previously.
+      schedule = existingSchedule;
     }
+    if (!schedule) return json({ error: 'The interview could not be cancelled.' }, 500);
+
     // Keep older/partially-applied database functions from leaving the
     // application stuck in Interview after the schedule is cancelled.
     const { error: applicationStatusError } = await adminClient

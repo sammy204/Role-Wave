@@ -5,7 +5,6 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/useAuth';
 import ComingSoonPage from '../components/ComingSoonPage';
 import { rolePilotEnabled } from '../lib/featureFlags';
-import type { CandidateProfile } from '../types';
 
 type JobResult = { id: string; title: string; slug: string; company_name: string; location: string; work_type: string; score: number; reasons: string[] };
 type Message = { id: string; role: 'user' | 'assistant'; text: string; jobs?: JobResult[]; coverLetter?: string };
@@ -86,19 +85,24 @@ function RolePilotWorkspace() {
     if (!description || tailoring || !userId) return;
     setTailoring(true); setTailorError('');
     try {
-      const [{ data: profile, error: profileError }, { data: account }] = await Promise.all([
-        supabase.from('candidate_profiles').select('*').eq('id', userId).maybeSingle(),
-        supabase.from('profiles').select('full_name').eq('id', userId).maybeSingle(),
-      ]);
-      if (profileError || !profile) throw new Error('Complete your candidate profile before tailoring your CV.');
-      setTailoredCv(buildTailoredCv(profile as CandidateProfile, account?.full_name || 'Your Name', description));
+      const { data, error: invokeError } = await supabase.functions.invoke('role-pilot', {
+        body: { action: 'resume_tweak', job_description: description },
+      });
+      if (invokeError) {
+        const status = (invokeError as { context?: { status?: number } }).context?.status;
+        if (status === 402) throw new Error('You have used your 5 free Role Pilot messages this month. Upgrade to RoleWave Pro for unlimited access.');
+        throw invokeError;
+      }
+      setUsage(data?.usage || null);
+      if (!data?.tailored_cv) throw new Error('Role Pilot could not create a tailored CV.');
+      setTailoredCv(data.tailored_cv as TailoredCv);
     } catch (tailorRequestError) {
       setTailorError(tailorRequestError instanceof Error ? tailorRequestError.message : 'Role Pilot could not tailor your CV right now.');
     } finally { setTailoring(false); }
   };
 
   return <div className="flex min-h-[calc(100vh-72px)] flex-col bg-[#FBFAF7]">
-    <header className="border-b border-line bg-[#FBFAF7]/95 px-5 py-4 backdrop-blur sm:px-8"><div className="mx-auto flex max-w-4xl items-center justify-between"><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-white"><Sparkles size={17} /></div><div><h1 className="text-[15px] font-bold text-ink">Role Pilot</h1><p className="text-[11px] text-muted">Your personal career assistant</p></div></div><div className="text-right text-[11px] text-muted">{usage?.is_test ? 'QA · unlimited' : usage?.is_pro ? 'Pro · unlimited' : usage ? `${usage.remaining ?? 0} messages left` : '5 free messages each month'}</div></div></header>
+    <header className="border-b border-line bg-[#FBFAF7]/95 px-5 py-4 backdrop-blur sm:px-8"><div className="mx-auto flex max-w-4xl items-center justify-between"><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-white"><Sparkles size={17} /></div><div><h1 className="text-[15px] font-bold text-ink">Role Pilot</h1><p className="text-[11px] text-muted">Your personal career assistant</p></div></div><div className="text-right text-[11px] text-muted">{usage?.is_pro ? 'RoleWave Pro · unlimited' : usage?.is_test ? 'Unlimited access' : usage ? `${usage.remaining ?? 0} messages left` : '5 free messages each month'}</div></div></header>
     <main className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 gap-5 px-4 pb-5 pt-6 sm:px-8 lg:min-h-0 lg:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)] lg:items-start"><section className="order-2 rounded-2xl border border-[#CBEBDD] bg-[#F3FBF7] p-4 lg:order-2 lg:max-h-[calc(100vh-145px)] lg:overflow-y-auto"><div><p className="flex items-center gap-2 text-sm font-bold text-[#085041]"><Sparkles size={16} /> Tailor your CV to a job</p><p className="mt-1 text-xs leading-5 text-[#5F6F67]">Paste a job description and Role Pilot will shape your existing profile around it.</p></div><CvTailorTool jobDescription={jobDescription} setJobDescription={setJobDescription} tailoredCv={tailoredCv} setTailoredCv={setTailoredCv} tailoring={tailoring} error={tailorError} onTailor={() => void tailorCv()} /></section><section className="order-1 flex min-h-0 min-w-0 flex-col lg:order-1 lg:h-[calc(100vh-145px)]"><div className="min-h-0 flex-1 space-y-6 overflow-y-auto rounded-2xl border border-line bg-white p-4 shadow-[0_8px_30px_rgba(26,26,26,0.04)] lg:pr-5">{messages.map((message, index) => <MessageBubble key={message.id || `${message.role}-${index}`} message={message} onCoverLetter={requestCoverLetter} coverLetterJob={coverLetterJob} />)}{sending && <div className="flex items-center gap-2 text-[13px] text-muted"><span className="flex gap-1"><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" /><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent [animation-delay:150ms]" /><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent [animation-delay:300ms]" /></span>Role Pilot is thinking</div>}<div ref={bottomRef} /></div>{error && <div className="mx-auto mb-3 w-full max-w-3xl rounded-xl border border-[#E6C58A] bg-[#FFF8E8] px-4 py-3 text-[12px] text-[#785116]">{error} {error.includes('Upgrade') && <Link to="/candidate/pro" className="font-bold text-accent-deep hover:underline">View RoleWave Pro</Link>}</div>}<div className="mx-auto mt-5 w-full max-w-3xl rounded-2xl border border-line bg-white p-2 shadow-[0_8px_30px_rgba(26,26,26,0.08)] focus-within:border-accent"><div className="flex items-end gap-2"><textarea value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void sendMessage(); } }} placeholder="Message Role Pilot" rows={1} maxLength={2000} className="max-h-36 min-h-[42px] flex-1 resize-none bg-transparent px-3 py-2.5 text-[14px] text-ink outline-none placeholder:text-faint" /><button type="button" onClick={() => void sendMessage()} disabled={!input.trim() || sending} aria-label="Send message" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent text-white transition-colors hover:bg-accent-deep disabled:cursor-not-allowed disabled:opacity-40"><ArrowUp size={18} /></button></div><div className="px-3 pb-1 text-[10px] text-faint">Role Pilot can make mistakes. Check important application details before submitting. · Shift + Enter for a new line</div></div></section></main>
   </div>;
 }
@@ -115,24 +119,6 @@ function MessageBubble({ message, onCoverLetter, coverLetterJob }: { message: Me
 
 function CoverLetter({ text }: { text: string }) { const [copied, setCopied] = useState(false); const copy = async () => { await navigator.clipboard?.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1800); }; return <div className="mt-4 rounded-2xl border border-line bg-white p-4 shadow-card"><div className="mb-3 flex items-center justify-between gap-3 text-[12px] font-bold text-muted"><span className="flex items-center gap-2"><FileText size={14} /> Cover letter</span><button type="button" onClick={() => void copy()} className="inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-accent-deep">{copied ? <Check size={13} /> : <Copy size={13} />}{copied ? 'Copied' : 'Copy'}</button></div><div className="whitespace-pre-wrap text-[13px] leading-6 text-ink">{text}</div></div>; }
 
-function buildTailoredCv(profile: CandidateProfile, name: string, jobDescription: string): TailoredCv {
-  const profileSkills = profile.skills || [];
-  const jobText = jobDescription.toLowerCase();
-  const matchedSkills = profileSkills.filter((skill) => jobText.includes(skill.toLowerCase()));
-  const skills = [...new Set([...matchedSkills, ...profileSkills])].slice(0, 12);
-  const headline = profile.headline || profile.preferred_job_titles?.[0] || 'Professional';
-  const jobKeywords = words(jobDescription).slice(0, 8);
-  return {
-    name,
-    headline,
-    summary: `${profile.years_experience ? `${profile.years_experience} years of experience` : 'Professional experience'} in ${headline.toLowerCase()}, with strengths in ${skills.slice(0, 4).join(', ') || 'relevant professional skills'}. Tailored for a role requiring ${jobKeywords.join(', ') || 'the skills in this job description'}.`,
-    skills: skills.join(', '),
-    experience: profile.experience?.trim() || 'Add your relevant experience here.',
-    education: profile.education?.trim() || 'Add your education or relevant training here.',
-    matchedKeywords: matchedSkills.slice(0, 8),
-  };
-}
-
 function printTailoredCv(cv: TailoredCv) {
   const printWindow = window.open('', '_blank', 'width=850,height=1100');
   if (!printWindow) return;
@@ -141,8 +127,4 @@ function printTailoredCv(cv: TailoredCv) {
   printWindow.document.close();
   printWindow.focus();
   printWindow.setTimeout(() => printWindow.print(), 250);
-}
-
-function words(value: string) {
-  return [...new Set(value.toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 2))];
 }

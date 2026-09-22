@@ -1,8 +1,4 @@
--- Registry for public job-board sources. The slug is the platform-specific
--- identifier: board token, Lever/Ashby slug, SmartRecruiters company ID, or
--- Workable subdomain. This table already exists in some environments, so the
--- migration uses the existing display_name/enabled column names.
-create table if not exists public.ats_source_companies (
+ create table if not exists public.ats_source_companies (
   id uuid primary key default gen_random_uuid(),
   slug text not null,
   ats_platform text not null,
@@ -14,9 +10,6 @@ create table if not exists public.ats_source_companies (
   ),
   constraint ats_source_companies_platform_slug_key unique (ats_platform, slug)
 );
-
--- Update the constraint when this table was created by the older registry
--- schema. CREATE TABLE IF NOT EXISTS does not alter an existing table.
 alter table public.ats_source_companies
   drop constraint if exists ats_source_companies_platform_check;
 alter table public.ats_source_companies
@@ -32,8 +25,6 @@ create index if not exists idx_ats_source_companies_enabled
 
 alter table public.ats_source_companies enable row level security;
 
--- The admin dashboard must be able to review pending/closed external jobs;
--- the public jobs policy intentionally exposes active jobs only.
 drop policy if exists "jobs_admin_select" on public.jobs;
 create policy "jobs_admin_select"
 on public.jobs for select to authenticated
@@ -69,11 +60,6 @@ with check (
     where p.id = auth.uid() and p.is_admin = true
   )
 );
-
--- Run ATS ingestion every six hours at 00:00, 06:00, 12:00, and 18:00 UTC.
--- Store the same value used by the Edge Function secret
--- ATS_INGEST_WEBHOOK_SECRET in Vault as ats_ingest_webhook_secret before
--- enabling this schedule.
 create extension if not exists pg_cron;
 create extension if not exists pg_net with schema extensions;
 

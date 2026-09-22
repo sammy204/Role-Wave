@@ -11,7 +11,6 @@ create table if not exists public.rolewave_pro_payments (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create index if not exists idx_rolewave_pro_payments_user on public.rolewave_pro_payments(user_id);
 alter table public.rolewave_pro_payments enable row level security;
 

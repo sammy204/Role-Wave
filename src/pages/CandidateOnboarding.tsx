@@ -21,9 +21,7 @@ const JOB_TYPE_OPTIONS = [
   { value: 'Full-time', description: 'A regular full-time role' },
   { value: 'Part-time', description: 'Part-time or flexible hours' },
   { value: 'Contract', description: 'Fixed-term or freelance work' },
-  { value: 'Internship', description: 'A general internship' },
-  { value: 'SIWES', description: 'Student Industrial Work Experience Scheme' },
-  { value: 'NYSC PPA', description: 'Primary Place of Assignment for NYSC' },
+  { value: 'Other', description: 'Another type of opportunity' },
 ];
 
 const LOCATION_OPTIONS = ['Lagos', 'Abuja', 'Port Harcourt', 'Remote'];
@@ -35,7 +33,19 @@ const EXPERIENCE_OPTIONS = [
   { label: '3+ years', years: 5 },
 ];
 
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 2;
+
+type ParsedResume = {
+  full_name: string;
+  phone: string;
+  country: string;
+  headline: string;
+  skills: string[];
+  preferred_job_titles: string[];
+  years_experience: number | null;
+  education: string;
+  experience: string;
+};
 
 export default function CandidateOnboarding() {
   const navigate = useNavigate();
@@ -58,6 +68,11 @@ export default function CandidateOnboarding() {
   const [phone, setPhone] = useState('');
   const [country, setCountry] = useState('');
   const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [resumePath, setResumePath] = useState<string | null>(null);
+  const [parsedResume, setParsedResume] = useState<ParsedResume | null>(null);
+  const [educationDraft, setEducationDraft] = useState('');
+  const [experienceDraft, setExperienceDraft] = useState('');
+  const [parsing, setParsing] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -140,24 +155,17 @@ export default function CandidateOnboarding() {
     setLocations((prev) => (prev.includes(loc) ? prev.filter((l) => l !== loc) : [...prev, loc]));
   };
 
-  const canAdvance = () => {
-    if (step === 1) return Boolean(firstName.trim() && lastName.trim() && phone.trim() && country.trim());
-    if (step === 2) return Boolean(resumeFile);
-    if (step === 3) return Boolean(jobType);
-    if (step === 4) return jobTitles.length > 0;
-    if (step === 5) return skills.length > 0;
-    if (step === 6) return locations.length > 0;
-    if (step === 7) return Boolean(experienceLabel);
-    return false;
-  };
+  const canAdvance = () => step === 1
+    ? Boolean(resumeFile)
+    : Boolean(firstName.trim() && lastName.trim() && phone.trim() && country.trim() && jobType);
 
-  const goNext = () => {
+  const goNext = async () => {
     if (!canAdvance()) return;
-    if (step < TOTAL_STEPS) {
-      setStep((s) => s + 1);
-    } else {
-      void handleFinish();
+    if (step === 1) {
+      await parseResume();
+      return;
     }
+    await handleFinish();
   };
 
   const goBack = () => {
@@ -170,8 +178,7 @@ export default function CandidateOnboarding() {
     setError('');
 
     try {
-      const yearsExperience = EXPERIENCE_OPTIONS.find((o) => o.label === experienceLabel)?.years ?? 0;
-      const resumePath = resumeFile ? await uploadCandidateAsset(resumeFile, userId, 'resumes') : null;
+      const yearsExperience = parsedResume?.years_experience ?? EXPERIENCE_OPTIONS.find((o) => o.label === experienceLabel)?.years ?? 0;
 
       const { error: upsertError } = await supabase.from('candidate_profiles').upsert({
         id: userId,
@@ -179,6 +186,9 @@ export default function CandidateOnboarding() {
         country: country.trim(),
         resume_url: resumePath,
         resume_name: resumeFile?.name || null,
+        headline: parsedResume?.headline || null,
+        education: educationDraft.trim() || null,
+        experience: experienceDraft.trim() || null,
         job_type: jobType,
         preferred_job_titles: jobTitles,
         skills,
@@ -201,6 +211,38 @@ export default function CandidateOnboarding() {
     } catch (err) {
       setError('We couldn’t complete your onboarding. Please try again.');
       setSaving(false);
+    }
+  };
+
+  const parseResume = async () => {
+    if (!userId || !resumeFile || parsing) return;
+    setParsing(true);
+    setError('');
+    try {
+      const path = await uploadCandidateAsset(resumeFile, userId, 'resumes');
+      const { data, error: parseError } = await supabase.functions.invoke('parse-resume', {
+        body: { path, file_name: resumeFile.name, content_type: resumeFile.type },
+      });
+      if (parseError) throw parseError;
+      const profile = data?.profile as ParsedResume | undefined;
+      if (!profile) throw new Error('No profile data was returned from the resume.');
+      setResumePath(path);
+      setParsedResume(profile);
+      setEducationDraft(profile.education || '');
+      setExperienceDraft(profile.experience || '');
+      const nameParts = profile.full_name.trim().split(/\s+/).filter(Boolean);
+      if (nameParts.length > 0) setFirstName(nameParts[0]);
+      if (nameParts.length > 1) setLastName(nameParts.slice(1).join(' '));
+      if (profile.phone) setPhone(profile.phone);
+      if (profile.country) setCountry(profile.country);
+      setJobTitles(profile.preferred_job_titles || []);
+      setSkills(profile.skills || []);
+      setExperienceLabel(profile.years_experience === null ? '' : profile.years_experience >= 3 ? '3+ years' : profile.years_experience >= 1 ? '1–3 years' : 'Recent graduate');
+      setStep(2);
+    } catch (parseError) {
+      setError(parseError instanceof Error ? parseError.message : 'We couldn’t parse that resume. Please try again.');
+    } finally {
+      setParsing(false);
     }
   };
 
@@ -234,29 +276,54 @@ export default function CandidateOnboarding() {
 
         {step === 1 && (
           <div>
-            <h1 className="font-display text-[26px] font-semibold leading-tight tracking-[-0.02em] text-ink">Tell us about you</h1>
-            <p className="mt-2 text-sm leading-relaxed text-muted">These required details help employers know who they are speaking with.</p>
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <label className="block"><span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">First name</span><input className="field-shell" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Samuel" required /></label>
-              <label className="block"><span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">Last name</span><input className="field-shell" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Ade" required /></label>
-              <label className="block"><span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">Phone number</span><input className="field-shell" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+234..." required /></label>
-              <label className="block"><span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">Country</span><input className="field-shell" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Nigeria" required /></label>
-            </div>
+            <h1 className="font-display text-[26px] font-semibold leading-tight tracking-[-0.02em] text-ink">Upload your resume</h1>
+            <p className="mt-2 text-sm leading-relaxed text-muted">We’ll use it to prefill your RoleWave profile, including your education and experience.</p>
+            <label className="mt-6 flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-[#5DCAA5] bg-[#E1F5EE] px-5 py-10 text-center">
+              <span className="text-sm font-semibold text-[#085041]">{resumeFile ? resumeFile.name : 'Choose your resume'}</span>
+              <span className="mt-1 text-xs text-[#4D7668]">PDF, DOC, or DOCX · max 5MB</span>
+              <input type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" onChange={(event) => {
+                const file = event.target.files?.[0] || null;
+                if (!file) return;
+                if (file.size > 5 * 1024 * 1024) {
+                  setError('Your resume must be 5 MB or smaller.');
+                  return;
+                }
+                setError('');
+                setResumeFile(file);
+              }} />
+            </label>
           </div>
         )}
 
         {step === 2 && (
           <div>
-            <h1 className="font-display text-[26px] font-semibold leading-tight tracking-[-0.02em] text-ink">Add your resume</h1>
-            <p className="mt-2 text-sm leading-relaxed text-muted">Upload a PDF or Word document so employers can understand your experience.</p>
-            <label className="mt-6 flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-[#5DCAA5] bg-[#E1F5EE] px-5 py-10 text-center">
-              <span className="text-sm font-semibold text-[#085041]">{resumeFile ? resumeFile.name : 'Choose your resume'}</span>
-              <span className="mt-1 text-xs text-[#4D7668]">PDF, DOC, or DOCX · max 10MB</span>
-              <input type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" onChange={(event) => {
-                const file = event.target.files?.[0] || null;
-                if (file && file.size <= 10 * 1024 * 1024) setResumeFile(file);
-              }} />
-            </label>
+            <h1 className="font-display text-[26px] font-semibold leading-tight tracking-[-0.02em] text-ink">Check your profile</h1>
+            <p className="mt-2 text-sm leading-relaxed text-muted">We extracted these details from your resume. Correct anything before continuing.</p>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <label className="block"><span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">First name</span><input className="field-shell" value={firstName} onChange={(e) => setFirstName(e.target.value)} required /></label>
+              <label className="block"><span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">Last name</span><input className="field-shell" value={lastName} onChange={(e) => setLastName(e.target.value)} required /></label>
+              <label className="block"><span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">Phone number</span><input className="field-shell" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+234..." required /></label>
+              <label className="block"><span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.5px] text-muted">Country</span><input className="field-shell" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Nigeria" required /></label>
+            </div>
+            <div className="mt-5 rounded-2xl border border-line bg-[#FBFAF7] p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.5px] text-muted">Extracted profile</p>
+              <label className="mt-3 block text-sm text-ink"><span className="font-semibold">Skills</span><input className="field-shell mt-1" value={skills.join(', ')} onChange={(event) => setSkills(event.target.value.split(',').map((skill) => skill.trim()).filter(Boolean))} /></label>
+              <label className="mt-3 block text-sm text-ink"><span className="font-semibold">Job titles</span><input className="field-shell mt-1" value={jobTitles.join(', ')} onChange={(event) => setJobTitles(event.target.value.split(',').map((title) => title.trim()).filter(Boolean))} /></label>
+              <label className="mt-3 block text-sm text-ink"><span className="font-semibold">Education</span><textarea className="field-shell mt-1 min-h-20 resize-y" value={educationDraft} onChange={(event) => setEducationDraft(event.target.value)} /></label>
+              <label className="mt-3 block text-sm text-ink"><span className="font-semibold">Experience</span><textarea className="field-shell mt-1 min-h-28 resize-y" value={experienceDraft} onChange={(event) => setExperienceDraft(event.target.value)} /></label>
+            </div>
+            <div className="mt-5">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.5px] text-muted">Preferred locations <span className="font-normal normal-case tracking-normal">(optional)</span></p>
+              <div className="grid grid-cols-2 gap-2">
+                {LOCATION_OPTIONS.map((location) => <button key={location} type="button" onClick={() => toggleLocation(location)} className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${locations.includes(location) ? 'border-accent bg-[#E1F5EE] text-[#085041]' : 'border-[#D3D1C7] bg-[#FBFAF7] text-ink hover:border-[#5DCAA5]'}`}>{location}</button>)}
+              </div>
+            </div>
+            <div className="mt-5">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.5px] text-muted">What type of work are you looking for?</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {JOB_TYPE_OPTIONS.map((option) => <button key={option.value} type="button" onClick={() => setJobType(option.value)} className={`rounded-xl border px-4 py-3 text-left transition-colors ${jobType === option.value ? 'border-accent bg-[#E1F5EE]' : 'border-[#D3D1C7] bg-[#FBFAF7] hover:border-[#5DCAA5]'}`}><span className="text-sm font-semibold text-ink">{option.value}</span><span className="mt-0.5 block text-xs text-muted">{option.description}</span></button>)}
+              </div>
+            </div>
           </div>
         )}
 
@@ -436,11 +503,11 @@ export default function CandidateOnboarding() {
           <button
             type="button"
             onClick={goNext}
-            disabled={!canAdvance() || saving}
+            disabled={!canAdvance() || saving || parsing}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white transition-colors duration-150 hover:bg-[#168a63] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {saving ? (
-              <LoadingSpinner size={16} className="text-white" label="Saving" />
+            {saving || parsing ? (
+              <LoadingSpinner size={16} className="text-white" label={parsing ? 'Parsing resume' : 'Saving'} />
             ) : step === TOTAL_STEPS ? (
               'Finish'
             ) : (

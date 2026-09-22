@@ -22,6 +22,10 @@ import { SignUp } from './Signup';
 export type AuthMode = 'signup' | 'login' | 'forgot';
 export type MarketplaceRole = 'candidate' | 'employer';
 
+function getAuthRedirectOrigin() {
+  return import.meta.env.VITE_AUTH_REDIRECT_ORIGIN || window.location.origin;
+}
+
 function getPostAuthDestination(profile: Profile | null, fallbackRole: MarketplaceRole, nextPath: string | null) {
   const nextRole = profile?.account_type === 'employer' ? 'employer' : fallbackRole;
   if (!profile?.onboarding_completed) {
@@ -187,7 +191,7 @@ export default function AuthLayout() {
             data: {
               account_type: role,
             },
-            emailRedirectTo: `${window.location.origin}/confirmed${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ''}`,
+            emailRedirectTo: `${getAuthRedirectOrigin()}/confirmed${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ''}`,
           },
         });
 

@@ -69,8 +69,8 @@ export default function Footer() {
   };
 
   return (
-    <footer className="border-t border-[#D3D1C7] bg-white/80 backdrop-blur px-4 py-10 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-[1320px]">
+    <footer className="border-t border-[#2B5B50] bg-[#123D35] px-5 py-14 text-white sm:px-8 sm:py-16 lg:px-0">
+      <div className="mx-auto max-w-[1240px]">
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-4 lg:grid-cols-5">
           {/* Brand + newsletter */}
           <div className="col-span-2 lg:col-span-2">
@@ -78,11 +78,11 @@ export default function Footer() {
             <img
               src="/rolewave-horizontal-tagline.png"
               alt="RoleWave — Your Career, Rising."
-              className="h-12 w-auto object-contain object-left"
+              className="h-10 w-auto object-contain object-left brightness-0 invert"
             />
             </Link>
-            <span className="mt-1 block max-w-[280px] text-xs text-[#B4B2A9]">
-              Verified roles. Clean process. Less noise.
+            <span className="mt-3 block max-w-[300px] text-sm leading-6 text-white/60">
+              A more considered way to find work.
             </span>
 
             <form onSubmit={handleSubscribe} className="mt-4 flex max-w-[320px] gap-2">
@@ -96,11 +96,11 @@ export default function Footer() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@email.com"
-                className="w-full rounded-full border border-[#D3D1C7] bg-white px-3 py-1.5 text-xs text-[#1D1D1D] outline-none focus:border-[#1D9E75] focus:ring-1 focus:ring-[#1D9E75]"
+                className="w-full rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs text-white outline-none placeholder:text-white/40 focus:border-[#8AD7B8] focus:ring-1 focus:ring-[#8AD7B8]"
               />
               <button
                 type="submit"
-                className="shrink-0 rounded-full bg-[#1D9E75] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#17805e]"
+                className="shrink-0 rounded-full bg-[#E3F4EC] px-3 py-2 text-xs font-bold text-[#123D35] transition hover:bg-white"
               >
                 {submitting ? 'Saving...' : subscribed ? 'Subscribed' : 'Subscribe'}
               </button>
@@ -110,25 +110,25 @@ export default function Footer() {
                 You are on the list.
               </span>
             )}
-            {subscriptionError && <span className="mt-1 block text-xs text-[#A15A00]">{subscriptionError}</span>}
+            {subscriptionError && <span className="mt-1 block text-xs text-[#F0C6A5]">{subscriptionError}</span>}
           </div>
 
           {/* Company */}
           <div>
-            <span className="block text-xs font-semibold uppercase tracking-wide text-[#1D1D1D]">
+            <span className="block text-[11px] font-bold uppercase tracking-[0.18em] text-[#8AD7B8]">
               Company
             </span>
             <nav className="mt-3 flex flex-col gap-2">
-              <Link to="/about" className="text-xs text-[#6B6960] hover:text-[#1D9E75]">
+              <Link to="/about" className="text-sm text-white/60 transition-colors hover:text-white">
                 About Us
               </Link>
-              <Link to="/blog" className="text-xs text-[#6B6960] hover:text-[#1D9E75]">
+              <Link to="/blog" className="text-sm text-white/60 transition-colors hover:text-white">
                 Blog
               </Link>
-              <Link to="/contact" className="text-xs text-[#6B6960] hover:text-[#1D9E75]">
+              <Link to="/contact" className="text-sm text-white/60 transition-colors hover:text-white">
                 Contact
               </Link>
-              <Link to="/faq" className="text-xs text-[#6B6960] hover:text-[#1D9E75]">
+              <Link to="/faq" className="text-sm text-white/60 transition-colors hover:text-white">
                 FAQ
               </Link>
             </nav>
@@ -136,25 +136,25 @@ export default function Footer() {
 
           {/* Legal */}
           <div>
-            <span className="block text-xs font-semibold uppercase tracking-wide text-[#1D1D1D]">
+            <span className="block text-[11px] font-bold uppercase tracking-[0.18em] text-[#8AD7B8]">
               Legal
             </span>
             <nav className="mt-3 flex flex-col gap-2">
-              <Link to="/terms" className="text-xs text-[#6B6960] hover:text-[#1D9E75]">
+              <Link to="/terms" className="text-sm text-white/60 transition-colors hover:text-white">
                 Terms of Service
               </Link>
-              <Link to="/privacy" className="text-xs text-[#6B6960] hover:text-[#1D9E75]">
+              <Link to="/privacy" className="text-sm text-white/60 transition-colors hover:text-white">
                 Privacy Policy
               </Link>
-              <Link to="/cookie-policy" className="text-xs text-[#6B6960] hover:text-[#1D9E75]">
+              <Link to="/cookie-policy" className="text-sm text-white/60 transition-colors hover:text-white">
                 Cookie Policy
               </Link>
             </nav>
           </div>
         </div>
 
-        <div className="mt-8 flex flex-col gap-2 border-t border-[#D3D1C7] pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <span className="text-xs text-[#B4B2A9]">&copy; 2026 RoleWave</span>
+        <div className="mt-12 flex flex-col gap-3 border-t border-white/15 pt-5 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-xs text-white/40">&copy; 2026 RoleWave</span>
           <div className="flex items-center gap-4">
             {socialLinks.map((social) => (
               <a
@@ -164,7 +164,7 @@ export default function Footer() {
                 rel="noopener noreferrer"
                 aria-label={social.name}
                 style={{ color: social.color }}
-                className="opacity-90 transition hover:opacity-100 hover:scale-110"
+                className="text-white opacity-60 transition hover:scale-110 hover:opacity-100"
               >
                 {social.icon}
               </a>

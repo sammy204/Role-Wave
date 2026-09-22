@@ -1,9 +1,4 @@
-/* Employer candidate discovery.
-   Candidate contact details and private assets are deliberately excluded.
-   Visibility and RoleWave Pro access are enforced inside the database. */
-
 drop function if exists public.employer_discover_candidates(text);
-
 create or replace function public.employer_discover_candidates(p_search text default null)
 returns table (
   id uuid,

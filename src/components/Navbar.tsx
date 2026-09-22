@@ -82,23 +82,23 @@ export default function Navbar() {
   };
 
   return (
-    <nav style={{ paddingTop: 'env(safe-area-inset-top)' }} className="sticky top-0 z-50 border-b border-white/70 bg-white/88 backdrop-blur-xl shadow-[0_6px_30px_rgba(26,26,26,0.05)]">
-      <div className="mx-auto flex h-[68px] max-w-[1320px] items-center justify-between px-4 sm:px-6 lg:px-8">
+    <nav style={{ paddingTop: 'env(safe-area-inset-top)' }} className="sticky top-0 z-50 border-b border-[#E4E0D6]/80 bg-[#F7F5EF]/90 backdrop-blur-xl">
+      <div className="mx-auto flex h-[76px] max-w-[1240px] items-center justify-between px-5 sm:px-8 lg:px-0">
         <Link to={brandPath} className="flex items-center gap-3">
           <img
             src="/rolewave-horizontal-tagline.png"
             alt="RoleWave — Your Career, Rising."
-            className="h-[38px] w-auto object-contain sm:h-[44px]"
+            className="h-[34px] w-auto object-contain sm:h-[38px]"
           />
         </Link>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-3 md:flex">
           {sessionReady && isSignedIn ? (
   <>
-    <Link
+      <Link
       to={profilePath}
       aria-label={profileLabel}
-      className={`inline-flex items-center gap-2 rounded-full bg-[#1D9E75] px-[18px] py-2.5 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(29,158,117,0.18)] transition-all duration-200 hover:-translate-y-[1px] hover:bg-[#168a63] ${
+      className={`inline-flex items-center gap-2 rounded-full bg-[#123D35] px-[18px] py-2.5 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(18,61,53,0.16)] transition-all duration-200 hover:-translate-y-[1px] hover:bg-[#0F6E56] ${
         isActive('/candidate') || isActive('/employer') ? 'bg-[#168a63]' : ''
       }`}
     >
@@ -108,7 +108,7 @@ export default function Navbar() {
     <button
       type="button"
       onClick={handleSignOut}
-      className="inline-flex items-center gap-2 rounded-full border border-[#D3D1C7] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#5F5E5A] transition-colors hover:text-[#1A1A1A]"
+      className="inline-flex items-center gap-2 rounded-full border border-[#CFCBC0] bg-white/60 px-3 py-2.5 text-[13px] font-semibold text-[#5F5E5A] transition-colors hover:border-[#1D9E75] hover:text-[#123D35]"
     >
       <LogOut size={14} />
       Sign out
@@ -117,14 +117,20 @@ export default function Navbar() {
 ) : (
             <>
               <Link
+                to="/jobs"
+                className="mr-2 text-[13px] font-bold text-[#5F5E5A] transition-colors hover:text-[#0F6E56]"
+              >
+                Browse opportunities
+              </Link>
+              <Link
                 to="/start?mode=login"
-                className="rounded-full border border-[#D3D1C7] bg-white px-[18px] py-2.5 text-[13px] font-semibold text-[#1A1A1A] shadow-[0_10px_24px_rgba(26,26,26,0.06)] transition-all duration-200 hover:border-[#5DCAA5] hover:text-[#085041]"
+                className="rounded-full border border-[#CFCBC0] bg-white/60 px-[18px] py-2.5 text-[13px] font-semibold text-[#123D35] transition-all duration-200 hover:border-[#5DCAA5] hover:bg-white"
               >
                 Log in
               </Link>
               <Link
                 to="/start?mode=signup&role=candidate"
-                className="inline-flex items-center gap-2 rounded-full bg-[#1D9E75] px-[18px] py-2.5 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(29,158,117,0.18)] transition-all duration-200 hover:-translate-y-[1px] hover:bg-[#168a63]"
+                className="inline-flex items-center gap-2 rounded-full bg-[#123D35] px-[18px] py-2.5 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(18,61,53,0.16)] transition-all duration-200 hover:-translate-y-[1px] hover:bg-[#0F6E56]"
               >
                 Sign up
               </Link>
@@ -134,7 +140,7 @@ export default function Navbar() {
 
         {/* Mobile hamburger */}
         <button
-          className="rounded-full border border-[#D3D1C7] bg-white p-2 text-[#1A1A1A] shadow-[0_8px_18px_rgba(26,26,26,0.04)] md:hidden"
+          className="rounded-full border border-[#CFCBC0] bg-white/60 p-2 text-[#123D35] shadow-[0_8px_18px_rgba(26,26,26,0.04)] md:hidden"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle menu"
         >
@@ -151,7 +157,7 @@ export default function Navbar() {
               onClick={() => setMenuOpen(false)}
             />
 <div
-  className="absolute left-0 right-0 z-50 mx-3 rounded-[24px] border border-[#D3D1C7] bg-white px-4 py-4 shadow-[0_18px_38px_rgba(26,26,26,0.12)] md:hidden"
+  className="absolute left-0 right-0 z-50 mx-3 rounded-[24px] border border-[#E4E0D6] bg-[#FBFAF7] px-4 py-4 shadow-[0_18px_38px_rgba(26,26,26,0.12)] md:hidden"
   style={{ top: 'calc(68px + env(safe-area-inset-top))' }}
 >              <div className="grid gap-2">
  {sessionReady && isSignedIn ? (
@@ -175,16 +181,23 @@ export default function Navbar() {
 ) : (
                   <>
                     <Link
+                      to="/jobs"
+                      onClick={() => setMenuOpen(false)}
+                      className="block rounded-[16px] px-[18px] py-3 text-center text-[13px] font-bold text-[#123D35]"
+                    >
+                      Browse opportunities
+                    </Link>
+                    <Link
                       to="/start?mode=login"
                       onClick={() => setMenuOpen(false)}
-                      className="block rounded-[16px] border border-[#D3D1C7] bg-white px-[18px] py-3 text-center text-[13px] font-semibold text-[#1A1A1A]"
+                      className="block rounded-[16px] border border-[#CFCBC0] bg-white px-[18px] py-3 text-center text-[13px] font-semibold text-[#123D35]"
                     >
                       Log in
                     </Link>
                     <Link
                       to="/start?mode=signup&role=candidate"
                       onClick={() => setMenuOpen(false)}
-                      className="block rounded-[16px] bg-[#1D9E75] px-[18px] py-3 text-center text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(29,158,117,0.18)]"
+                      className="block rounded-[16px] bg-[#123D35] px-[18px] py-3 text-center text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(18,61,53,0.16)]"
                     >
                       Sign up
                     </Link>

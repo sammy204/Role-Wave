@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Bell, Briefcase, Database, LockKeyhole, LogOut, Mail, RotateCcw, Save, ShieldCheck, X } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/useAuth';
 import { getCurrentPushSubscription, enablePushNotifications, disablePushNotifications, pushNotificationsConfigured, pushNotificationSupportMessage } from '../lib/pushNotifications';

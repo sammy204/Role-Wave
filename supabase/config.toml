@@ -23,6 +23,14 @@ verify_jwt = false
 enabled = true
 verify_jwt = false
 
+[functions.parse-resume]
+enabled = true
+verify_jwt = false
+
+[functions.paystack-webhook]
+enabled = true
+verify_jwt = false
+
 [functions.interview-reminders]
 enabled = true
 verify_jwt = false
