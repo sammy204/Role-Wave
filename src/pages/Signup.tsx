@@ -16,6 +16,7 @@ interface SignUpProps {
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   onGoogle: () => void;
   messageBanners: React.ReactNode;
+  roleLocked?: boolean;
 }
 
 export function SignUp({
@@ -31,6 +32,7 @@ export function SignUp({
   onSubmit,
   onGoogle,
   messageBanners,
+  roleLocked = false,
 }: SignUpProps) {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -43,7 +45,7 @@ export function SignUp({
         Pick a role first, then fill in the essentials.
       </p>
 
-      <div className="mt-4">
+      {!roleLocked && <div className="mt-4">
         <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.5px] text-muted">Sign up as</div>
         <div className="flex gap-2">
           <button
@@ -71,7 +73,7 @@ export function SignUp({
             Employer
           </button>
         </div>
-      </div>
+      </div>}
 
       {messageBanners}
 

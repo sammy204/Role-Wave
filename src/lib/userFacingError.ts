@@ -14,6 +14,9 @@ export function getAuthErrorMessage(error: unknown, fallback: string): string {
   if (code === 'invalid_credentials' || message.includes('invalid login credentials')) {
     return 'Incorrect email or password. Please check your details and try again.';
   }
+  if (message.startsWith('no employer account found') || message.startsWith('no candidate account found')) {
+    return typeof authError?.message === 'string' ? authError.message : fallback;
+  }
   if (message.includes('email not confirmed')) return 'Please confirm your email address before signing in.';
   if (message.includes('too many requests') || message.includes('rate limit')) return 'Too many attempts. Please wait a moment and try again.';
   return fallback;

@@ -9,6 +9,8 @@ import type { Job, Company } from '../types';
 import JobCard from '../components/JobCard';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
+import FindWork from './FindWork';
+import { useAuth } from '../lib/useAuth';
 
 const FETCH_TIMEOUT_MS = 25000;
 
@@ -54,6 +56,12 @@ const applicationFilters = [
 ];
 
 export default function JobListings() {
+  const { session, loading: authLoading } = useAuth();
+  if (!authLoading && !session) return <FindWork />;
+  return <AuthenticatedJobListings />;
+}
+
+function AuthenticatedJobListings() {
   const [searchParams] = useSearchParams();
   const initialQ = searchParams.get('q') || '';
   const initialCity = searchParams.get('city') || '';

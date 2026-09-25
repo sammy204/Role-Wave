@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { ArrowRight, Check, ChevronLeft, Eye, EyeOff, ScanFace } from 'lucide-react';
 import type { TurnstileInstance } from '@marsidev/react-turnstile';
@@ -38,6 +38,12 @@ function getPostAuthDestination(profile: Profile | null, fallbackRole: Marketpla
   return nextPath || (nextRole === 'employer' ? '/employer/dashboard' : '/candidate/dashboard');
 }
 
+function roleMismatchMessage(role: MarketplaceRole) {
+  return role === 'employer'
+    ? 'No employer account found.'
+    : 'No candidate account found.';
+}
+
 export function GoogleIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
@@ -51,10 +57,16 @@ export function GoogleIcon() {
 
 export default function AuthLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
+  const lockedRole: MarketplaceRole | null = location.pathname === '/employer/start'
+    ? 'employer'
+    : location.pathname === '/candidate/start'
+      ? 'candidate'
+      : null;
   const requestedNext = searchParams.get('next');
   const nextPath = requestedNext && requestedNext.startsWith('/') && !requestedNext.startsWith('//') ? requestedNext : null;
-  const requestedRole: MarketplaceRole = searchParams.get('role') === 'employer' ? 'employer' : 'candidate';
+  const requestedRole: MarketplaceRole = lockedRole || (searchParams.get('role') === 'employer' ? 'employer' : 'candidate');
   const [mode, setMode] = useState<AuthMode>(searchParams.get('mode') === 'login' ? 'login' : 'signup');
   const [role, setRole] = useState<MarketplaceRole>(requestedRole);
   const [email, setEmail] = useState('');
@@ -93,6 +105,15 @@ export default function AuthLayout() {
 
         const nextProfile = await fetchProfile(session.user.id);
         if (!alive) return;
+
+        if (lockedRole && nextProfile?.account_type !== lockedRole) {
+          await supabase.auth.signOut({ scope: 'local' });
+          if (alive) {
+            setError(roleMismatchMessage(lockedRole));
+            setChecking(false);
+          }
+          return;
+        }
 
         if (nextProfile?.account_status === 'deletion_scheduled') {
           const { error: reactivationError } = await supabase.functions.invoke('reactivate-account');
@@ -249,6 +270,10 @@ export default function AuthLayout() {
       if (!activeSession) return;
 
       const nextProfile = await fetchProfile(activeSession.user.id);
+      if (lockedRole && nextProfile?.account_type !== lockedRole) {
+        await supabase.auth.signOut({ scope: 'local' });
+        throw new Error(roleMismatchMessage(lockedRole));
+      }
       const nextRole = nextProfile?.account_type === 'employer' ? 'employer' : 'candidate';
       navigate(getPostAuthDestination(nextProfile, nextRole, nextPath), { replace: true });
 
@@ -293,6 +318,10 @@ export default function AuthLayout() {
       const { data } = await withTimeout(supabase.auth.getSession(), 6000, 'Session lookup');
       if (!data.session) throw new Error('Sign-in could not be completed.');
       const nextProfile = await fetchProfile(data.session.user.id);
+      if (lockedRole && nextProfile?.account_type !== lockedRole) {
+        await supabase.auth.signOut({ scope: 'local' });
+        throw new Error(roleMismatchMessage(lockedRole));
+      }
       const nextRole = nextProfile?.account_type === 'employer' ? 'employer' : 'candidate';
       navigate(getPostAuthDestination(nextProfile, nextRole, nextPath), { replace: true });
     } catch (passkeyError) {
@@ -414,6 +443,8 @@ export default function AuthLayout() {
         turnstileRef={turnstileRef}
         onCaptchaVerify={setCaptchaToken}
         onCaptchaExpire={() => setCaptchaToken('')}
+        roleLocked={Boolean(lockedRole)}
+        singleMode={location.pathname === '/candidate/start'}
       />
     );
   }
@@ -570,6 +601,8 @@ type PwaAuthCardProps = {
   turnstileRef: React.RefObject<TurnstileInstance>;
   onCaptchaVerify: (token: string) => void;
   onCaptchaExpire: () => void;
+  roleLocked: boolean;
+  singleMode: boolean;
 };
 
 function PwaAuthCard({
@@ -598,11 +631,14 @@ function PwaAuthCard({
   turnstileRef,
   onCaptchaVerify,
   onCaptchaExpire,
+  roleLocked,
+  singleMode,
 }: PwaAuthCardProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const isSignup = mode === 'signup';
   const isForgot = mode === 'forgot';
+  const isEmployerAuth = role === 'employer';
 
   useEffect(() => {
     if (!isSignup) setAcceptedTerms(false);
@@ -610,7 +646,7 @@ function PwaAuthCard({
 
   return (
     <main
-      className={`relative flex min-h-[100dvh] bg-[#E9F0EA] ${
+      className={`${isEmployerAuth ? 'employer-auth' : ''} relative flex min-h-[100dvh] ${isEmployerAuth ? 'bg-[#F1ECF8]' : 'bg-[#E9F0EA]'} ${
         isPwa
           ? 'items-stretch justify-stretch overflow-hidden px-0 py-0'
           : 'items-stretch justify-stretch overflow-y-auto px-0 py-0'
@@ -625,8 +661,8 @@ function PwaAuthCard({
       }
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-24 -top-24 h-80 w-80 rounded-full bg-[#1D9E75]/20 blur-3xl" />
-        <div className="absolute -bottom-32 -right-24 h-96 w-96 rounded-full bg-[#5B4088]/15 blur-3xl" />
+        <div className={`absolute -left-24 -top-24 h-80 w-80 rounded-full blur-3xl ${isEmployerAuth ? 'bg-[#A78BCA]/20' : 'bg-[#1D9E75]/20'}`} />
+        <div className={`absolute -bottom-32 -right-24 h-96 w-96 rounded-full blur-3xl ${isEmployerAuth ? 'bg-[#5B4088]/20' : 'bg-[#5B4088]/15'}`} />
       </div>
 
       <section
@@ -657,22 +693,24 @@ function PwaAuthCard({
         >
           <div key={mode} className="auth-fade-up">
             <div className="pt-2">
-              <p className="text-[10px] font-bold uppercase tracking-[1.8px] text-[#1D9E75]">
-                {isForgot ? 'Account recovery' : isSignup ? 'Start your journey' : 'Welcome back'}
+              <p className={`text-[10px] font-bold uppercase tracking-[1.8px] ${isEmployerAuth ? 'text-[#5B4088]' : 'text-[#1D9E75]'}`}>
+                {isForgot ? 'Account recovery' : isEmployerAuth ? 'For employers' : isSignup ? 'Start your journey' : 'Welcome back'}
               </p>
               <h1 className="font-display mt-2 text-[34px] leading-[1.02] text-[#1A1A1A]">
-                {isForgot ? 'Reset your password' : isSignup ? 'Create your account' : 'Good to see you.'}
+                {isForgot ? 'Reset your password' : isEmployerAuth ? (isSignup ? 'Build your hiring workspace.' : 'Welcome back, employer.') : isSignup ? 'Create your account' : 'Good to see you.'}
               </h1>
               <p className="mt-3 text-sm leading-6 text-[#5F5E5A]">
                 {isForgot
                   ? 'Enter your email and we will send you a secure reset link.'
+                  : isEmployerAuth
+                    ? 'Post roles, review candidates, and keep your hiring moving.'
                   : isSignup
                     ? 'Real roles, verified employers, one profile.'
                     : 'Sign in to pick up right where you left off.'}
               </p>
             </div>
 
-            {!isForgot && (
+            {!isForgot && !singleMode && (
               <div className="relative mt-6 flex rounded-2xl border border-white/90 bg-[#E9EDE7]/80 p-1 shadow-inner">
                 <div
                   className="absolute bottom-1 left-1 top-1 w-[calc(50%-4px)] rounded-xl bg-white shadow-[0_8px_20px_rgba(26,26,26,.08)] transition-transform duration-300 ease-out"
@@ -681,14 +719,14 @@ function PwaAuthCard({
                 <button
                   type="button"
                   onClick={() => switchMode('login')}
-                  className={`relative z-10 flex-1 rounded-xl py-2.5 text-sm font-bold ${!isSignup ? 'text-[#0F6E56]' : 'text-[#8A867E]'}`}
+                  className={`relative z-10 flex-1 rounded-xl py-2.5 text-sm font-bold ${!isSignup ? (isEmployerAuth ? 'text-[#5B4088]' : 'text-[#0F6E56]') : 'text-[#8A867E]'}`}
                 >
                   Sign in
                 </button>
                 <button
                   type="button"
                   onClick={() => switchMode('signup')}
-                  className={`relative z-10 flex-1 rounded-xl py-2.5 text-sm font-bold ${isSignup ? 'text-[#0F6E56]' : 'text-[#8A867E]'}`}
+                  className={`relative z-10 flex-1 rounded-xl py-2.5 text-sm font-bold ${isSignup ? (isEmployerAuth ? 'text-[#5B4088]' : 'text-[#0F6E56]') : 'text-[#8A867E]'}`}
                 >
                   Sign up
                 </button>
@@ -709,7 +747,7 @@ function PwaAuthCard({
               </form>
             ) : (
               <form className="mt-6" onSubmit={onSubmit}>
-                {isSignup && (
+                {isSignup && !roleLocked && (
                   <div className="mb-5">
                     <label className="mb-2 block text-[10px] font-bold uppercase tracking-[1.3px] text-[#5F5E5A]">I’m here to</label>
                     <div className="grid grid-cols-2 gap-2.5">

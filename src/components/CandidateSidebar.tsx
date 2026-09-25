@@ -12,7 +12,7 @@ const links = [
   { to: '/candidate/activity', label: 'Saved & Applied', icon: Bookmark },
   { to: '/candidate/messages', label: 'Messages', icon: MessageSquareText },
   { to: '/candidate/offers', label: 'Offers', icon: Gift },
-  { to: '/candidate/role-pilot', label: 'Role Pilot', icon: Sparkles, soon: true },
+  { to: '/candidate/role-pilot', label: 'Role Pilot', icon: Sparkles },
   { to: '/candidate/pro', label: 'RoleWave Pro', icon: Crown },
   { to: '/candidate/settings', label: 'Settings', icon: Settings },
 ];
@@ -134,7 +134,6 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
             >
               <Icon size={17} />
               {!collapsed && item.label}
-              {!collapsed && item.soon && <span className="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white/60">Soon</span>}
               {showUnread && <UnreadDot />}
           </Link>
         );
@@ -180,7 +179,7 @@ export default function CandidateSidebar({ children }: { children: React.ReactNo
             <img src="/rolewave-icon.png" alt="RoleWave" className="h-[34px] w-[34px] object-contain" />
             {!sidebarCollapsed && <div className="leading-tight">
               <span className="block text-[16px] font-bold text-white">RoleWave</span>
-              <span className="block text-[11px] uppercase tracking-[0.18em] text-white/70">Workspace</span>
+              <span className="block text-[11px] uppercase tracking-[0.18em] text-white/70">Your jobspace</span>
             </div>}
           </Link>
           {!sidebarCollapsed && <NotificationBell role="candidate" variant="dark" />}

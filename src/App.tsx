@@ -11,6 +11,7 @@ import { useAuth } from './lib/useAuth';
 import type { Profile } from './types';
 import Home from './pages/Home';
 import JobListings from './pages/JobListings';
+import FindWork from './pages/FindWork';
 import JobDetail from './pages/JobDetail';
 import PostJob from './pages/PostJob';
 import About from './pages/About';
@@ -206,7 +207,9 @@ function AppShell() {
   const isAdminRoute = path.startsWith('/admin');
   const isPwaLegalRoute = isPwa && (path === '/privacy' || path === '/terms' || path === '/cookie-policy');
   const isApplyRoute = /^\/jobs\/[^/]+\/apply$/.test(path);
-  const isEmployerRoute = path.startsWith('/employer') || path === '/post' || (path === '/help' && profile?.account_type === 'employer');
+  const isAuthRoute = path === '/start' || path === '/candidate/start' || path === '/employer/start';
+  const isEmployerAuthRoute = path === '/employer/start';
+  const isEmployerRoute = (!isEmployerAuthRoute && path.startsWith('/employer')) || path === '/post' || (path === '/help' && profile?.account_type === 'employer');
   const isCandidateOnlyRoute = path.startsWith('/candidate');
   const isSharedBrowseRoute = path === '/jobs' || (/^\/jobs\/[^/]+$/.test(path) && !isApplyRoute);
   const isSidebarUtilityRoute = path === '/about' || path === '/contact' || path === '/faq' || path === '/help' || path === '/blog' || path.startsWith('/blog/');
@@ -228,6 +231,7 @@ function AppShell() {
 
   const showPublicChrome =
     !isAdminRoute &&
+    !isAuthRoute &&
     !isApplyRoute &&
     !isEmployerRoute &&
     !showCandidateSidebar &&
@@ -344,7 +348,7 @@ function AppShell() {
         if (scheduledFor) {
           sessionStorage.removeItem('rolewave-account-deletion-scheduled');
           navigate(`/account-deletion-scheduled?date=${encodeURIComponent(scheduledFor)}`, { replace: true });
-        } else {
+        } else if (!['/start', '/candidate/start', '/employer/start'].includes(window.location.pathname)) {
           navigate('/', { replace: true });
         }
       }
@@ -352,6 +356,12 @@ function AppShell() {
 
     return () => subscription.unsubscribe();
   }, [isPwa, navigate]);
+
+  // Do not render the public homepage while Supabase is restoring a saved
+  // session. This prevents a logged-in user from seeing a landing-page flash.
+  if (path === '/' && authLoading) {
+    return <div className="min-h-screen bg-[#F1EFE8]" aria-label="Loading" />;
+  }
 
   // Installed apps should enter through their app-specific onboarding screen
   // immediately, without first mounting the public homepage at "/".
@@ -365,13 +375,26 @@ function AppShell() {
     return <Navigate to={profile?.account_type === 'employer' ? '/employer/dashboard' : '/candidate/dashboard'} replace />;
   }
 
+  // Returning authenticated users should resume their workspace instead of
+  // landing on the public homepage again.
+  if (!isPwa && path === '/' && session) {
+    if (authLoading || profileLoading) {
+      return <div className="min-h-screen bg-[#F1EFE8]" aria-label="Loading" />;
+    }
+
+    return <Navigate to={profile?.account_type === 'employer' ? '/employer/dashboard' : '/candidate/dashboard'} replace />;
+  }
+
   const routes = (
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/jobs" element={<JobListings />} />
+      <Route path="/find-work" element={<FindWork />} />
       <Route path="/jobs/:slug" element={<JobDetail />} />
       <Route path="/jobs/:slug/apply" element={<JobApplication />} />
       <Route path="/start" element={<AuthLayout />} />
+      <Route path="/candidate/start" element={<AuthLayout />} />
+      <Route path="/employer/start" element={<AuthLayout />} />
       <Route path="/welcome" element={<PwaOnboarding />} />
       <Route path="/account-deletion-scheduled" element={<AccountDeletionScheduled />} />
       <Route path="/confirmed" element={<Confirmed />} />

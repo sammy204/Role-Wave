@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Check, CheckCircle2, Eye, LockKeyhole, Sparkles, Target, X, Zap } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import ComingSoonPage from '../components/ComingSoonPage';
+import FeaturePreviewPage from '../components/FeaturePreviewPage';
 import { roleWaveProEnabled } from '../lib/featureFlags';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/useAuth';
@@ -72,9 +72,20 @@ export default function RoleWavePro() {
 
   if (!roleWaveProEnabled) {
     return (
-      <ComingSoonPage
-        title="RoleWave Pro"
-        description="A more powerful way to get more from your job search is on the way. We’re putting the finishing touches on RoleWave Pro before it launches."
+      <FeaturePreviewPage
+        eyebrow="RoleWave Pro"
+        title="More support for every serious application."
+        description="RoleWave Pro will bring deeper job matching, more guidance from Role Pilot, and a way for verified employers to discover you when your experience matches the right opportunity."
+        steps={[
+          'Understand how your experience lines up with a role.',
+          'Choose how visible your profile should be to employers.',
+          'Be discovered by verified employers looking for relevant experience.',
+        ]}
+        benefits={[
+          'More personalised insight into the roles worth your time.',
+          'A stronger chance of being found for relevant opportunities.',
+          'Expanded access to Role Pilot and new candidate tools.',
+        ]}
       />
     );
   }

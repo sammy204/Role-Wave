@@ -1,5 +1,4 @@
-import { ArrowLeft, Clock3, Sparkles } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Clock3, Sparkles } from 'lucide-react';
 
 export default function ComingSoonPage({ title, description }: { title: string; description: string }) {
   return (
@@ -18,12 +17,6 @@ export default function ComingSoonPage({ title, description }: { title: string; 
             </div>
             <h1 className="mt-4 font-display text-[36px] font-bold tracking-[-0.04em] text-[#1A1A1A] sm:text-[48px]">{title}</h1>
             <p className="mx-auto mt-4 max-w-lg text-sm leading-7 text-[#5F5E5A] sm:text-base">{description}</p>
-            <Link
-              to="/candidate/dashboard"
-              className="mt-7 inline-flex items-center gap-2 rounded-full bg-[#1A1A1A] px-5 py-3 text-sm font-semibold text-white transition-transform hover:-translate-y-[1px]"
-            >
-              <ArrowLeft size={15} /> Back to dashboard
-            </Link>
           </div>
         </section>
       </div>

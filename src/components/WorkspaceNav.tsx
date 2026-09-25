@@ -115,7 +115,7 @@ export default function WorkspaceNav({ role }: { role: WorkspaceRole }) {
               {role === 'employer' ? 'Employer Account' : 'Candidate Account'}
             </span>
             <span className="hidden text-[11px] uppercase tracking-[0.18em] text-[#B4B2A9] sm:block">
-              RoleWave workspace
+              Your hirespace
             </span>
           </div>
         </Link>

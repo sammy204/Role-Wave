@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { ArrowUp, Check, Copy, Download, FileText, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/useAuth';
-import ComingSoonPage from '../components/ComingSoonPage';
+import FeaturePreviewPage from '../components/FeaturePreviewPage';
 import { rolePilotEnabled } from '../lib/featureFlags';
 
 type JobResult = { id: string; title: string; slug: string; company_name: string; location: string; work_type: string; score: number; reasons: string[] };
@@ -13,7 +13,28 @@ type TailoredCv = { name: string; headline: string; summary: string; skills: str
 const welcome: Message = { id: 'welcome', role: 'assistant', text: 'Hi, I’m Role Pilot. I can help you find roles, understand your fit, write cover letters, improve your resume, and plan your next move.' };
 
 export default function RolePilot() {
-  if (!rolePilotEnabled) return <ComingSoonPage title="Role Pilot" description="Your guided job-search companion is being prepared." />;
+  const { session, loading } = useAuth();
+  if (loading) return <div className="min-h-screen bg-[#FBFAF7]" aria-label="Loading" />;
+  if (!session) return <Navigate to="/start?mode=login" replace />;
+  if (!rolePilotEnabled) {
+    return (
+      <FeaturePreviewPage
+        eyebrow="Role Pilot"
+        title="A clearer way to move from job search to application."
+        description="Role Pilot will help you understand your fit, improve your application, and prepare for the next step with practical guidance built around your goals."
+        steps={[
+          'Tell Role Pilot what kind of work you are looking for.',
+          'See which opportunities match your profile and why.',
+          'Get help with your CV, cover letter, and interview preparation.',
+        ]}
+        benefits={[
+          'Practical guidance based on your profile and target roles.',
+          'Clearer next steps instead of guessing what to do next.',
+          'One place to prepare for the full application journey.',
+        ]}
+      />
+    );
+  }
   return <RolePilotWorkspace />;
 }
 

@@ -90,6 +90,10 @@
     @apply min-h-screen flex flex-col relative isolate overflow-hidden;
   }
 
+  .brand-gradient {
+    background: linear-gradient(135deg, #0D3028 0%, #12684F 58%, #1D9E75 100%);
+  }
+
   .page-shell::before {
     content: '';
     position: absolute;
@@ -164,6 +168,16 @@
     @apply cursor-not-allowed opacity-60;
   }
 
+  .employer-auth .pwa-primary-button {
+    border-color: #806BA0;
+    background: #5B4088;
+    box-shadow: 0 12px 28px rgba(91, 64, 136, 0.24);
+  }
+
+  .employer-auth .pwa-primary-button:hover {
+    background: #452F6B;
+  }
+
   .field-shell {
     @apply w-full rounded-xl border border-white/70 bg-white/85 px-3.5 py-3 text-sm text-[#1A1A1A] outline-none transition-colors duration-200 backdrop-blur-xl;
   }
@@ -207,6 +221,10 @@
     background: hsl(calc(145 + var(--confetti-index) * 23), 62%, 54%);
     animation: pro-confetti 1150ms calc(var(--confetti-index) * 24ms) cubic-bezier(0.18, 0.85, 0.28, 1) both;
     transform-origin: center;
+  }
+
+  .job-marquee-track {
+    animation: job-marquee 42s linear infinite;
   }
 }
 
@@ -262,11 +280,32 @@
   100% { opacity: 0; transform: translate(calc(-50% + (var(--confetti-index) - 9) * 42px), 260px) rotate(calc(var(--confetti-index) * 70deg)); }
 }
 
+@keyframes job-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .job-marquee-track {
+    animation: none;
+  }
+
   .pro-celebration-card,
   .pro-celebration-icon,
   .pro-confetti {
     animation: none;
+  }
+}
+
+@media (max-width: 639px) {
+  .landing-page h1 {
+    font-size: clamp(2.25rem, 8.5vw, 3.5rem) !important;
+    line-height: 0.92 !important;
+  }
+
+  .landing-page h2 {
+    font-size: 2.25rem !important;
+    line-height: 0.98 !important;
   }
 }
 

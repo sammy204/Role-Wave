@@ -6,7 +6,6 @@ const socialLinks = [
   {
     name: 'X',
     href: 'https://x.com/rolewavecv',
-    color: '#000000',
     icon: (
       <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
         <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
@@ -16,7 +15,6 @@ const socialLinks = [
   {
     name: 'Reddit',
     href: 'https://reddit.com/r/rolewave',
-    color: '#FF4500',
     icon: (
       <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
         <path d="M22 12.05c0-1.1-.9-2-2-2-.53 0-1.02.21-1.37.55-1.35-.9-3.18-1.48-5.2-1.56l1-4.4 3.2.72a1.5 1.5 0 1 0 .16-.98l-3.6-.81a.5.5 0 0 0-.6.38l-1.12 4.95c-2.05.06-3.9.64-5.26 1.55A1.98 1.98 0 0 0 4 12.05c0 .78.42 1.46 1.05 1.83a3.3 3.3 0 0 0-.05.58c0 2.6 3.13 4.7 7 4.7s7-2.1 7-4.7c0-.2-.02-.39-.05-.58.63-.37 1.05-1.05 1.05-1.83zM8.5 13.4a1.1 1.1 0 1 1 0-2.2 1.1 1.1 0 0 1 0 2.2zm7.15 2.75c-.77.77-2.23 1.04-3.65 1.04s-2.88-.27-3.65-1.04a.4.4 0 0 1 .56-.56c.53.53 1.72.82 3.09.82s2.56-.29 3.09-.82a.4.4 0 0 1 .56.56zm-.15-1.65a1.1 1.1 0 1 1 0-2.2 1.1 1.1 0 0 1 0 2.2z" />
@@ -26,7 +24,6 @@ const socialLinks = [
   {
     name: 'Telegram',
     href: 'https://t.me/rolewave',
-    color: '#229ED9',
     icon: (
       <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
         <path d="M21.6 3.3 2.7 10.59c-.78.3-.77 1.38.02 1.67l4.8 1.77 1.8 5.64c.24.75 1.2.99 1.77.45l2.68-2.54 4.69 3.43c.68.5 1.64.14 1.84-.68l3.2-15.7c.18-.88-.67-1.65-1.52-1.33ZM9.1 13.5l9.35-6.08-6.9 7.1-.27 2.24-1.1-3.26-1.08-.4Zm4.94 2.48.28-2.35 4.05-4.17-3.48 5.23-.85 1.29Z" />
@@ -69,7 +66,7 @@ export default function Footer() {
   };
 
   return (
-    <footer className="border-t border-[#2B5B50] bg-[#123D35] px-5 py-14 text-white sm:px-8 sm:py-16 lg:px-0">
+    <footer className="brand-gradient border-t border-[#2B5B50] px-5 py-14 text-white sm:px-8 sm:py-16 lg:px-0">
       <div className="mx-auto max-w-[1240px]">
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-4 lg:grid-cols-5">
           {/* Brand + newsletter */}
@@ -81,10 +78,9 @@ export default function Footer() {
               className="h-10 w-auto object-contain object-left brightness-0 invert"
             />
             </Link>
-            <span className="mt-3 block max-w-[300px] text-sm leading-6 text-white/60">
-              A more considered way to find work.
-            </span>
-
+            <h2 className="mt-8 max-w-[320px] text-sm font-normal leading-6 text-white/80">
+              Sign up for our newsletter.
+            </h2>
             <form onSubmit={handleSubscribe} className="mt-4 flex max-w-[320px] gap-2">
               <label htmlFor="footer-newsletter" className="sr-only">
                 Email address
@@ -120,7 +116,7 @@ export default function Footer() {
             </span>
             <nav className="mt-3 flex flex-col gap-2">
               <Link to="/about" className="text-sm text-white/60 transition-colors hover:text-white">
-                About Us
+                About RoleWave
               </Link>
               <Link to="/blog" className="text-sm text-white/60 transition-colors hover:text-white">
                 Blog
@@ -163,8 +159,7 @@ export default function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={social.name}
-                style={{ color: social.color }}
-                className="text-white opacity-60 transition hover:scale-110 hover:opacity-100"
+                className="text-[#B8E8D2] opacity-75 transition hover:scale-110 hover:text-white hover:opacity-100"
               >
                 {social.icon}
               </a>
