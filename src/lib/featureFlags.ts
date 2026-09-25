@@ -1,2 +1,4 @@
-export const rolePilotEnabled = import.meta.env.DEV || import.meta.env.VITE_ROLE_PILOT_ENABLED === 'true';
-export const roleWaveProEnabled = import.meta.env.DEV || import.meta.env.VITE_ROLEWAVE_PRO_ENABLED === 'true';
+// Keep unfinished features available for local development only. They must
+// not be enabled accidentally by a production environment variable.
+export const rolePilotEnabled = import.meta.env.DEV;
+export const roleWaveProEnabled = import.meta.env.DEV;
