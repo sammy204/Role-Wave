@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { trackEvent } from '../lib/analytics';
+import { TurnstileWidget } from './TurnstileWidget';
+import type { TurnstileInstance } from '@marsidev/react-turnstile';
 
 interface ReportJobModalProps {
   jobId: string;
@@ -22,9 +24,11 @@ type ReportReason = (typeof REASONS)[number]['value'];
 export default function ReportJobModal({ jobId, isOpen, onClose }: ReportJobModalProps) {
   const [reason, setReason] = useState<ReportReason | ''>('');
   const [details, setDetails] = useState('');
+  const [captchaToken, setCaptchaToken] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const turnstileRef = useRef<TurnstileInstance>(null);
 
   if (!isOpen) return null;
 
@@ -32,14 +36,22 @@ export default function ReportJobModal({ jobId, isOpen, onClose }: ReportJobModa
     if (submitting) return;
     setReason('');
     setDetails('');
+    setCaptchaToken('');
+    setSubmitting(false);
     setSubmitted(false);
     setError('');
+    turnstileRef.current?.reset();
     onClose();
   };
 
   const handleSubmit = async () => {
     if (!reason) {
       setError('Please select a reason.');
+      return;
+    }
+
+    if (!captchaToken) {
+      setError('Please complete the security check.');
       return;
     }
 
@@ -51,6 +63,17 @@ export default function ReportJobModal({ jobId, isOpen, onClose }: ReportJobModa
       if (!user) {
         setError('Please sign in before reporting a job.');
         return;
+      }
+
+      const { data: verification, error: verificationError } = await supabase.functions.invoke('verify-turnstile', {
+        body: {
+          token: captchaToken,
+          action: 'job_report',
+        },
+      });
+
+      if (verificationError || !verification?.success) {
+        throw new Error('Security verification failed. Please try again.');
       }
 
       const { error: insertError } = await supabase.from('reports').insert({
@@ -66,9 +89,11 @@ export default function ReportJobModal({ jobId, isOpen, onClose }: ReportJobModa
       setSubmitted(true);
     } catch (submitError) {
       console.error('Job report submission failed:', submitError);
-      setError('Something went wrong. Please try again.');
+      setError(submitError instanceof Error ? submitError.message : 'Something went wrong. Please try again.');
     } finally {
       setSubmitting(false);
+      setCaptchaToken('');
+      turnstileRef.current?.reset();
     }
   };
 
@@ -107,11 +132,17 @@ export default function ReportJobModal({ jobId, isOpen, onClose }: ReportJobModa
 
             <label className="mt-5 block text-xs font-bold uppercase tracking-[1px] text-[#8A867E]" htmlFor="report-job-details">Additional details <span className="font-normal normal-case tracking-normal">(optional)</span></label>
             <textarea id="report-job-details" value={details} onChange={(event) => setDetails(event.target.value)} rows={3} maxLength={1000} placeholder="Tell us what looks wrong..." className="mt-2 w-full resize-none rounded-xl border border-[#D3D1C7] bg-white px-3 py-2.5 text-sm text-[#1A1A1A] outline-none placeholder:text-[#B4B2A9] focus:border-[#1D9E75]" />
+            <TurnstileWidget
+              ref={turnstileRef}
+              onVerify={setCaptchaToken}
+              onExpire={() => setCaptchaToken('')}
+              action="job_report"
+            />
             {error && <p className="mt-3 text-sm text-[#B3261E]" role="alert">{error}</p>}
 
             <div className="mt-6 flex justify-end gap-2">
               <button type="button" onClick={handleClose} disabled={submitting} className="rounded-xl border border-[#D3D1C7] bg-white px-4 py-2.5 text-sm font-semibold text-[#5F5E5A] hover:bg-[#F1EFE8] disabled:opacity-50">Cancel</button>
-              <button type="button" onClick={() => void handleSubmit()} disabled={submitting} className="rounded-xl bg-[#B3261E] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#922018] disabled:opacity-50">{submitting ? 'Submitting...' : 'Submit report'}</button>
+              <button type="button" onClick={() => void handleSubmit()} disabled={submitting || !captchaToken} className="rounded-xl bg-[#B3261E] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#922018] disabled:cursor-not-allowed disabled:opacity-50">{submitting ? 'Submitting...' : 'Submit report'}</button>
             </div>
           </>
         )}

@@ -552,13 +552,20 @@ export default function CandidateDashboard() {
                     <Link
                       key={job.id}
                       to={`/jobs/${job.slug}`}
-                      className="rounded-2xl border border-[#E8E4DA] bg-[#FBFAF7] p-4 transition-all duration-200 hover:-translate-y-[1px] hover:shadow-[0_14px_30px_rgba(26,26,26,0.06)]"
+                      aria-label={`View ${job.title} at ${job.company?.name || 'Company'}`}
+                      className="group relative cursor-pointer rounded-2xl border border-[#D8E8DF] bg-[#FBFAF7] p-4 pr-12 shadow-[0_8px_20px_rgba(26,26,26,0.03)] transition-all duration-200 hover:-translate-y-[1px] hover:border-[#5DCAA5] hover:bg-white hover:shadow-[0_14px_30px_rgba(26,26,26,0.08)] focus:outline-none focus:ring-2 focus:ring-[#5DCAA5] focus:ring-offset-2"
                     >
                       <div className="truncate text-sm font-semibold text-ink">{job.title}</div>
                       <div className="mt-1 truncate text-xs text-muted">{job.company?.name || 'Company'}</div>
                       <div className="mt-2 flex items-center gap-1 text-xs text-faint">
                         <MapPin size={11} /> {job.location}
                       </div>
+                      <div className="mt-3 inline-flex items-center gap-1 text-[11px] font-bold text-accent-text opacity-80 transition-opacity group-hover:opacity-100">
+                        View role <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
+                      </div>
+                      <span className="absolute right-4 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-accent-light text-accent-text transition-colors group-hover:bg-accent group-hover:text-white">
+                        <ArrowRight size={15} />
+                      </span>
                     </Link>
                   ))}
                 </div>

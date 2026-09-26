@@ -248,6 +248,7 @@ export default function AdminDashboard() {
   const [activityLog, setActivityLog] = useState<AdminActivity[]>([]);
   const [reports, setReports] = useState<AdminReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [importingJoobleJobs, setImportingJoobleJobs] = useState(false);
   const [selectedView, setSelectedView] = useState<AdminView>('overview');
   const [selectedUserType, setSelectedUserType] = useState<UserType>('candidate');
   const [selectedSubmissionTab, setSelectedSubmissionTab] = useState<SubmissionTab>('pending');
@@ -1476,6 +1477,36 @@ export default function AdminDashboard() {
     setCreateForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  const importJoobleJobs = async () => {
+    if (importingJoobleJobs) return;
+
+    setImportingJoobleJobs(true);
+    setNotice('');
+    setError('');
+
+    try {
+      const { data, error: importError } = await supabase.functions.invoke('import-jobs-jooble', {
+        body: { target: 50 },
+      });
+      if (importError) throw importError;
+      if (data?.error) throw new Error(data.error);
+
+      const importedCount = typeof data?.imported === 'number'
+        ? data.imported
+        : typeof data?.count === 'number'
+        ? data.count
+        : null;
+      setNotice(importedCount === null
+        ? 'Jooble job import completed.'
+        : `Imported ${importedCount} Jooble job${importedCount === 1 ? '' : 's'}.`);
+      setDashboardRefreshTick((current) => current + 1);
+    } catch (importErr) {
+      setError(getUserFacingError(importErr, 'We couldn’t import Jooble jobs. Please try again.'));
+    } finally {
+      setImportingJoobleJobs(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F1EFE8]">
@@ -1506,6 +1537,14 @@ export default function AdminDashboard() {
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1D9E75] text-white text-sm font-semibold hover:bg-[#168a63] transition-colors"
             >
               <PlusCircle size={14} /> Create job
+            </button>
+            <button
+              type="button"
+              onClick={importJoobleJobs}
+              disabled={importingJoobleJobs}
+              className="inline-flex items-center gap-2 rounded-lg border border-[#5DCAA5] bg-[#E1F5EE] px-4 py-2 text-sm font-semibold text-[#085041] transition-colors hover:bg-[#D3F1E5] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <PlayCircle size={14} /> {importingJoobleJobs ? 'Importing Jooble jobs...' : 'Import 50 Jooble Jobs'}
             </button>
             <Link
               to="/"

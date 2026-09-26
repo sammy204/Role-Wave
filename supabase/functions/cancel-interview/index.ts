@@ -41,7 +41,7 @@ Deno.serve(async (request) => {
     const { data: jobAccess, error: jobAccessError } = await adminClient
       .from('jobs')
       .select('company_id')
-      .eq('id', applicationAccess.job_id)
+      .eq('id', applicationAccess.job_id) 
       .maybeSingle();
     if (jobAccessError) throw jobAccessError;
 
